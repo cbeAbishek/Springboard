@@ -36,4 +36,10 @@ public class TestCaseServiceImpl implements TestCaseService {
     public List<TestCase> getAllTestCases() {
         return testCaseRepository.findAll();
     }
+
+    // Delete a test case by ID
+    @Override
+    public void deleteTestCase(Long id) {
+        testCaseRepository.deleteById(id);
+    }
 }
