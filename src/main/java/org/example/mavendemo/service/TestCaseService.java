@@ -15,5 +15,7 @@ public interface TestCaseService {
 
     // Fetch all TestCases from database
     List<TestCase> getAllTestCases();
-}
 
+    // Delete a TestCase by its ID
+    void deleteTestCase(Long id);
+}

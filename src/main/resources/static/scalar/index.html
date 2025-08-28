@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Framework API Docs</title>
+    <link rel="icon" href="logo.png" type="image/png" /> <!-- Optional logo -->
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #fff;
+        }
+        header {
+            background-color: #111;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #61dafb;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+<header>🚀 Test Framework API Documentation</header>
+
+<div id="scalar-container" style="height: calc(100vh - 100px);"></div>
+
+<footer>© 2025 QA Team | Powered by Scalar</footer>
+
+<!-- Scalar UI JS -->
+<script src="./scalar.js"></script>
+<script>
+    const openApiSpec = {
+        "openapi": "3.0.1",
+        "info": {
+            "title": "Test Framework API",
+            "description": "API Documentation for managing TestCases and TestResults",
+            "contact": {
+                "name": "QA Team",
+                "url": "https://example.com",
+                "email": "qa-team@example.com"
+            },
+            "license": {
+                "name": "Apache 2.0",
+                "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+            },
+            "version": "1.0"
+        },
+        "servers": [
+            {
+                "url": "http://localhost:8080",
+                "description": "Generated server url"
+            }
+        ],
+        "paths": {
+            "/tests": {
+                "get": {
+                    "tags": ["test-case-controller"],
+                    "operationId": "getAllTestCases",
+                    "responses": {
+                        "200": {
+                            "description": "OK",
+                            "content": {
+                                "*/*": {
+                                    "schema": {
+                                        "type": "array",
+                                        "items": { "$ref": "#/components/schemas/TestCase" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "post": {
+                    "tags": ["test-case-controller"],
+                    "operationId": "createTestCase",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": { "$ref": "#/components/schemas/TestCase" }
+                            }
+                        },
+                        "required": true
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "OK",
+                            "content": {
+                                "*/*": {
+                                    "schema": { "$ref": "#/components/schemas/TestCase" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/tests/{id}": {
+                "get": {
+                    "tags": ["test-case-controller"],
+                    "operationId": "getTestCaseById",
+                    "parameters": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "required": true,
+                            "schema": { "type": "integer", "format": "int64" }
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "OK",
+                            "content": {
+                                "*/*": {
+                                    "schema": { "$ref": "#/components/schemas/TestCase" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "components": {
+            "schemas": {
+                "TestCase": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "integer", "format": "int64" },
+                        "name": { "type": "string" },
+                        "type": { "type": "string" },
+                        "description": { "type": "string" },
+                        "status": { "type": "string" }
+                    }
+                }
+            }
+        }
+    };
+
+    const api = new ScalarApiViewer({
+        dom_id: '#scalar-container',
+        spec: openApiSpec, // Use embedded JSON instead of URL
+        theme: 'dark',     // Dark mode
+        layout: 'modern',
+        hideModels: false,
+        hideSchemas: false
+    });
+</script>
+</body>
+</html>
