@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Case Form - Test Execution Platform</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #06b6d4;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            min-height: calc(100vh - 2rem);
+            margin: 1rem;
+            padding: 2rem 1rem;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            min-height: calc(100vh - 2rem);
+            margin: 1rem;
+            padding: 2rem;
+        }
+
+        .nav-link {
+            color: var(--dark-color);
+            border-radius: 8px;
+            margin: 0.25rem 0;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        .page-title {
+            color: var(--dark-color);
+            font-weight: 700;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.25);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                margin: 0.5rem;
+                padding: 1rem;
+            }
+
+            .main-content {
+                margin: 0.5rem;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2">
+                <div class="sidebar">
+                    <div class="sidebar-brand">
+                        <i class="bi bi-lightning-charge-fill text-primary" style="font-size: 2rem;"></i>
+                        <div class="logo">TestLab Pro</div>
+                    </div>
+
+                    <nav class="nav flex-column">
+                        <a class="nav-link" th:href="@{/ui/}">
+                            <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link active" th:href="@{/ui/testcases}">
+                            <i class="bi bi-list-check me-2"></i>Test Cases
+                        </a>
+                        <a class="nav-link" th:href="@{/ui/results}">
+                            <i class="bi bi-graph-up me-2"></i>Test Results
+                        </a>
+                        <a class="nav-link" th:href="@{/ui/analytics}">
+                            <i class="bi bi-bar-chart me-2"></i>Analytics
+                        </a>
+                        <hr class="my-3">
+                        <a class="nav-link" href="/swagger-ui/index.html" target="_blank">
+                            <i class="bi bi-code-square me-2"></i>API Docs
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10">
+                <div class="main-content">
+                    <!-- Flash Messages -->
+                    <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <span th:text="${success}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+
+                    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span th:text="${error}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+
+                    <!-- Form Content -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="page-title">
+                            <i class="bi bi-file-earmark-plus me-3"></i>
+                            <span th:text="${testCase.id != null ? 'Edit Test Case' : 'Create Test Case'}"></span>
+                        </h1>
+                        <a th:href="@{/ui/testcases}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Test Cases
+                        </a>
+                    </div>
+
+                    <!-- Test Case Form -->
+                    <div class="card">
+                        <div class="card-body">
+                            <form th:action="@{/ui/testcases/save}" th:object="${testCase}" method="post">
+                                <input type="hidden" th:field="*{id}">
+
+                                <div class="row">
+                                    <!-- Basic Information -->
+                                    <div class="col-md-6">
+                                        <h5 class="mb-3">Basic Information</h5>
+
+                                        <div class="mb-3">
+                                            <label for="name" class="form-label">Test Case Name *</label>
+                                            <input type="text" class="form-control" th:field="*{name}" id="name"
+                                                required>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="description" class="form-label">Description</label>
+                                            <textarea class="form-control" th:field="*{description}" id="description"
+                                                rows="3"></textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="type" class="form-label">Test Type</label>
+                                            <select class="form-select" th:field="*{type}" id="type">
+                                                <option value="UI">UI Test</option>
+                                                <option value="API">API Test</option>
+                                                <option value="Integration">Integration Test</option>
+                                                <option value="E2E">End-to-End Test</option>
+                                                <option value="Performance">Performance Test</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="priority" class="form-label">Priority</label>
+                                            <select class="form-select" th:field="*{priority}" id="priority">
+                                                <option value="Low">Low</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="High">High</option>
+                                                <option value="Critical">Critical</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="status" class="form-label">Status</label>
+                                            <select class="form-select" th:field="*{status}" id="status">
+                                                <option value="Active">Active</option>
+                                                <option value="Inactive">Inactive</option>
+                                                <option value="Draft">Draft</option>
+                                                <option value="Deprecated">Deprecated</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Test Details -->
+                                    <div class="col-md-6">
+                                        <h5 class="mb-3">Test Details</h5>
+
+                                        <div class="mb-3">
+                                            <label for="environment" class="form-label">Test Environment</label>
+                                            <select class="form-select" th:field="*{environment}" id="environment">
+                                                <option value="Development">Development</option>
+                                                <option value="Staging">Staging</option>
+                                                <option value="Production">Production</option>
+                                                <option value="QA">QA</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="url" class="form-label">Test URL</label>
+                                            <input type="url" class="form-control" th:field="*{url}" id="url"
+                                                placeholder="https://example.com">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="author" class="form-label">Author</label>
+                                            <input type="text" class="form-control" th:field="*{author}" id="author">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="category" class="form-label">Category</label>
+                                            <input type="text" class="form-control" th:field="*{category}" id="category"
+                                                placeholder="e.g., Authentication, Payment">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="estimatedDuration" class="form-label">Estimated Duration
+                                                (minutes)</label>
+                                            <input type="number" class="form-control" th:field="*{estimatedDuration}"
+                                                id="estimatedDuration" min="1">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Test Steps and Expectations -->
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <h5 class="mb-3">Test Steps</h5>
+                                        <div class="mb-3">
+                                            <label for="testSteps" class="form-label">Test Steps</label>
+                                            <textarea class="form-control" th:field="*{testSteps}" id="testSteps"
+                                                rows="6" placeholder="1. Step 1&#10;2. Step 2&#10;3. Step 3"></textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="prerequisites" class="form-label">Prerequisites</label>
+                                            <textarea class="form-control" th:field="*{prerequisites}"
+                                                id="prerequisites" rows="3"
+                                                placeholder="Any setup or conditions required before running the test"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <h5 class="mb-3">Expected Results & Test Data</h5>
+                                        <div class="mb-3">
+                                            <label for="expectedResults" class="form-label">Expected Results</label>
+                                            <textarea class="form-control" th:field="*{expectedResults}"
+                                                id="expectedResults" rows="6"
+                                                placeholder="Describe the expected outcome of the test"></textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="testData" class="form-label">Test Data</label>
+                                            <textarea class="form-control" th:field="*{testData}" id="testData" rows="3"
+                                                placeholder="Any test data or input values needed"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Form Actions -->
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <hr>
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <a th:href="@{/ui/testcases}" class="btn btn-outline-secondary">
+                                                <i class="bi bi-x-circle me-2"></i>Cancel
+                                            </a>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="bi bi-check-circle me-2"></i>
+                                                <span
+                                                    th:text="${testCase.id != null ? 'Update Test Case' : 'Create Test Case'}"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script>
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function () {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function (alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function (e) {
+            const name = document.getElementById('name').value.trim();
+            if (!name) {
+                e.preventDefault();
+                alert('Test case name is required!');
+                document.getElementById('name').focus();
+                return false;
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::title}, ~{::div})}">
+
+<head>
+    <title>Test Result Details</title>
+</head>
+
+<body>
+    <div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="page-title">
+                <i class="bi bi-clipboard-data me-3"></i>
+                Test Result #<span th:text="${result.id}">1</span>
+                <span class="badge ms-2"
+                    th:classappend="${result.status == 'PASSED' ? 'bg-success' : (result.status == 'FAILED' ? 'bg-danger' : 'bg-warning')}"
+                    th:text="${result.status}">PASSED</span>
+            </h1>
+            <div>
+                <a th:href="@{/ui/testcases/view/{id}(id=${result.testCaseId})}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-list-check me-2"></i>View Test Case
+                </a>
+                <a th:href="@{/ui/results}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Results
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Result Details -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header"
+                        th:classappend="${result.status == 'PASSED' ? 'bg-success' : (result.status == 'FAILED' ? 'bg-danger' : 'bg-warning')}"
+                        class="text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>Execution Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">Test Case ID:</dt>
+                                    <dd class="col-sm-7">
+                                        <a th:href="@{/ui/testcases/view/{id}(id=${result.testCaseId})}"
+                                            class="badge bg-primary text-decoration-none"
+                                            th:text="'#' + ${result.testCaseId}">
+                                            #1
+                                        </a>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Status:</dt>
+                                    <dd class="col-sm-7">
+                                        <span class="badge"
+                                            th:classappend="${result.status == 'PASSED' ? 'bg-success' : (result.status == 'FAILED' ? 'bg-danger' : 'bg-warning')}"
+                                            th:text="${result.status}">PASSED</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Verdict:</dt>
+                                    <dd class="col-sm-7">
+                                        <span th:if="${result.verdict}" class="badge bg-info"
+                                            th:text="${result.verdict}">PASS</span>
+                                        <span th:unless="${result.verdict}" class="text-muted">Not specified</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Duration:</dt>
+                                    <dd class="col-sm-7">
+                                        <span th:if="${result.duration}">
+                                            <span th:text="${result.duration}">1500</span> ms
+                                            <small class="text-muted">
+                                                (<span
+                                                    th:text="${#numbers.formatDecimal(result.duration / 1000.0, 1, 2)}">1.5</span>
+                                                seconds)
+                                            </small>
+                                        </span>
+                                        <span th:unless="${result.duration}" class="text-muted">Not recorded</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Retry Count:</dt>
+                                    <dd class="col-sm-7">
+                                        <span th:text="${result.retryCount ?: '0'}">0</span>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-5">Environment:</dt>
+                                    <dd class="col-sm-7">
+                                        <span th:text="${result.environment ?: 'Not specified'}">STAGING</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Executor:</dt>
+                                    <dd class="col-sm-7">
+                                        <span th:text="${result.executor ?: 'System'}">System</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Platform:</dt>
+                                    <dd class="col-sm-7">
+                                        <span th:text="${result.platform ?: 'Not specified'}">Chrome 118.0</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Executed At:</dt>
+                                    <dd class="col-sm-7">
+                                        <span
+                                            th:text="${#temporals.format(result.executedAt ?: result.createdAt, 'MMM dd, yyyy HH:mm:ss')}">Date</span>
+                                    </dd>
+
+                                    <dt class="col-sm-5">Recorded At:</dt>
+                                    <dd class="col-sm-7">
+                                        <span
+                                            th:text="${#temporals.format(result.createdAt, 'MMM dd, yyyy HH:mm:ss')}">Date</span>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <!-- Notes Section -->
+                        <div th:if="${result.notes}" class="mt-4">
+                            <h6 class="text-primary">
+                                <i class="bi bi-sticky me-2"></i>Notes:
+                            </h6>
+                            <div class="bg-light p-3 rounded">
+                                <pre th:text="${result.notes}" class="mb-0">Test execution notes</pre>
+                            </div>
+                        </div>
+
+                        <!-- Error Message Section -->
+                        <div th:if="${result.errorMessage}" class="mt-4">
+                            <h6 class="text-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Error Details:
+                            </h6>
+                            <div class="bg-danger bg-opacity-10 border border-danger rounded p-3">
+                                <pre th:text="${result.errorMessage}" class="mb-0 text-danger">Error message</pre>
+                            </div>
+                        </div>
+
+                        <!-- Execution Summary -->
+                        <div th:if="${result.executionSummary}" class="mt-4">
+                            <h6 class="text-info">
+                                <i class="bi bi-graph-up me-2"></i>Execution Summary:
+                            </h6>
+                            <div class="bg-light p-3 rounded">
+                                <pre th:text="${result.executionSummary}" class="mb-0">Execution summary</pre>
+                            </div>
+                        </div>
+
+                        <!-- Attachments Section -->
+                        <div th:if="${result.attachments}" class="mt-4">
+                            <h6 class="text-secondary">
+                                <i class="bi bi-paperclip me-2"></i>Attachments:
+                            </h6>
+                            <div class="bg-light p-3 rounded">
+                                <pre th:text="${result.attachments}" class="mb-0">Attachments data</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions & Related Info -->
+            <div class="col-md-4">
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-lightning-fill me-2"></i>Quick Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success"
+                                th:onclick="'executeTest(' + ${result.testCaseId} + ', this)'" data-bs-toggle="tooltip"
+                                title="Re-run this test">
+                                <span class="spinner-border spinner-border-sm loading" role="status"></span>
+                                <span class="btn-text">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Re-run Test
+                                </span>
+                            </button>
+                            <a th:href="@{/ui/testcases/view/{id}(id=${result.testCaseId})}"
+                                class="btn btn-outline-primary">
+                                <i class="bi bi-list-check me-2"></i>View Test Case
+                            </a>
+                            <a th:href="@{/ui/testcases/edit/{id}(id=${result.testCaseId})}"
+                                class="btn btn-outline-warning">
+                                <i class="bi bi-pencil me-2"></i>Edit Test Case
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Execution Metrics -->
+                <div class="card mt-3">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-speedometer2 me-2"></i>Performance Metrics
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-12 mb-3">
+                                <h4 class="text-primary" th:text="${result.duration ?: 'N/A'}">1500</h4>
+                                <small class="text-muted">Duration (ms)</small>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h5 class="text-success" th:text="${result.retryCount ?: '0'}">0</h5>
+                                <small class="text-muted">Retries</small>
+                            </div>
+                            <div class="col-6">
+                                <h5 class="text-info">
+                                    <span th:if="${result.status == 'PASSED'}">✓</span>
+                                    <span th:if="${result.status == 'FAILED'}">✗</span>
+                                    <span th:unless="${result.status == 'PASSED' or result.status == 'FAILED'}">?</span>
+                                </h5>
+                                <small class="text-muted">Result</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Timeline -->
+                <div class="card mt-3">
+                    <div class="card-header bg-dark text-white">
+                        <h6 class="mb-0">
+                            <i class="bi bi-clock-history me-2"></i>Timeline
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-primary"></div>
+                                <div class="timeline-content">
+                                    <h6 class="timeline-title">Test Started</h6>
+                                    <p class="timeline-time"
+                                        th:text="${#temporals.format(result.executedAt ?: result.createdAt, 'HH:mm:ss')}">
+                                        Time</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker"
+                                    th:classappend="${result.status == 'PASSED' ? 'bg-success' : 'bg-danger'}"></div>
+                                <div class="timeline-content">
+                                    <h6 class="timeline-title" th:text="'Test ' + ${result.status}">Test Completed</h6>
+                                    <p class="timeline-time"
+                                        th:text="${result.duration ? #temporals.format(result.createdAt, 'HH:mm:ss') : 'N/A'}">
+                                        Time</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-info"></div>
+                                <div class="timeline-content">
+                                    <h6 class="timeline-title">Result Recorded</h6>
+                                    <p class="timeline-time"
+                                        th:text="${#temporals.format(result.createdAt, 'HH:mm:ss')}">Time</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: -23px;
+            top: 5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px #dee2e6;
+        }
+
+        .timeline-content {
+            padding-left: 10px;
+        }
+
+        .timeline-title {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .timeline-time {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+    </style>
+</body>
+
+</html>

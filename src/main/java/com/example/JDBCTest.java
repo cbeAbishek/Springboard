@@ -7,7 +7,7 @@ import java.sql.Statement;
 
 public class JDBCTest {
     public static void main(String[] args) {
-        String url = "jdbc:mysql://localhost:3306/testdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+        String url = "jdbc:mysql://localhost:3306/testframework_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
         String username = "root";
         String password = "your password";
 

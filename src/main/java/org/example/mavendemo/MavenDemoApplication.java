@@ -16,10 +16,8 @@ public class MavenDemoApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(MavenDemoApplication.class, args);
-        System.out.println("✅ Maven Demo Application Started at: http://localhost:8080");
-        System.out.println("✅ Swagger UI: http://localhost:8080/swagger-ui/index.html");
-        System.out.println("✅ OpenAPI JSON: http://localhost:8080/v3/api-docs");
-        System.out.println("✅ Scalar UI: http://localhost:8080/scalar/index.html");
+        System.out.println("Application started successfully.");
+        System.out.println("Access the API documentation at: http://localhost:8080/ui/");
     }
 
     @Bean
@@ -30,14 +28,6 @@ public class MavenDemoApplication {
                         .version("1.0")
                         .description("Comprehensive API Documentation for managing TestCases and TestResults. " +
                                 "This API provides full CRUD operations for test case management and execution tracking.")
-                        .termsOfService("https://example.com/terms")
-                        .contact(new Contact()
-                                .name("QA Team")
-                                .email("qa-team@example.com")
-                                .url("https://example.com/contact"))
-                        .license(new License()
-                                .name("Apache 2.0")
-                                .url("http://www.apache.org/licenses/LICENSE-2.0.html"))
                 )
                 .servers(List.of(
                         new Server()

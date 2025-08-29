@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Test Execution Platform</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary-color: #06b6d4;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --border-radius: 16px;
+            --border-radius-sm: 8px;
+            --border-radius-lg: 24px;
+            --box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            --box-shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.15);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--dark-color);
+            line-height: 1.6;
+            font-feature-settings: "liga" 1, "kern" 1;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .animate-slide-in-left {
+            animation: slideInLeft 0.6s ease-out forwards;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1000;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 0.5rem;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .mobile-menu-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--box-shadow-lg);
+            min-height: calc(100vh - 2rem);
+            margin: 1rem;
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, var(--primary-color)10%, transparent 70%);
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(6, 182, 212, 0.1));
+            transition: var(--transition);
+        }
+
+        .sidebar-brand:hover {
+            transform: scale(1.02);
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-link {
+            color: var(--dark-color);
+            border-radius: var(--border-radius);
+            padding: 1rem 1.25rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: var(--transition);
+        }
+
+        .nav-link:hover::before {
+            left: 100%;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: #fff !important;
+            transform: translateX(8px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .nav-link i {
+            font-size: 1.1rem;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover i,
+        .nav-link.active i {
+            transform: scale(1.1);
+        }
+
+        /* Main Content */
+        .main-content {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--box-shadow-lg);
+            min-height: calc(100vh - 2rem);
+            margin: 1rem;
+            padding: 2.5rem;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-content::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, var(--primary-color)10%, transparent);
+            opacity: 0.03;
+            animation: rotate 60s linear infinite;
+            pointer-events: none;
+        }
+
+        .page-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        /* Stats Cards */
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: rotate 10s linear infinite;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .stats-card:hover::before {
+            opacity: 1;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(79, 70, 229, 0.3);
+        }
+
+        .stats-card:nth-child(2) {
+            background: linear-gradient(135deg, var(--success-color), #34d399);
+        }
+
+        .stats-card:nth-child(3) {
+            background: linear-gradient(135deg, var(--danger-color), #f87171);
+        }
+
+        .stats-card:nth-child(4) {
+            background: linear-gradient(135deg, var(--warning-color), #fbbf24);
+        }
+
+        .stats-number {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-label {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+
+        .stats-icon {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-size: 2rem;
+            opacity: 0.3;
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+            background: white;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            font-weight: 600;
+            font-size: 1.2rem;
+            background: rgba(79, 70, 229, 0.05);
+            border-bottom: 1px solid rgba(79, 70, 229, 0.1);
+            padding: 1.5rem 2rem;
+            color: var(--dark-color);
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        /* Buttons */
+        .btn {
+            border-radius: var(--border-radius);
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
+            color: white;
+        }
+
+        .btn-outline-primary {
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            background: transparent;
+        }
+
+        .btn-outline-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--primary-color);
+            transition: var(--transition);
+            z-index: -1;
+        }
+
+        .btn-outline-primary:hover::before {
+            left: 0;
+        }
+
+        .btn-outline-primary:hover {
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        /* Tables */
+        .table {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .table thead {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        }
+
+        .table thead th {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--dark-color);
+            padding: 1rem 1.5rem;
+            border: none;
+        }
+
+        .table tbody td {
+            padding: 1rem 1.5rem;
+            border: none;
+            vertical-align: middle;
+        }
+
+        .table tbody tr {
+            border-bottom: 1px solid #f1f5f9;
+            transition: var(--transition);
+        }
+
+        .table tbody tr:hover {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(6, 182, 212, 0.05));
+            transform: scale(1.01);
+        }
+
+        .table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        /* Badges */
+        .badge {
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Empty States */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #6b7280;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark-color);
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                width: 280px;
+                z-index: 999;
+                transform: translateX(-100%);
+                transition: var(--transition);
+                margin: 0;
+                border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;
+                height: 100vh;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin: 0;
+                padding: 1.5rem;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+
+            .page-title {
+                font-size: 1.75rem;
+                margin-top: 3rem;
+            }
+
+            .stats-card {
+                margin-bottom: 1rem;
+            }
+
+            .card-body {
+                padding: 1.5rem;
+            }
+
+            .empty-state {
+                padding: 2rem 1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .stats-number {
+                font-size: 2.5rem;
+            }
+
+            .stats-label {
+                font-size: 1rem;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .card-header {
+                padding: 1rem 1.5rem;
+                font-size: 1rem;
+            }
+
+            .table thead th,
+            .table tbody td {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+}
+
+.progress {
+background: rgba(255, 255, 255, 0.2);
+height: 8px;
+border-radius: 4px;
+}
+
+.progress-bar {
+background: linear-gradient(90deg, #28a745, #20c997);
+border-radius: 4px;
+}
+
+.table {
+background: rgba(255, 255, 255, 0.1);
+backdrop-filter: blur(5px);
+border-radius: 12px;
+overflow: hidden;
+}
+
+.table th {
+background: rgba(255, 255, 255, 0.2);
+color: white;
+border: none;
+font-weight: 600;
+}
+
+.table td {
+background: rgba(255, 255, 255, 0.05);
+color: white;
+border: none;
+vertical-align: middle;
+}
+
+.badge {
+padding: 0.5rem 1rem;
+border-radius: 20px;
+font-weight: 500;
+}
+
+.chart-container {
+background: rgba(255, 255, 255, 0.1);
+border-radius: 12px;
+padding: 20px;
+}
+</style>
+</head>
+
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation menu">
+        <i class="bi bi-list" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2">
+                <div class="sidebar" id="sidebar">
+                    <div>
+                        <div class="sidebar-brand">
+                            <i class="bi bi-lightning-charge-fill text-primary" style="font-size: 2rem;"></i>
+                            <div class="logo">TestLab Pro</div>
+                        </div>
+
+                        <nav class="nav flex-column" role="navigation">
+                            <a class="nav-link active" th:href="@{/ui/}" role="menuitem" aria-current="page">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                            <a class="nav-link" th:href="@{/ui/testcases}" role="menuitem">
+                                <i class="bi bi-list-check"></i> Test Cases
+                            </a>
+                            <a class="nav-link" th:href="@{/ui/results}" role="menuitem">
+                                <i class="bi bi-graph-up"></i> Test Results
+                            </a>
+                            <a class="nav-link" th:href="@{/ui/analytics}" role="menuitem">
+                                <i class="bi bi-bar-chart"></i> Analytics
+                            </a>
+                            <hr class="my-3">
+                            <a class="nav-link" href="/swagger-ui/index.html" target="_blank" role="menuitem">
+                                <i class="bi bi-code-square"></i> API Docs
+                                <i class="bi bi-box-arrow-up-right ms-auto" style="font-size: 0.8rem;"></i>
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10">
+                <div class="main-content">
+                    <!-- Page Header -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h1 class="page-title">
+                                <i class="bi bi-speedometer2 me-3"></i> Dashboard
+                            </h1>
+                            <p class="text-muted mb-0">Test execution overview and real-time statistics</p>
+                        </div>
+                        <div>
+                            <a th:href="@{/ui/testcases}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i> New Test
+                            </a>
+                            <button class="btn btn-outline-primary ms-2" onclick="refreshDashboard()">
+                                <i class="bi bi-arrow-clockwise me-2"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stats-card animate-fade-in-up" style="animation-delay: 0.1s;">
+                                <i class="bi bi-list-check stats-icon"></i>
+                                <div class="stats-number" th:text="${totalTests ?: 0}">0</div>
+                                <div class="stats-label">Total Tests</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stats-card animate-fade-in-up" style="animation-delay: 0.2s;">
+                                <i class="bi bi-check-circle stats-icon"></i>
+                                <div class="stats-number" th:text="${passedTests ?: 0}">0</div>
+                                <div class="stats-label">Passed Tests</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stats-card animate-fade-in-up" style="animation-delay: 0.3s;">
+                                <i class="bi bi-x-circle stats-icon"></i>
+                                <div class="stats-number" th:text="${failedTests ?: 0}">0</div>
+                                <div class="stats-label">Failed Tests</div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="stats-card animate-fade-in-up" style="animation-delay: 0.4s;">
+                                <i class="bi bi-percent stats-icon"></i>
+                                <div class="stats-number" th:text="${successRate ?: '0'} + '%'">0%</div>
+                                <div class="stats-label">Success Rate</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row mb-4">
+                        <!-- Test Results Chart -->
+                        <div class="col-lg-6 mb-4">
+                            <div class="card h-100 animate-fade-in-up" style="animation-delay: 0.5s;">
+                                <div class="card-header">
+                                    <i class="bi bi-pie-chart me-2"></i> Test Results Distribution
+                                </div>
+                                <div class="card-body d-flex justify-content-center align-items-center"
+                                    style="height: 300px;">
+                                    <div th:if="${totalTests == 0}" class="empty-state">
+                                        <i class="bi bi-graph-up"></i>
+                                        <h3>No Data Available</h3>
+                                        <p>Start running tests to see your results distribution</p>
+                                        <a th:href="@{/ui/testcases}" class="btn btn-primary">
+                                            <i class="bi bi-play-circle me-2"></i> Run Your First Test
+                                        </a>
+                                    </div>
+                                    <canvas th:if="${totalTests > 0}" id="resultsChart"
+                                        style="max-height: 280px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="col-lg-6 mb-4">
+                            <div class="card h-100 animate-fade-in-up" style="animation-delay: 0.6s;">
+                                <div class="card-header">
+                                    <i class="bi bi-clock-history me-2"></i> Recent Test Activity
+                                </div>
+                                <div class="card-body">
+                                    <div th:if="${#lists.isEmpty(recentResults)}" class="empty-state">
+                                        <i class="bi bi-inbox"></i>
+                                        <h3>No Recent Activity</h3>
+                                        <p>Your recent test executions will appear here</p>
+                                    </div>
+                                    <div th:unless="${#lists.isEmpty(recentResults)}">
+                                        <div class="list-group list-group-flush">
+                                            <div th:each="result : ${recentResults}"
+                                                class="list-group-item d-flex justify-content-between align-items-start border-0 px-0">
+                                                <div class="ms-2 me-auto">
+                                                    <div class="fw-bold"
+                                                        th:text="${result.testCase?.name ?: 'Unknown Test'}">Test Name
+                                                    </div>
+                                                    <small class="text-muted"
+                                                        th:text="${#temporals.format(result.createdAt, 'MMM dd, yyyy HH:mm')}">Date</small>
+                                                </div>
+                                                <span class="badge"
+                                                    th:classappend="${result.status == 'PASSED' ? 'bg-success' : 
+                                                                        result.status == 'FAILED' ? 'bg-danger' : 'bg-warning'}"
+                                                    th:text="${result.status}">Status</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-center mt-3">
+                                            <a th:href="@{/ui/results}" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-arrow-right me-2"></i> View All Results
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions & Test Cases -->
+                    <div class="row">
+                        <!-- Quick Actions -->
+                        <div class="col-lg-4 mb-4">
+                            <div class="card animate-fade-in-up" style="animation-delay: 0.7s;">
+                                <div class="card-header">
+                                    <i class="bi bi-lightning me-2"></i> Quick Actions
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <a th:href="@{/ui/testcases/new}" class="btn btn-primary">
+                                            <i class="bi bi-plus-circle me-2"></i> Create New Test Case
+                                        </a>
+                                        <a th:href="@{/ui/results}" class="btn btn-outline-primary">
+                                            <i class="bi bi-graph-up me-2"></i> View Test Results
+                                        </a>
+                                        <a th:href="@{/ui/analytics}" class="btn btn-outline-primary">
+                                            <i class="bi bi-bar-chart me-2"></i> Analytics Dashboard
+                                        </a>
+                                        <a href="/swagger-ui/index.html" target="_blank"
+                                            class="btn btn-outline-primary">
+                                            <i class="bi bi-code-square me-2"></i> API Documentation
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Test Cases Overview -->
+                        <div class="col-lg-8 mb-4">
+                            <div class="card animate-fade-in-up" style="animation-delay: 0.8s;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-list-check me-2"></i> Test Cases Overview</span>
+                                    <a th:href="@{/ui/testcases}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-arrow-right me-2"></i> View All
+                                    </a>
+                                </div>
+                                <div class="card-body">
+                                    <div th:if="${#lists.isEmpty(testCases)}" class="empty-state">
+                                        <i class="bi bi-clipboard-x"></i>
+                                        <h3>No Test Cases Found</h3>
+                                        <p>Create your first test case to get started</p>
+                                        <a th:href="@{/ui/testcases/new}" class="btn btn-primary">
+                                            <i class="bi bi-plus-circle me-2"></i> Create Test Case
+                                        </a>
+                                    </div>
+                                    <div th:unless="${#lists.isEmpty(testCases)}">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Test Case</th>
+                                                        <th>Status</th>
+                                                        <th>Last Run</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr th:each="testCase, iterStat : ${testCases}"
+                                                        th:if="${iterStat.index < 5}">
+                                                        <td>
+                                                            <div class="fw-bold" th:text="${testCase.name}">Test Name
+                                                            </div>
+                                                            <small class="text-muted"
+                                                                th:text="${testCase.description}">Description</small>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge"
+                                                                th:classappend="${testCase.status == 'ACTIVE' ? 'bg-success' : 'bg-secondary'}"
+                                                                th:text="${testCase.status}">Status</span>
+                                                        </td>
+                                                        <td>
+                                                            <span th:if="${testCase.lastExecuted}"
+                                                                th:text="${#temporals.format(testCase.lastExecuted, 'MMM dd, HH:mm')}">Never</span>
+                                                            <span th:unless="${testCase.lastExecuted}"
+                                                                class="text-muted">Never</span>
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-outline-primary btn-sm me-2"
+                                                                th:onclick="'executeTest(' + ${testCase.id} + ', this)'"
+                                                                title="Execute Test">
+                                                                <i class="bi bi-play-circle me-1"></i>
+                                                                <span class="btn-text">Run</span>
+                                                                <span class="loading"></span>
+                                                            </button>
+                                                            <a th:href="@{/ui/testcases/{id}(id=${testCase.id})}"
+                                                                class="btn btn-outline-secondary btn-sm"
+                                                                title="View Details">
+                                                                <i class="bi bi-eye"></i>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Enhanced Dashboard JS -->
+    <script>
+        // Mobile menu toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function (event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+
+            if (window.innerWidth <= 768 &&
+                !sidebar.contains(event.target) &&
+                !toggle.contains(event.target) &&
+                sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Enhanced execute test function
+        function executeTest(testId, button) {
+            const spinner = button.querySelector('.loading');
+            const text = button.querySelector('.btn-text');
+            const icon = button.querySelector('i');
+
+            // Disable button and show loading state
+            button.disabled = true;
+            button.classList.add('animate-pulse');
+
+            if (spinner) spinner.classList.add('show');
+            if (text) text.textContent = 'Running...';
+            if (icon) icon.className = 'bi bi-hourglass-split me-1';
+
+            fetch(`/ui/execute/${testId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.text())
+                .then(data => {
+                    if (data === 'success') {
+                        // Show success state briefly before reload
+                        if (icon) icon.className = 'bi bi-check-circle me-1';
+                        if (text) text.textContent = 'Success!';
+                        button.classList.remove('animate-pulse');
+                        button.classList.add('btn-success');
+
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1000);
+                    } else {
+                        showAlert('Execution failed: ' + data, 'danger');
+                        resetButton();
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error: ' + error, 'danger');
+                    resetButton();
+                });
+
+            function resetButton() {
+                button.disabled = false;
+                button.classList.remove('animate-pulse', 'btn-success');
+                if (spinner) spinner.classList.remove('show');
+                if (text) text.textContent = 'Run';
+                if (icon) icon.className = 'bi bi-play-circle me-1';
+            }
+        }
+
+        // Refresh dashboard
+        function refreshDashboard() {
+            location.reload();
+        }
+
+        // Show alert function
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.querySelector('.main-content');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show animate-fade-in-up`;
+            alert.setAttribute('role', 'alert');
+
+            const iconMap = {
+                success: 'bi-check-circle',
+                danger: 'bi-exclamation-triangle',
+                warning: 'bi-exclamation-triangle',
+                info: 'bi-info-circle'
+            };
+
+            alert.innerHTML = `
+                <i class="bi ${iconMap[type]} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+
+            alertContainer.insertBefore(alert, alertContainer.firstChild);
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        }
+
+        // Initialize charts
+        document.addEventListener('DOMContentLoaded', function () {
+            const resultsChart = document.getElementById('resultsChart');
+            if (resultsChart) {
+                const ctx = resultsChart.getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Passed', 'Failed', 'Pending'],
+                        datasets: [{
+                            data: [
+                                /*[[${passedTests ?: 0}]]*/ 0,
+                                /*[[${failedTests ?: 0}]]*/ 0,
+                                /*[[${totalTests - (passedTests ?: 0) - (failedTests ?: 0)}]]*/ 0
+                            ],
+                            backgroundColor: [
+                                '#10b981',
+                                '#ef4444',
+                                '#f59e0b'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+        // Auto-refresh dashboard every 30 seconds
+        setInterval(function () {
+            // Only refresh if page is visible
+            if (!document.hidden) {
+                location.reload();
+            }
+        }, 30000);
+    </script>
+</body>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="text-white-50">Overall Test Pass Rate</span>
+    <span class="text-white fw-bold" id="successRate">0%</span>
+</div>
+<div class="progress">
+    <div class="progress-bar" role="progressbar" id="successProgressBar" style="width: 0%">
+    </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Charts and Recent Tests -->
+<div class="row">
+    <!-- Test Results Chart -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-white mb-3">
+                    <i class="bi bi-pie-chart"></i>
+                    Test Results Distribution
+                </h5>
+                <div class="chart-container">
+                    <canvas id="resultsChart" width="300" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Test Results -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-white mb-3">
+                    <i class="bi bi-clock-history"></i>
+                    Recent Test Results
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Test Case</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="result : ${recentResults}">
+                                <td>
+                                    <a th:href="@{'/ui/testcases/view/' + ${result.testCaseId}}"
+                                        class="text-white text-decoration-none">
+                                        <i class="bi bi-file-text"></i>
+                                        <span th:text="${result.testCaseId}">Test Case</span>
+                                    </a>
+                                </td>
+                                <td>
+                                    <span th:if="${result.status == 'PASSED'}" class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Passed
+                                    </span>
+                                    <span th:if="${result.status == 'FAILED'}" class="badge bg-danger">
+                                        <i class="bi bi-x-circle"></i> Failed
+                                    </span>
+                                    <span th:if="${result.status == 'RUNNING'}" class="badge bg-warning">
+                                        <i class="bi bi-play-circle"></i> Running
+                                    </span>
+                                </td>
+                                <td class="text-white-50"
+                                    th:text="${result.duration != null ? result.duration + 'ms' : 'N/A'}">
+                                    N/A
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="/ui/results" class="btn btn-glass">
+                        <i class="bi bi-arrow-right"></i>
+                        View All Results
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Cases Overview -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title text-white mb-0">
+                        <i class="bi bi-list-check"></i>
+                        Test Cases Overview
+                    </h5>
+                    <a href="/ui/testcases/new" class="btn btn-glass">
+                        <i class="bi bi-plus-circle"></i>
+                        New Test Case
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="testCase : ${testCases}" th:if="${testCaseStat.index < 5}">
+                                <td>
+                                    <a th:href="@{'/ui/testcases/view/' + ${testCase.id}}"
+                                        class="text-white text-decoration-none fw-bold">
+                                        <span th:text="${testCase.name}">Test Case Name</span>
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info" th:text="${testCase.type}">UI</span>
+                                </td>
+                                <td>
+                                    <span th:if="${testCase.priority == 'HIGH'}" class="badge bg-danger">High</span>
+                                    <span th:if="${testCase.priority == 'MEDIUM'}"
+                                        class="badge bg-warning">Medium</span>
+                                    <span th:if="${testCase.priority == 'LOW'}" class="badge bg-secondary">Low</span>
+                                </td>
+                                <td>
+                                    <span th:if="${testCase.status == 'ACTIVE'}" class="badge bg-success">Active</span>
+                                    <span th:if="${testCase.status == 'INACTIVE'}"
+                                        class="badge bg-secondary">Inactive</span>
+                                    <span th:if="${testCase.status == 'DRAFT'}" class="badge bg-warning">Draft</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-glass me-1" onclick="executeTest([[${testCase.id}]])"
+                                        title="Execute Test">
+                                        <i class="bi bi-play-circle"></i>
+                                    </button>
+                                    <a th:href="@{'/ui/testcases/edit/' + ${testCase.id}}" class="btn btn-sm btn-glass"
+                                        title="Edit Test Case">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="/ui/testcases" class="btn btn-glass">
+                        <i class="bi bi-arrow-right"></i>
+                        View All Test Cases
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Calculate and display success rate
+    const totalTests = parseInt('[[${totalTests}]]') || 0;
+    const passedTests = parseInt('[[${passedTests}]]') || 0;
+    const successRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+
+    document.getElementById('successRate').textContent = successRate + '%';
+    document.getElementById('successProgressBar').style.width = successRate + '%';
+
+    // Results Chart
+    const ctx = document.getElementById('resultsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Passed', 'Failed', 'Running'],
+            datasets: [{
+                data: [
+                    parseInt('[[${passedTests}]]') || 0,
+                    parseInt('[[${failedTests}]]') || 0,
+                    parseInt('[[${activeTests}]]') || 0
+                ],
+                backgroundColor: [
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(220, 53, 69, 0.8)',
+                    'rgba(255, 193, 7, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(255, 193, 7, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        color: 'white',
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Execute test function
+    function executeTest(testCaseId) {
+        if (confirm('Are you sure you want to execute this test?')) {
+            fetch('/ui/execute/' + testCaseId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.text())
+                .then(data => {
+                    if (data === 'success') {
+                        alert('Test execution started successfully!');
+                        location.reload();
+                    } else {
+                        alert('Failed to start test execution: ' + data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while starting test execution.');
+                });
+        }
+    }
+
+    // Auto-refresh every 30 seconds
+    setTimeout(() => {
+        location.reload();
+    }, 30000);
+</script>
+</body>
+
+</html>

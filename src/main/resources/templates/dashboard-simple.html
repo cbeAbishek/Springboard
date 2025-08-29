@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Test Execution Platform</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #06b6d4;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            min-height: calc(100vh - 2rem);
+            margin: 1rem;
+            padding: 2rem 1rem;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            min-height: calc(100vh - 2rem);
+            margin: 1rem;
+            padding: 2rem;
+        }
+
+        .nav-link {
+            color: var(--dark-color);
+            border-radius: 8px;
+            margin: 0.25rem 0;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+            border: none;
+            text-decoration: none;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: scale(1.05);
+        }
+
+        .stats-number {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stats-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        .page-title {
+            color: var(--dark-color);
+            font-weight: 700;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .loading.show {
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2">
+                <div class="sidebar">
+                    <div class="sidebar-brand">
+                        <i class="bi bi-lightning-charge-fill text-primary" style="font-size: 2rem;"></i>
+                        <div class="logo">TestLab Pro</div>
+                    </div>
+
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" th:href="@{/ui/}">
+                            <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link" th:href="@{/ui/testcases}">
+                            <i class="bi bi-list-check me-2"></i>Test Cases
+                        </a>
+                        <a class="nav-link" th:href="@{/ui/results}">
+                            <i class="bi bi-graph-up me-2"></i>Test Results
+                        </a>
+                        <a class="nav-link" th:href="@{/ui/analytics}">
+                            <i class="bi bi-bar-chart me-2"></i>Analytics
+                        </a>
+                        <hr class="my-3">
+                        <a class="nav-link" href="/swagger-ui/index.html" target="_blank">
+                            <i class="bi bi-code-square me-2"></i>API Docs
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10">
+                <div class="main-content">
+                    <!-- Flash Messages -->
+                    <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <span th:text="${success}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+
+                    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span th:text="${error}"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+
+                    <!-- Dashboard Content -->
+                    <h1 class="page-title">
+                        <i class="bi bi-speedometer2 me-3"></i>Dashboard
+                    </h1>
+
+                    <!-- Statistics Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="stats-card">
+                                <div class="stats-number" th:text="${totalTests}">0</div>
+                                <div class="stats-label">Total Test Cases</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="stats-card">
+                                <div class="stats-number" th:text="${activeTests}">0</div>
+                                <div class="stats-label">Active Tests</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="stats-card" style="background: linear-gradient(135deg, #10b981, #059669);">
+                                <div class="stats-number" th:text="${passedTests}">0</div>
+                                <div class="stats-label">Passed (Recent)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="stats-card" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                                <div class="stats-number" th:text="${failedTests}">0</div>
+                                <div class="stats-label">Failed (Recent)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Recent Test Cases -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-list-check me-2"></i>Recent Test Cases
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div th:if="${#lists.isEmpty(testCases)}" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox display-4"></i>
+                                        <p class="mt-2">No test cases found</p>
+                                        <a th:href="@{/ui/testcases/new}" class="btn btn-primary">
+                                            <i class="bi bi-plus-circle me-2"></i>Create First Test Case
+                                        </a>
+                                    </div>
+
+                                    <div th:if="${!#lists.isEmpty(testCases)}">
+                                        <div th:each="testCase, iterStat : ${testCases}" th:if="${iterStat.index < 5}"
+                                            class="d-flex justify-content-between align-items-center border-bottom py-3">
+                                            <div>
+                                                <h6 class="mb-1" th:text="${testCase.name}">Test Name</h6>
+                                                <small class="text-muted">
+                                                    <span class="badge bg-secondary me-2"
+                                                        th:text="${testCase.type}">Type</span>
+                                                    <span
+                                                        th:text="${#temporals.format(testCase.updatedAt, 'MMM dd, yyyy')}">Date</span>
+                                                </small>
+                                            </div>
+                                            <div>
+                                                <span class="badge"
+                                                    th:classappend="${testCase.status == 'Active' ? 'bg-success' : 'bg-warning'}"
+                                                    th:text="${testCase.status}">Status</span>
+                                                <button class="btn btn-sm btn-outline-primary ms-2"
+                                                    th:onclick="'executeTest(' + ${testCase.id} + ', this)'"
+                                                    data-bs-toggle="tooltip" title="Execute Test">
+                                                    <span class="spinner-border spinner-border-sm loading"
+                                                        role="status"></span>
+                                                    <span class="btn-text">
+                                                        <i class="bi bi-play-fill"></i>
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="text-center mt-3">
+                                            <a th:href="@{/ui/testcases}" class="btn btn-outline-primary">
+                                                <i class="bi bi-arrow-right me-2"></i>View All Test Cases
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Test Results -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-graph-up me-2"></i>Recent Test Results
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div th:if="${#lists.isEmpty(recentResults)}" class="text-center text-muted py-4">
+                                        <i class="bi bi-clipboard-data display-4"></i>
+                                        <p class="mt-2">No test results found</p>
+                                        <small>Execute some tests to see results here</small>
+                                    </div>
+
+                                    <div th:if="${!#lists.isEmpty(recentResults)}">
+                                        <div th:each="result : ${recentResults}"
+                                            class="d-flex justify-content-between align-items-center border-bottom py-3">
+                                            <div>
+                                                <h6 class="mb-1">Test Case #<span
+                                                        th:text="${result.testCaseId}">1</span></h6>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-clock me-1"></i>
+                                                    <span
+                                                        th:text="${#temporals.format(result.createdAt, 'MMM dd, yyyy HH:mm')}">Date</span>
+                                                    <span th:if="${result.duration}" class="ms-2">
+                                                        (<span th:text="${result.duration}">0</span>ms)
+                                                    </span>
+                                                </small>
+                                            </div>
+                                            <div>
+                                                <span class="badge"
+                                                    th:classappend="${result.status == 'PASSED' ? 'bg-success' : (result.status == 'FAILED' ? 'bg-danger' : 'bg-warning')}"
+                                                    th:text="${result.status}">Status</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-center mt-3">
+                                            <a th:href="@{/ui/results}" class="btn btn-outline-info">
+                                                <i class="bi bi-arrow-right me-2"></i>View All Results
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-dark text-white">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-lightning-fill me-2"></i>Quick Actions
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <a th:href="@{/ui/testcases/new}" class="btn btn-primary w-100 py-3">
+                                                <i class="bi bi-plus-circle display-6 d-block mb-2"></i>
+                                                <span class="fw-bold">Create Test Case</span>
+                                            </a>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <a th:href="@{/ui/testcases}" class="btn btn-outline-primary w-100 py-3">
+                                                <i class="bi bi-list-check display-6 d-block mb-2"></i>
+                                                <span class="fw-bold">Manage Tests</span>
+                                            </a>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <a th:href="@{/ui/results}" class="btn btn-outline-info w-100 py-3">
+                                                <i class="bi bi-clipboard-data display-6 d-block mb-2"></i>
+                                                <span class="fw-bold">View Results</span>
+                                            </a>
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <a th:href="@{/ui/analytics}" class="btn btn-outline-success w-100 py-3">
+                                                <i class="bi bi-bar-chart display-6 d-block mb-2"></i>
+                                                <span class="fw-bold">Analytics</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script>
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function () {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function (alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+
+        // Execute test function
+        function executeTest(testId, button) {
+            const spinner = button.querySelector('.loading');
+            const text = button.querySelector('.btn-text');
+
+            button.disabled = true;
+            spinner.classList.add('show');
+            text.textContent = 'Executing...';
+
+            fetch(`/ui/execute/${testId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.text())
+                .then(data => {
+                    if (data === 'success') {
+                        location.reload();
+                    } else {
+                        alert('Execution failed: ' + data);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                })
+                .finally(() => {
+                    button.disabled = false;
+                    spinner.classList.remove('show');
+                    text.textContent = 'Execute';
+                });
+        }
+    </script>
+</body>
+
+</html>

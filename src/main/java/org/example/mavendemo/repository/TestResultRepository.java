@@ -17,4 +17,11 @@ public interface TestResultRepository extends JpaRepository<TestResult, Long> {
 
     // Find test results ordered by execution date (most recent first)
     List<TestResult> findAllByOrderByExecutedAtDesc();
+
+    // Find test results for a specific test case ordered by creation date (most
+    // recent first)
+    List<TestResult> findByTestCaseIdOrderByCreatedAtDesc(Long testCaseId);
+
+    // Find top 10 most recent test results
+    List<TestResult> findTop10ByOrderByCreatedAtDesc();
 }
