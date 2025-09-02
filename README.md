@@ -1,298 +1,171 @@
-# Testing Framework using Java, Maven, and Spring Boot
+# Automation Framework for Regression Testing
 
 ## Overview
-
-This project demonstrates how to create a **Testing Framework** using **Java**, **Maven**, and **Spring Boot**. It was developed as part of an Infosys internship project to ensure modular, scalable, and maintainable automated tests for Spring Boot applications.
-
-The framework now includes **Test Execution Integration** with both **UI (Selenium)** and **API (REST-Assured)** test capabilities, allowing you to execute tests through REST APIs and save results to the database.
-
----
+This is a comprehensive automation framework for managing regression testing of web and API applications using core Java technologies. The framework leverages Spring Boot, Selenium WebDriver, REST-Assured, and multithreading for efficient test execution and management.
 
 ## Features
+- **Web UI Testing** with Selenium WebDriver
+- **API Testing** with REST-Assured
+- **Parallel Test Execution** with configurable thread pools
+- **Test Scheduling** with Quartz Scheduler
+- **Comprehensive Reporting** (HTML, CSV, JUnit formats)
+- **Screenshot Capture** on test failures
+- **Analytics and Trend Analysis**
+- **RESTful APIs** for web-based management
+- **Database Storage** for test results and metrics
 
-* **Spring Boot Integration** for application testing.
-* **JUnit** for unit and integration testing.
-* **Maven** for dependency management and build automation.
-* **Test Suites** for organized test execution.
-* **Environment Configuration** using `application.properties` and profiles.
-* **Extensible Structure** for adding new test cases easily.
-* **🆕 UI Test Execution** using Selenium WebDriver (Google Search Test).
-* **🆕 API Test Execution** using REST-Assured (GitHub API Test).
-* **🆕 Test Execution Service** to run tests programmatically.
-* **🆕 REST APIs** for triggering test execution and retrieving results.
-* **🆕 Database Integration** for storing test results with timestamps.
+## Architecture - Four Core Modules
 
----
+### 1. Test Integration Engine
+- **WebDriverManager**: Manages WebDriver instances with support for Chrome, Firefox, and Edge
+- **WebUITestExecutor**: Executes web UI tests with screenshot capture on failures
+- **ApiTestExecutor**: Executes API tests with comprehensive validation
 
-## Prerequisites
+### 2. Scheduling and Execution System
+- **TestScheduler**: Manages test scheduling with cron expressions
+- **TestExecutionService**: Handles batch processing and parallel execution
+- **Quartz Integration**: For reliable job scheduling and execution
 
-Ensure the following are installed:
+### 3. Reporting and Log Collection Hub
+- **ReportGenerator**: Creates HTML, CSV, and JUnit reports
+- **ScreenshotUtils**: Captures and manages failure screenshots
+- **ReportingService**: Asynchronous report generation
 
-* **Java 17** or above
-* **Apache Maven** (latest version)
-* **Spring Boot** (via Maven dependencies)
-* **IDE** like IntelliJ IDEA or Eclipse
+### 4. Result Analytics Tracker
+- **AnalyticsService**: Provides trend analysis and regression metrics
+- **Database Storage**: Persistent storage of test results and analytics
 
----
+## Technology Stack
+- **Java 21** with Spring Boot 3.1.5
+- **Selenium WebDriver 4.15.0** for web automation
+- **REST-Assured 5.3.2** for API testing
+- **Quartz Scheduler** for test scheduling
+- **H2/MySQL Database** for data persistence
+- **ExtentReports** for comprehensive reporting
+- **TestNG** for test execution
+- **Maven** for build management
 
-## Project Structure
+## Getting Started
 
-```
-project-root
-│   pom.xml               # Maven configuration file
-│
-├── src
-│   ├── main
-│   │   ├── java          # Application source code
-│   │   └── resources     # Application resources
-│   │
-│   └── test
-│       ├── java          # Test classes (unit and integration)
-│       └── resources     # Test configuration files
-│
-└── README.md             # Documentation
-```
+### Prerequisites
+- Java 21
+- Maven 3.8+
+- Chrome/Firefox/Edge browser
 
----
+### Installation
+1. Clone the repository
+2. Navigate to project directory
+3. Run: `mvn clean install`
+4. Run: `mvn spring-boot:run`
 
-## Steps to Create the Framework
+### Configuration
+Configure the framework in `application.properties`:
 
-### 1. **Initialize Maven Project**
+```properties
+# Database Configuration
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.h2.console.enabled=true
 
-* Use Maven archetype to create a Spring Boot project.
-* Configure `pom.xml` for dependencies:
-
-    * Spring Boot Starter
-    * Spring Boot Starter Test
-    * JUnit 5
-
-### 2. **Configure Application Properties**
-
-* Set test-specific properties in `src/test/resources/application-test.properties`.
-* Use Spring Profiles to separate dev, test, and prod configurations.
-
-### 3. **Write Test Classes**
-
-* Create unit tests for individual components (services, controllers).
-* Implement integration tests for end-to-end flow using Spring Boot Test.
-* Use annotations like `@SpringBootTest`, `@Test`, `@BeforeAll`, and `@AfterAll`.
-
-### 4. **Organize Test Suites**
-
-* Group related tests into suites for efficient execution.
-* Define suite classes to run multiple tests together.
-
-### 5. **Run Tests**
-
-* Execute tests via Maven:
-
-  ```
-  mvn test
-  ```
-* View test results in the console or generated reports.
-
----
-
-## Test Execution Integration
-
-### Sample Tests Available
-
-#### 1. Google Search Test (UI)
-- **Type**: UI (Selenium WebDriver)
-- **Description**: Opens Google homepage, searches for "Spring Boot Testing", validates page title contains "Spring Boot"
-- **Test Class**: `GoogleSearchTest`
-- **Returns**: PASS/FAIL based on title validation
-
-#### 2. GitHub API Test (API)
-- **Type**: API (REST-Assured)
-- **Description**: Calls GET https://api.github.com and validates response status code is 200
-- **Test Class**: `GitHubApiTest`
-- **Returns**: PASS/FAIL based on status code validation
-
-### Test Execution APIs
-
-#### Execute Test Case
-```http
-POST /api/tests/run/{id}
+# Framework Settings
+automation.framework.webDriver.defaultBrowser=chrome
+automation.framework.execution.maxParallelThreads=5
+automation.framework.reporting.outputPath=test-reports/
 ```
 
-**Description**: Triggers execution of a test case by ID. Supports both UI and API test types.
+## REST API Endpoints
 
-**Path Parameters**:
-- `id` (Long): ID of the test case to execute
+### Test Execution
+- `POST /api/execution/batch` - Execute test batch
+- `POST /api/execution/single/{testCaseId}` - Execute single test
+- `GET /api/execution/batch/{batchId}` - Get batch status
 
-**Example Request**:
-```bash
-curl -X POST http://localhost:8080/api/tests/run/1
-```
+### Test Case Management
+- `GET /api/testcases` - Get all test cases
+- `POST /api/testcases` - Create new test case
+- `PUT /api/testcases/{id}` - Update test case
+- `DELETE /api/testcases/{id}` - Delete test case
 
-**Example Response** (Success):
+### Scheduling
+- `GET /api/schedules` - Get all schedules
+- `POST /api/schedules` - Create new schedule
+- `POST /api/schedules/{id}/activate` - Activate schedule
+
+### Analytics
+- `GET /api/analytics/trends` - Get trend analysis
+- `GET /api/analytics/regression/{environment}` - Get regression metrics
+
+### Reporting
+- `POST /api/reports/generate/{batchId}` - Generate all reports
+- `POST /api/reports/html/{batchId}` - Generate HTML report
+
+## Usage Examples
+
+### Creating a Test Case
 ```json
+POST /api/testcases
 {
-  "success": true,
-  "message": "Test case executed successfully",
-  "testResult": {
-    "id": 1,
-    "testCaseId": 1,
-    "status": "PASSED",
-    "executedAt": "2024-08-29T10:30:00",
-    "duration": 3500,
-    "notes": "UI test completed successfully | Google Search Test - Searches for 'Spring Boot Testing' and validates page title contains 'Spring Boot'",
-    "createdAt": "2024-08-29T10:30:03"
-  }
+  "name": "Login Test",
+  "description": "Test user login functionality",
+  "testType": "WEB_UI",
+  "testData": "{\"url\":\"https://example.com/login\"}",
+  "expectedResult": "Dashboard",
+  "priority": "HIGH",
+  "testSuite": "smoke",
+  "environment": "staging"
 }
 ```
 
-**Example Response** (Test Not Found):
+### Executing a Test Batch
 ```json
+POST /api/execution/batch
 {
-  "success": false,
-  "message": "Test case with ID 999 not found or not executable",
-  "supportedTypes": ["UI", "API"]
+  "testSuite": "smoke",
+  "environment": "staging",
+  "parallelThreads": 3
 }
 ```
 
-#### Get Latest Test Result
-```http
-GET /api/tests/result/{id}
-```
-
-**Description**: Retrieves the latest test execution result for a specific test case ID.
-
-**Example Request**:
-```bash
-curl -X GET http://localhost:8080/api/tests/result/1
-```
-
-#### Service Health Check
-```http
-GET /api/tests/health
-```
-
-**Description**: Health check endpoint for test execution service.
-
-**Example Response**:
+### Creating a Schedule
 ```json
+POST /api/schedules
 {
-  "service": "Test Execution Service",
-  "status": "UP",
-  "timestamp": "2024-08-29T10:30:00",
-  "supportedTestTypes": ["UI", "API"]
+  "scheduleName": "Daily Smoke Tests",
+  "cronExpression": "0 0 2 * * ?",
+  "testSuite": "smoke",
+  "environment": "staging",
+  "parallelThreads": 2
 }
 ```
 
-### Testing the Complete Flow
+## Database Schema
+The framework uses the following main entities:
+- **TestCase**: Test case definitions
+- **TestExecution**: Individual test execution results
+- **TestBatch**: Batch execution tracking
+- **TestSchedule**: Scheduled test configurations
 
-#### Step 1: Create a Test Case (if not exists)
-```bash
-# Create UI Test Case
-curl -X POST http://localhost:8080/api/tests \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Google Search UI Test",
-    "type": "UI",
-    "description": "Selenium test for Google search functionality",
-    "status": "Active"
-  }'
+## Reports and Analytics
+- **HTML Reports**: Comprehensive visual reports with charts
+- **CSV Reports**: Data export for external analysis
+- **JUnit Reports**: CI/CD integration support
+- **Trend Analysis**: Pass/fail rates over time
+- **Regression Metrics**: Stability and detection rates
 
-# Create API Test Case
-curl -X POST http://localhost:8080/api/tests \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "GitHub API Test",
-    "type": "API", 
-    "description": "REST-Assured test for GitHub API",
-    "status": "Active"
-  }'
-```
+## Monitoring and Management
+- **H2 Console**: Database management at `/h2-console`
+- **Actuator Endpoints**: Health and metrics monitoring
+- **Logging**: Comprehensive logging with configurable levels
 
-#### Step 2: Execute the Test
-```bash
-# Execute test case with ID 1
-curl -X POST http://localhost:8080/api/tests/run/1
-```
+## CI/CD Integration
+The framework supports CI/CD pipelines through:
+- Maven build integration
+- JUnit XML reports
+- REST API for external triggering
+- Configurable environments
 
-#### Step 3: Check Results
-```bash
-# Get latest result for test case 1
-curl -X GET http://localhost:8080/api/tests/result/1
+## Contributing
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Create pull request
 
-# Or check all test results
-curl -X GET http://localhost:8080/api/test-results
-```
-
-### Prerequisites for Test Execution
-
-#### For UI Tests (Selenium):
-1. **ChromeDriver**: Ensure ChromeDriver is installed and available in PATH, or use WebDriverManager
-2. **Chrome Browser**: Required for Selenium tests (runs in headless mode by default)
-3. **Internet Connection**: Required for accessing Google
-
-#### For API Tests (REST-Assured):
-1. **Internet Connection**: Required for accessing GitHub API
-2. **No additional setup** required
-
-### Database Schema
-
-Test results are automatically saved to the `test_results` table with the following structure:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | BIGINT | Primary key |
-| test_case_id | BIGINT | Foreign key to test_cases table |
-| status | VARCHAR(50) | PASSED/FAILED |
-| executed_at | DATETIME | When the test was executed |
-| duration | BIGINT | Execution duration in milliseconds |
-| notes | TEXT | Test details and error messages |
-| created_at | DATETIME | When the record was created |
-
-### Supported Test Types
-
-- **UI**: Runs Selenium-based UI tests (GoogleSearchTest)
-- **API**: Runs REST-Assured-based API tests (GitHubApiTest)
-
-### Error Handling
-
-The framework includes comprehensive error handling for:
-- Test case not found
-- Unsupported test types
-- Test execution failures
-- Database connection issues
-- Network connectivity problems
-
----
-
-## Best Practices
-
-* Follow **naming conventions** for test classes and methods.
-* Maintain **separate configuration files** for different environments.
-* Use **mocking frameworks** like Mockito for dependency isolation.
-* Ensure **high code coverage** for critical components.
-
----
-
-## Deliverables
-
-* Complete Maven-based Spring Boot testing framework.
-* Comprehensive test cases for the application.
-* Documentation of test execution steps and reports.
-
----
-
-## Future Enhancements
-
-* Add support for **TestNG** for advanced testing features.
-* Integrate **SonarQube** for code quality analysis.
-* Include **Continuous Integration (CI)** using Jenkins or GitHub Actions.
-
----
-
-## Author
-
-**Infosys Internship Project Team**
-
----
-
-## License
-
-This project is intended for educational purposes as part of an internship and follows standard open-source licensing policies.
