@@ -1,0 +1,17 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="RegressionTestSuite" parallel="methods" thread-count="5">
+
+    <test name="WebUITests">
+        <classes>
+            <!-- Add your web UI test classes here -->
+        </classes>
+    </test>
+
+    <test name="APITests">
+        <classes>
+            <!-- Add your API test classes here -->
+        </classes>
+    </test>
+
+</suite>
+
