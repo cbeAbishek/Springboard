@@ -52,6 +52,12 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Embedded H2 for development / local runs (fallback when MySQL is not available) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
 
         <!-- Selenium WebDriver -->
         <dependency>
@@ -124,6 +130,16 @@
             <version>2.3.2</version>
         </dependency>
 
+        <!-- Database Migration -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
         <!-- Logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -145,10 +161,12 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
+
                     <source>17</source>
                     <target>17</target>
                     <release>17</release>
                     <compilerArgs>
+
                         <arg>-parameters</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>

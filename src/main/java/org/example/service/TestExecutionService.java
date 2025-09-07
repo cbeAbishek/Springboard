@@ -1,8 +1,10 @@
 package org.example.service;
 
+import org.example.dto.TestExecutionResultDTO;
 import org.example.model.TestBatch;
 import org.example.model.TestCase;
 import org.example.model.TestExecution;
+import org.example.model.TestSchedule;
 import org.example.repository.TestBatchRepository;
 import org.example.repository.TestCaseRepository;
 import org.example.repository.TestExecutionRepository;
@@ -143,5 +145,96 @@ public class TestExecutionService {
 
         TestExecution execution = executeTestCase(testCase, environment);
         return testExecutionRepository.save(execution);
+    }
+
+    @Async("testExecutionExecutor")
+    public CompletableFuture<TestExecutionResultDTO> executeScheduledTests(TestSchedule schedule) {
+        try {
+            log.info("Executing scheduled tests for: {}", schedule.getName());
+
+            // Create a new batch for scheduled execution
+            TestBatch batch = new TestBatch();
+            batch.setBatchId("SCHEDULED_" + schedule.getId() + "_" + System.currentTimeMillis());
+            batch.setName("Scheduled: " + schedule.getName());
+            batch.setEnvironment(schedule.getEnvironment());
+            batch.setStatus(TestBatch.BatchStatus.RUNNING);
+            batch.setStartTime(LocalDateTime.now());
+
+            batch = testBatchRepository.save(batch);
+
+            // Execute the batch
+            CompletableFuture<TestBatch> batchFuture = executeBatch(
+                batch,
+                "scheduled",
+                schedule.getEnvironment(),
+                schedule.getParallelThreads()
+            );
+
+            // Convert to DTO
+            return batchFuture.thenApply(this::convertToResultDTO);
+
+        } catch (Exception e) {
+            log.error("Error executing scheduled tests", e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    public int cleanupOldExecutions(LocalDateTime cutoffDate) {
+        try {
+            log.info("Cleaning up test executions older than: {}", cutoffDate);
+
+            List<TestExecution> oldExecutions = testExecutionRepository.findByStartTimeBefore(cutoffDate);
+            int deletedCount = oldExecutions.size();
+
+            testExecutionRepository.deleteAll(oldExecutions);
+
+            log.info("Cleaned up {} old test executions", deletedCount);
+            return deletedCount;
+
+        } catch (Exception e) {
+            log.error("Error during cleanup", e);
+            return 0;
+        }
+    }
+
+    public void generateWeeklySummaryReport(LocalDateTime weekStart, LocalDateTime weekEnd) {
+        try {
+            log.info("Generating weekly summary report from {} to {}", weekStart, weekEnd);
+
+            List<TestBatch> weeklyBatches = testBatchRepository.findByStartTimeBetween(weekStart, weekEnd);
+
+            // Generate summary statistics
+            int totalBatches = weeklyBatches.size();
+            int totalTests = weeklyBatches.stream().mapToInt(TestBatch::getTotalTests).sum();
+            int totalPassed = weeklyBatches.stream().mapToInt(TestBatch::getPassedTests).sum();
+            int totalFailed = weeklyBatches.stream().mapToInt(TestBatch::getFailedTests).sum();
+
+            log.info("Weekly Summary - Batches: {}, Tests: {}, Passed: {}, Failed: {}",
+                totalBatches, totalTests, totalPassed, totalFailed);
+
+            // In a real implementation, you would generate and store the summary report
+
+        } catch (Exception e) {
+            log.error("Error generating weekly summary report", e);
+        }
+    }
+
+    private TestExecutionResultDTO convertToResultDTO(TestBatch batch) {
+        TestExecutionResultDTO dto = new TestExecutionResultDTO();
+        dto.setBatchId(batch.getBatchId());
+        dto.setStatus(batch.getStatus().toString());
+        dto.setStartTime(batch.getStartTime());
+        dto.setEndTime(batch.getEndTime());
+        dto.setTotalTests(batch.getTotalTests());
+        dto.setPassedTests(batch.getPassedTests());
+        dto.setFailedTests(batch.getFailedTests());
+        dto.setSkippedTests(batch.getSkippedTests());
+        dto.setEnvironment(batch.getEnvironment());
+
+        if (batch.getStartTime() != null && batch.getEndTime() != null) {
+            dto.setDuration(java.time.Duration.between(batch.getStartTime(), batch.getEndTime()).toMillis());
+        }
+
+        return dto;
     }
 }

@@ -77,6 +77,10 @@ public class TestBatch {
     public String getBatchName() { return batchName; }
     public void setBatchName(String batchName) { this.batchName = batchName; }
 
+    // Alias method for setName() - delegates to setBatchName()
+    public String getName() { return batchName; }
+    public void setName(String name) { this.batchName = name; }
+
     public String getBatchId() { return batchId; }
     public void setBatchId(String batchId) { this.batchId = batchId; }
 

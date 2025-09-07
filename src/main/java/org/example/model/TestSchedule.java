@@ -36,6 +36,9 @@ public class TestSchedule {
     @Column(name = "parallel_threads")
     private Integer parallelThreads = 1;
 
+    @Column(name = "notification_enabled")
+    private Boolean notificationEnabled = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -44,6 +47,9 @@ public class TestSchedule {
 
     @Column(name = "next_execution")
     private LocalDateTime nextExecution;
+
+    @Column(name = "notification_emails")
+    private String notificationEmails;
 
     @PrePersist
     protected void onCreate() {
@@ -56,6 +62,10 @@ public class TestSchedule {
 
     public String getScheduleName() { return scheduleName; }
     public void setScheduleName(String scheduleName) { this.scheduleName = scheduleName; }
+
+    // Alias method for getName() - returns scheduleName
+    public String getName() { return scheduleName; }
+    public void setName(String name) { this.scheduleName = name; }
 
     public String getCronExpression() { return cronExpression; }
     public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
@@ -71,6 +81,12 @@ public class TestSchedule {
 
     public Integer getParallelThreads() { return parallelThreads; }
     public void setParallelThreads(Integer parallelThreads) { this.parallelThreads = parallelThreads; }
+
+    public Boolean getNotificationEnabled() { return notificationEnabled; }
+    public void setNotificationEnabled(Boolean notificationEnabled) { this.notificationEnabled = notificationEnabled; }
+
+    public String getNotificationEmails() { return notificationEmails; }
+    public void setNotificationEmails(String notificationEmails) { this.notificationEmails = notificationEmails; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

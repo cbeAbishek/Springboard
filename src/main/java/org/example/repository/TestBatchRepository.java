@@ -30,6 +30,10 @@ public interface TestBatchRepository extends JpaRepository<TestBatch, Long> {
     @Query("SELECT tb FROM TestBatch tb WHERE tb.createdAt >= :since ORDER BY tb.createdAt DESC")
     List<TestBatch> findRecentBatches(@Param("since") LocalDateTime since);
 
+    // Add missing method for weekly report generation
+    @Query("SELECT tb FROM TestBatch tb WHERE tb.startTime BETWEEN :startTime AND :endTime ORDER BY tb.startTime DESC")
+    List<TestBatch> findByStartTimeBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
     @Query(value = "SELECT * FROM test_batches ORDER BY created_at DESC LIMIT :limit", nativeQuery = true)
     List<TestBatch> findTopRecentBatches(@Param("limit") int limit);
 
