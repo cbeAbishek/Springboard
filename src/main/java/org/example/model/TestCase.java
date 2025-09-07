@@ -52,6 +52,13 @@ public class TestCase {
     @Column(name = "environment")
     private String environment;
 
+    // Add missing fields
+    @Column(name = "category")
+    private String category;
+
+    @Column(name = "created_by")
+    private String createdBy;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -100,8 +107,15 @@ public class TestCase {
     public String getEnvironment() { return environment; }
     public void setEnvironment(String environment) { this.environment = environment; }
 
+    // Add missing getters and setters
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+
     public enum TestType {
-        WEB_UI, API, DATABASE
+        WEB_UI, UI, API, DATABASE, INTEGRATION
     }
 
     public enum Priority {

@@ -29,4 +29,10 @@ public interface TestExecutionRepository extends JpaRepository<TestExecution, Lo
 
     @Query("SELECT te FROM TestExecution te WHERE te.testBatch.id = :testBatchId ORDER BY te.startTime DESC")
     List<TestExecution> findByTestBatchId(@Param("testBatchId") Long testBatchId);
+
+    // Add missing methods for cleanup functionality
+    List<TestExecution> findByStartTimeBefore(LocalDateTime cutoffDate);
+
+    @Query("SELECT te FROM TestExecution te WHERE te.startTime BETWEEN :startTime AND :endTime")
+    List<TestExecution> findByStartTimeBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 }
