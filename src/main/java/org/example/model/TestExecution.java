@@ -66,10 +66,25 @@ public class TestExecution {
     @Column(name = "actual_result", columnDefinition = "TEXT")
     private String actualResult;
 
+    @Column(name = "execution_logs", columnDefinition = "TEXT")
+    private String executionLogs;
+
+    @Column(name = "screenshot_paths", columnDefinition = "TEXT")
+    private String screenshotPaths;
+
+    @Column(name = "request_response_data", columnDefinition = "TEXT")
+    private String requestResponseData;
+
     @PrePersist
     protected void onCreate() {
         if (startTime == null) {
             startTime = LocalDateTime.now();
+        }
+    }
+
+    public void calculateDuration() {
+        if (startTime != null && endTime != null) {
+            executionDuration = java.time.Duration.between(startTime, endTime).toMillis();
         }
     }
 
@@ -121,6 +136,18 @@ public class TestExecution {
 
     public String getActualResult() { return actualResult; }
     public void setActualResult(String actualResult) { this.actualResult = actualResult; }
+
+    public String getExecutionLogs() { return executionLogs; }
+    public void setExecutionLogs(String executionLogs) { this.executionLogs = executionLogs; }
+
+    public String getScreenshotPaths() { return screenshotPaths; }
+    public void setScreenshotPaths(String screenshotPaths) { this.screenshotPaths = screenshotPaths; }
+    public void setScreenshotPaths(java.util.List<String> screenshotPathsList) { 
+        this.screenshotPaths = screenshotPathsList != null ? String.join(",", screenshotPathsList) : null; 
+    }
+
+    public String getRequestResponseData() { return requestResponseData; }
+    public void setRequestResponseData(String requestResponseData) { this.requestResponseData = requestResponseData; }
 
     public enum ExecutionStatus {
         PENDING, RUNNING, PASSED, FAILED, SKIPPED, ERROR

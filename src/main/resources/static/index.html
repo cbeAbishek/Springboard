@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automation Testing Framework Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles-complete.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -216,13 +216,13 @@
                             <i class="fas fa-history mr-3 text-cyan-400"></i>
                             Recent Test Batches
                         </h3>
-                        <button class="btn-modern btn-primary">
+                        <button class="btn-modern btn-primary" onclick="loadDashboardData()">
                             <i class="fas fa-sync-alt"></i>
                             Refresh
                         </button>
                     </div>
                     <div class="table-container-modern">
-                        <table id="recent-batches-table" class="modern-table">
+                                                <table id="recent-batches-table" class="modern-table">
                             <thead>
                                 <tr>
                                     <th>Batch ID</th>
@@ -262,6 +262,8 @@
                             <option value="">All Types</option>
                             <option value="WEB_UI">Web UI</option>
                             <option value="API">API</option>
+                            <option value="AI">AI</option>
+                            <option value="DATABASE">Database</option>
                         </select>
                         <select id="testcase-filter-env" class="filter-select">
                             <option value="">All Environments</option>
@@ -557,11 +559,13 @@
                 <form id="create-testcase-form">
                     <div class="form-group">
                         <label for="tc-name">Test Case Name:</label>
-                        <input type="text" id="tc-name" name="name" required>
+                        <input type="text" id="tc-name" name="name" required 
+                            placeholder="e.g., Login Functionality Test">
                     </div>
                     <div class="form-group">
                         <label for="tc-description">Description:</label>
-                        <textarea id="tc-description" name="description" rows="3"></textarea>
+                        <textarea id="tc-description" name="description" rows="3" 
+                            placeholder="Describe what this test case validates and its scope"></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -570,6 +574,8 @@
                                 <option value="">Select Type</option>
                                 <option value="WEB_UI">Web UI</option>
                                 <option value="API">API</option>
+                                <option value="AI">AI</option>
+                                <option value="DATABASE">Database</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -585,7 +591,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="tc-suite">Test Suite:</label>
-                            <input type="text" id="tc-suite" name="testSuite" required>
+                            <input type="text" id="tc-suite" name="testSuite" required 
+                                placeholder="e.g., regression, smoke, api-tests">
                         </div>
                         <div class="form-group">
                             <label for="tc-environment">Environment:</label>
@@ -600,11 +607,19 @@
                     <div class="form-group">
                         <label for="tc-test-data">Test Data (JSON):</label>
                         <textarea id="tc-test-data" name="testData" rows="4"
-                            placeholder='{"url": "https://example.com", "username": "test"}'></textarea>
+                            placeholder='{"url": "https://example.com", "username": "test", "password": "password123"}'></textarea>
+                        <small class="text-gray-400">Define test data in JSON format. For Web UI tests, include URL and element selectors. For API tests, include endpoints and request data.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="tc-test-steps">Test Steps (JSON Array):</label>
+                        <textarea id="tc-test-steps" name="testSteps" rows="6"
+                            placeholder='[{"action": "navigate", "target": "https://example.com"}, {"action": "click", "target": "#login-button"}]'></textarea>
+                        <small class="text-gray-400">Define test steps as JSON array. Each step should have an "action" and "target" field.</small>
                     </div>
                     <div class="form-group">
                         <label for="tc-expected-result">Expected Result:</label>
-                        <textarea id="tc-expected-result" name="expectedResult" rows="3"></textarea>
+                        <textarea id="tc-expected-result" name="expectedResult" rows="3" 
+                            placeholder="Describe the expected outcome of the test"></textarea>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn-modern btn-secondary"
@@ -631,7 +646,8 @@
                         <label for="sch-cron">Cron Expression:</label>
                         <input type="text" id="sch-cron" name="cronExpression" required
                             placeholder="0 0 2 * * ? (Daily at 2 AM)">
-                        <small>Format: second minute hour day month weekday</small>
+                        <small class="text-gray-400">Format: second minute hour day month weekday. Examples: 
+                            "0 0 2 * * ?" (Daily at 2 AM), "0 0 9 * * MON-FRI" (Weekdays at 9 AM)</small>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -670,7 +686,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script-complete.js"></script>
 </body>
 
 </html>

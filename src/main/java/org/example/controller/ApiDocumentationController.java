@@ -270,6 +270,72 @@ public class ApiDocumentationController {
             "ApiDocumentation object with all endpoint information"
         ));
 
+        // Demo Data Endpoints
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/demo/test-cases", "Get Demo Test Cases",
+            "Retrieve sample test cases for demonstration purposes",
+            Map.of(),
+            "List of sample TestCase objects with realistic data"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/demo/executions", "Get Demo Executions",
+            "Retrieve sample test executions for demonstration purposes",
+            Map.of(),
+            "List of sample execution objects with status and timing data"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/demo/batches", "Get Demo Batches",
+            "Retrieve sample test batches for demonstration purposes",
+            Map.of(),
+            "List of sample batch objects with various statuses"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/demo/sample-data", "Get All Sample Data",
+            "Retrieve comprehensive sample data including test cases, executions, batches, metrics, and environments",
+            Map.of(),
+            "Comprehensive object containing all sample data for demo purposes"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "POST", "/api/demo/create-sample-test", "Create Sample Test",
+            "Create a sample test case for demonstration purposes",
+            Map.of("testData", "object - Test case data in JSON format"),
+            "Response object with success status, test ID, and confirmation message"
+        ));
+
+        // Dashboard Endpoints
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/dashboard/metrics", "Get Dashboard Metrics",
+            "Retrieve comprehensive dashboard metrics including test cases, batches, executions, and schedules",
+            Map.of(),
+            "Dashboard metrics object with counts, success rates, and status breakdowns"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/dashboard/recent-activity", "Get Recent Activity",
+            "Retrieve recent activity including recent batches and executions from the last 24 hours",
+            Map.of(),
+            "Recent activity object with recent batches, execution counts, and timestamp information"
+        ));
+
+        // Validation Endpoints
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/validation/framework", "Validate Framework",
+            "Perform comprehensive framework validation with real data to ensure system integrity",
+            Map.of(),
+            "ValidationResult object with validation status, checks performed, and any issues found"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/validation/health", "Health Check",
+            "Perform a basic health check of the validation service",
+            Map.of(),
+            "String message confirming validation service status"
+        ));
+
         documentation.setEndpoints(endpoints);
         documentation.setTotalEndpoints(endpoints.size());
 

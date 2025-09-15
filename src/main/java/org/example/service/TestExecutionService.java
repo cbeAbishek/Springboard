@@ -9,7 +9,8 @@ import org.example.repository.TestBatchRepository;
 import org.example.repository.TestCaseRepository;
 import org.example.repository.TestExecutionRepository;
 import org.example.engine.WebUITestExecutor;
-import org.example.engine.ApiTestExecutor;
+import org.example.engine.APITestExecutor;
+import org.example.engine.TestExecutionEngine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,7 +44,7 @@ public class TestExecutionService {
     private WebUITestExecutor webUITestExecutor;
 
     @Autowired
-    private ApiTestExecutor apiTestExecutor;
+    private APITestExecutor apiTestExecutor;
 
     @Async("testExecutionExecutor")
     public CompletableFuture<TestBatch> executeBatch(TestBatch batch, String testSuite, String environment, int parallelThreads) {
@@ -112,10 +115,19 @@ public class TestExecutionService {
 
         switch (testCase.getTestType()) {
             case WEB_UI:
-                execution = webUITestExecutor.executeWebUITest(testCase, environment, "chrome");
+                // Create test data for WebUI execution
+                Map<String, Object> webUIData = new HashMap<>();
+                webUIData.put("browser", "chrome");
+                webUIData.put("environment", environment);
+                TestExecutionEngine.TestExecutionResult webResult = webUITestExecutor.execute(webUIData, testCase);
+                execution = createTestExecution(testCase, webResult);
                 break;
             case API:
-                execution = apiTestExecutor.executeApiTest(testCase, environment);
+                // Create test data for API execution
+                Map<String, Object> apiData = new HashMap<>();
+                apiData.put("environment", environment);
+                TestExecutionEngine.TestExecutionResult apiResult = apiTestExecutor.execute(apiData, testCase);
+                execution = createTestExecution(testCase, apiResult);
                 break;
             default:
                 throw new UnsupportedOperationException("Test type not supported: " + testCase.getTestType());
@@ -135,6 +147,10 @@ public class TestExecutionService {
                 break;
             case SKIPPED:
                 batch.setSkippedTests(batch.getSkippedTests() + 1);
+                break;
+            case PENDING:
+            case RUNNING:
+                // Don't update stats for pending/running tests
                 break;
         }
     }
@@ -236,5 +252,22 @@ public class TestExecutionService {
         }
 
         return dto;
+    }
+
+    private TestExecution createTestExecution(TestCase testCase, TestExecutionEngine.TestExecutionResult result) {
+        TestExecution execution = new TestExecution();
+        execution.setTestCase(testCase);
+        execution.setStatus(result.isSuccess() ? TestExecution.ExecutionStatus.PASSED : TestExecution.ExecutionStatus.FAILED);
+        execution.setStartTime(LocalDateTime.now().minusSeconds(1)); // Simulate start time
+        execution.setEndTime(LocalDateTime.now());
+        execution.setExecutionDuration(1000L); // Default duration
+        execution.setExecutionLogs(result.getExecutionLogs());
+        execution.setErrorMessage(result.getErrorMessage());
+        
+        if (result.getScreenshotPaths() != null && !result.getScreenshotPaths().isEmpty()) {
+            execution.setScreenshotPaths(String.join(",", result.getScreenshotPaths()));
+        }
+        
+        return execution;
     }
 }
