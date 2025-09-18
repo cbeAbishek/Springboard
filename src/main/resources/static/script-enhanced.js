@@ -503,7 +503,7 @@ async function handleTestCaseSubmit(e) {
             priority: formData.get('priority'),
             testSuite: formData.get('testSuite'),
             environment: formData.get('environment'),
-            testData: formData.get('testData') || '{}', // Keep as string, provide default
+            testData: formData.get('testData') || '{}', // Keep as string
             expectedResult: formData.get('expectedResult')
         };
 

@@ -18,6 +18,10 @@ public interface TestExecutionRepository extends JpaRepository<TestExecution, Lo
 
     List<TestExecution> findByEnvironmentOrderByStartTimeDesc(String environment);
 
+    List<TestExecution> findByEnvironment(String environment);
+
+    List<TestExecution> findTop10ByOrderByStartTimeDesc();
+
     @Query("SELECT te FROM TestExecution te WHERE te.startTime BETWEEN :startDate AND :endDate ORDER BY te.startTime DESC")
     List<TestExecution> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 

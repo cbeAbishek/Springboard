@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import java.time.LocalDateTime;
 
@@ -12,18 +14,21 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class TestExecution {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "test_case_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private TestCase testCase;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "test_batch_id")
+    @JsonBackReference
     private TestBatch testBatch;
 
     @Column(name = "execution_id", nullable = false)
@@ -66,10 +71,28 @@ public class TestExecution {
     @Column(name = "actual_result", columnDefinition = "TEXT")
     private String actualResult;
 
+    @Column(name = "execution_logs", columnDefinition = "TEXT")
+    private String executionLogs;
+
+    @Column(name = "screenshot_paths", columnDefinition = "TEXT")
+    private String screenshotPaths;
+
+    @Column(name = "request_response_data", columnDefinition = "TEXT")
+    private String requestResponseData;
+
     @PrePersist
     protected void onCreate() {
         if (startTime == null) {
             startTime = LocalDateTime.now();
+        }
+        if (executionId == null || executionId.isEmpty()) {
+            executionId = java.util.UUID.randomUUID().toString();
+        }
+    }
+
+    public void calculateDuration() {
+        if (startTime != null && endTime != null) {
+            executionDuration = java.time.Duration.between(startTime, endTime).toMillis();
         }
     }
 
@@ -121,6 +144,18 @@ public class TestExecution {
 
     public String getActualResult() { return actualResult; }
     public void setActualResult(String actualResult) { this.actualResult = actualResult; }
+
+    public String getExecutionLogs() { return executionLogs; }
+    public void setExecutionLogs(String executionLogs) { this.executionLogs = executionLogs; }
+
+    public String getScreenshotPaths() { return screenshotPaths; }
+    public void setScreenshotPaths(String screenshotPaths) { this.screenshotPaths = screenshotPaths; }
+    public void setScreenshotPaths(java.util.List<String> screenshotPathsList) { 
+        this.screenshotPaths = screenshotPathsList != null ? String.join(",", screenshotPathsList) : null; 
+    }
+
+    public String getRequestResponseData() { return requestResponseData; }
+    public void setRequestResponseData(String requestResponseData) { this.requestResponseData = requestResponseData; }
 
     public enum ExecutionStatus {
         PENDING, RUNNING, PASSED, FAILED, SKIPPED, ERROR
