@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import java.time.LocalDateTime;
 
@@ -12,18 +14,21 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class TestExecution {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "test_case_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private TestCase testCase;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "test_batch_id")
+    @JsonBackReference
     private TestBatch testBatch;
 
     @Column(name = "execution_id", nullable = false)
@@ -79,6 +84,9 @@ public class TestExecution {
     protected void onCreate() {
         if (startTime == null) {
             startTime = LocalDateTime.now();
+        }
+        if (executionId == null || executionId.isEmpty()) {
+            executionId = java.util.UUID.randomUUID().toString();
         }
     }
 

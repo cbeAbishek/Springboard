@@ -36,6 +36,7 @@ public class WebDriverManager {
                     chromeOptions.addArguments("--no-sandbox");
                     chromeOptions.addArguments("--disable-dev-shm-usage");
                     chromeOptions.addArguments("--disable-gpu");
+                    chromeOptions.setBinary("/usr/bin/chromium-browser");
                     driver = new ChromeDriver(chromeOptions);
                     break;
 

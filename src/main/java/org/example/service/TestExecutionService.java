@@ -11,6 +11,7 @@ import org.example.repository.TestExecutionRepository;
 import org.example.engine.WebUITestExecutor;
 import org.example.engine.APITestExecutor;
 import org.example.engine.TestExecutionEngine;
+import org.example.controller.TestExecutionController.ParallelExecutionStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -18,13 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TestExecutionService {
@@ -46,67 +46,150 @@ public class TestExecutionService {
     @Autowired
     private APITestExecutor apiTestExecutor;
 
+    // Enhanced parallel execution management
+    private final Map<String, ExecutorService> batchExecutors = new ConcurrentHashMap<>();
+    private final Map<String, Future<?>> batchFutures = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> cancellationFlags = new ConcurrentHashMap<>();
+
     @Async("testExecutionExecutor")
     public CompletableFuture<TestBatch> executeBatch(TestBatch batch, String testSuite, String environment, int parallelThreads) {
+        String batchId = batch.getBatchId();
+        log.info("Starting enhanced parallel batch execution: {} with {} threads", batchId, parallelThreads);
+
+        // Create dedicated executor for this batch
+        ExecutorService batchExecutor = Executors.newFixedThreadPool(parallelThreads);
+        batchExecutors.put(batchId, batchExecutor);
+        cancellationFlags.put(batchId, false);
+
         // Update batch status to RUNNING
         batch.setStatus(TestBatch.BatchStatus.RUNNING);
         batch.setStartTime(LocalDateTime.now());
 
         try {
-            log.info("Starting batch execution: {}", batch.getBatchId());
-
             // Get test cases for execution
+            log.info("Searching for test cases with testSuite='{}' and environment='{}'", testSuite, environment);
             List<TestCase> testCases = testCaseRepository.findByTestSuiteAndEnvironment(testSuite, environment);
+
+            if (testCases == null || testCases.isEmpty()) {
+                log.warn("No test cases found for testSuite='{}' and environment='{}'. Available test suites: {}",
+                    testSuite, environment, getAvailableTestSuites());
+                batch.setStatus(TestBatch.BatchStatus.FAILED);
+                batch.setEndTime(LocalDateTime.now());
+                batch.setTotalTests(0);
+                testBatchRepository.save(batch);
+                return CompletableFuture.completedFuture(batch);
+            }
+
+            log.info("Found {} test cases for execution in batch: {}", testCases.size(), batchId);
             batch.setTotalTests(testCases.size());
 
             // Save batch initially
             batch = testBatchRepository.save(batch);
 
-            // Execute tests in parallel
-            executeTestsInParallel(testCases, batch, environment, parallelThreads);
+            // Execute tests in parallel with enhanced monitoring
+            executeTestsInParallelEnhanced(testCases, batch, environment, batchExecutor);
 
-            // Update batch status
-            batch.setStatus(TestBatch.BatchStatus.COMPLETED);
+            // Check if batch was cancelled
+            if (cancellationFlags.get(batchId)) {
+                batch.setStatus(TestBatch.BatchStatus.CANCELLED);
+                log.info("Batch execution cancelled: {}", batchId);
+            } else {
+                batch.setStatus(TestBatch.BatchStatus.COMPLETED);
+                log.info("Batch execution completed: {}", batchId);
+            }
+
             batch.setEndTime(LocalDateTime.now());
 
         } catch (Exception e) {
-            log.error("Batch execution failed: {}", batch.getBatchId(), e);
+            log.error("Batch execution failed: {}", batchId, e);
             batch.setStatus(TestBatch.BatchStatus.FAILED);
             batch.setEndTime(LocalDateTime.now());
         } finally {
+            // Cleanup resources
+            cleanupBatchExecution(batchId);
             batch = testBatchRepository.save(batch);
         }
 
         return CompletableFuture.completedFuture(batch);
     }
 
-    private void executeTestsInParallel(List<TestCase> testCases, TestBatch batch, String environment, int parallelThreads) {
-        ExecutorService executor = Executors.newFixedThreadPool(parallelThreads);
+    private List<String> getAvailableTestSuites() {
+        try {
+            return testCaseRepository.findByIsActiveTrue()
+                .stream()
+                .map(TestCase::getTestSuite)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error getting available test suites", e);
+            return List.of("Error retrieving test suites");
+        }
+    }
+
+    private void executeTestsInParallelEnhanced(List<TestCase> testCases, TestBatch batch, String environment, ExecutorService executor) {
+        String batchId = batch.getBatchId();
+        List<Future<?>> futures = new ArrayList<>();
 
         try {
             for (TestCase testCase : testCases) {
-                executor.submit(() -> {
+                Future<?> future = executor.submit(() -> {
+                    // Check cancellation flag before executing
+                    if (cancellationFlags.get(batchId)) {
+                        log.debug("Skipping test execution due to cancellation: {}", testCase.getName());
+                        return;
+                    }
+
                     try {
+                        log.debug("Executing test case: {} in batch: {}", testCase.getName(), batchId);
                         TestExecution execution = executeTestCase(testCase, environment);
-                        execution.setTestBatch(batch); // Set the batch relationship
+                        execution.setTestBatch(batch);
+
+                        // Update batch stats synchronously
                         updateBatchStats(batch, execution);
                         testExecutionRepository.save(execution);
+
+                        log.debug("Completed test case: {} with status: {}", testCase.getName(), execution.getStatus());
                     } catch (Exception e) {
-                        log.error("Test execution failed for test case: {}", testCase.getName(), e);
+                        log.error("Test execution failed for test case: {} in batch: {}", testCase.getName(), batchId, e);
+
+                        // Create failed execution record
+                        TestExecution failedExecution = new TestExecution();
+                        failedExecution.setTestCase(testCase);
+                        failedExecution.setTestBatch(batch);
+                        failedExecution.setStatus(TestExecution.ExecutionStatus.ERROR);
+                        failedExecution.setStartTime(LocalDateTime.now());
+                        failedExecution.setEndTime(LocalDateTime.now());
+                        failedExecution.setErrorMessage("Execution failed: " + e.getMessage());
+
+                        updateBatchStats(batch, failedExecution);
+                        testExecutionRepository.save(failedExecution);
                     }
                 });
+
+                futures.add(future);
+                batchFutures.put(batchId + "_" + testCase.getId(), future);
             }
 
+            // Store the main future for the batch
+            Future<?> batchFuture = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+            );
+            batchFutures.put(batchId, batchFuture);
+
+            // Wait for all tasks to complete or timeout
             executor.shutdown();
-            if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
+            if (!executor.awaitTermination(60, TimeUnit.MINUTES)) {
+                log.warn("Batch execution timed out, forcing shutdown: {}", batchId);
                 executor.shutdownNow();
-                log.warn("Batch execution timed out: {}", batch.getBatchId());
+                cancellationFlags.put(batchId, true);
             }
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             executor.shutdownNow();
-            log.error("Batch execution interrupted: {}", batch.getBatchId());
+            cancellationFlags.put(batchId, true);
+            log.error("Batch execution interrupted: {}", batchId, e);
         }
     }
 
@@ -153,6 +236,105 @@ public class TestExecutionService {
                 // Don't update stats for pending/running tests
                 break;
         }
+
+        // Update batch in database periodically
+        testBatchRepository.save(batch);
+    }
+
+    // New method for batch cancellation
+    public boolean cancelBatch(String batchId) {
+        log.info("Attempting to cancel batch: {}", batchId);
+
+        try {
+            // Set cancellation flag
+            cancellationFlags.put(batchId, true);
+
+            // Get the executor for this batch
+            ExecutorService executor = batchExecutors.get(batchId);
+            if (executor != null && !executor.isShutdown()) {
+                executor.shutdownNow();
+                log.info("Executor shutdown initiated for batch: {}", batchId);
+            }
+
+            // Cancel individual futures
+            batchFutures.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(batchId))
+                .forEach(entry -> {
+                    entry.getValue().cancel(true);
+                    log.debug("Cancelled future: {}", entry.getKey());
+                });
+
+            // Update batch status in database
+            testBatchRepository.findByBatchId(batchId).ifPresent(batch -> {
+                if (batch.getStatus() == TestBatch.BatchStatus.RUNNING ||
+                    batch.getStatus() == TestBatch.BatchStatus.SCHEDULED) {
+                    batch.setStatus(TestBatch.BatchStatus.CANCELLED);
+                    batch.setEndTime(LocalDateTime.now());
+                    testBatchRepository.save(batch);
+                    log.info("Batch status updated to CANCELLED: {}", batchId);
+                }
+            });
+
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error cancelling batch: {}", batchId, e);
+            return false;
+        }
+    }
+
+    // New method to get parallel execution status
+    public ParallelExecutionStatus getParallelExecutionStatus() {
+        ParallelExecutionStatus status = new ParallelExecutionStatus();
+
+        // Count active executors and threads
+        int activeThreads = 0;
+        int maxThreads = 0;
+        int queuedTasks = 0;
+
+        for (ExecutorService executor : batchExecutors.values()) {
+            if (executor instanceof ThreadPoolExecutor) {
+                ThreadPoolExecutor tpe = (ThreadPoolExecutor) executor;
+                activeThreads += tpe.getActiveCount();
+                maxThreads += tpe.getMaximumPoolSize();
+                queuedTasks += tpe.getQueue().size();
+            }
+        }
+
+        status.setActiveThreads(activeThreads);
+        status.setMaxThreads(maxThreads);
+        status.setQueuedTasks(queuedTasks);
+
+        // Get active batches
+        List<String> activeBatches = testBatchRepository.findActiveBatches()
+            .stream()
+            .map(TestBatch::getBatchId)
+            .collect(Collectors.toList());
+        status.setActiveBatches(activeBatches);
+
+        // Get total executed tests count
+        long totalExecutedTests = testExecutionRepository.count();
+        status.setTotalExecutedTests(totalExecutedTests);
+
+        return status;
+    }
+
+    private void cleanupBatchExecution(String batchId) {
+        log.debug("Cleaning up resources for batch: {}", batchId);
+
+        // Remove executor
+        ExecutorService executor = batchExecutors.remove(batchId);
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdownNow();
+        }
+
+        // Remove futures
+        batchFutures.entrySet().removeIf(entry -> entry.getKey().startsWith(batchId));
+
+        // Remove cancellation flag
+        cancellationFlags.remove(batchId);
+
+        log.debug("Cleanup completed for batch: {}", batchId);
     }
 
     public TestExecution executeSingleTest(Long testCaseId, String environment) {
@@ -257,13 +439,15 @@ public class TestExecutionService {
     private TestExecution createTestExecution(TestCase testCase, TestExecutionEngine.TestExecutionResult result) {
         TestExecution execution = new TestExecution();
         execution.setTestCase(testCase);
+        execution.setExecutionId(java.util.UUID.randomUUID().toString()); // Set required executionId
         execution.setStatus(result.isSuccess() ? TestExecution.ExecutionStatus.PASSED : TestExecution.ExecutionStatus.FAILED);
         execution.setStartTime(LocalDateTime.now().minusSeconds(1)); // Simulate start time
         execution.setEndTime(LocalDateTime.now());
         execution.setExecutionDuration(1000L); // Default duration
         execution.setExecutionLogs(result.getExecutionLogs());
         execution.setErrorMessage(result.getErrorMessage());
-        
+        execution.setEnvironment(testCase.getEnvironment()); // Set environment from test case
+
         if (result.getScreenshotPaths() != null && !result.getScreenshotPaths().isEmpty()) {
             execution.setScreenshotPaths(String.join(",", result.getScreenshotPaths()));
         }

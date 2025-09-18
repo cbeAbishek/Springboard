@@ -21,7 +21,9 @@
         <maven.compiler.target>17</maven.compiler.target>
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <selenium.version>4.15.0</selenium.version>
+        <selenium.version>4.26.0</selenium.version>
+        <!-- Revert to available devtools protocol version (v130) to avoid unresolved artifact -->
+        <selenium.devtools.version>v130</selenium.devtools.version>
         <rest-assured.version>5.3.2</rest-assured.version>
         <testng.version>7.8.0</testng.version>
         <extentreports.version>5.1.1</extentreports.version>
@@ -63,6 +65,11 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
+            <version>${selenium.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-devtools-${selenium.devtools.version}</artifactId>
             <version>${selenium.version}</version>
         </dependency>
         <dependency>

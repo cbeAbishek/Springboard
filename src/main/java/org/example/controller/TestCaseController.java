@@ -9,6 +9,7 @@ import lombok.Data;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/testcases")
@@ -93,6 +94,36 @@ public class TestCaseController {
     public ResponseEntity<List<TestCase>> getTestCasesByEnvironment(@PathVariable String environment) {
         List<TestCase> testCases = testCaseRepository.findByEnvironmentAndIsActiveTrue(environment);
         return ResponseEntity.ok(testCases);
+    }
+
+    @GetMapping("/meta/testsuites")
+    public ResponseEntity<List<String>> getAvailableTestSuites() {
+        try {
+            List<String> testSuites = testCaseRepository.findByIsActiveTrue()
+                .stream()
+                .map(TestCase::getTestSuite)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(testSuites);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/meta/environments")
+    public ResponseEntity<List<String>> getAvailableEnvironments() {
+        try {
+            List<String> environments = testCaseRepository.findByIsActiveTrue()
+                .stream()
+                .map(TestCase::getEnvironment)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(environments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @Data

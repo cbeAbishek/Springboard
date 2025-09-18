@@ -139,17 +139,7 @@
                         <span class="text-sm text-gray-400">Real-time monitoring</span>
                     </div>
                 </div>
-                <div class="header-right flex items-center space-x-4">
-                    <!-- Quick Actions -->
-                    <div class="hidden md:flex items-center space-x-2">
-                        <button class="p-2 glass-button rounded-lg">
-                            <i class="fas fa-bell text-gray-300"></i>
-                        </button>
-                        <button class="p-2 glass-button rounded-lg">
-                            <i class="fas fa-cog text-gray-300"></i>
-                        </button>
-                    </div>
-
+                <div class="header-right flex items-center space-x-4 space-y-4">
                     <!-- API Status -->
                     <div class="api-status glass-card px-4 py-2">
                         <div class="flex items-center space-x-2">
@@ -305,8 +295,15 @@
                 </div>
 
                 <div class="execution-controls">
+                    <!-- Enhanced Parallel Execution Status Panel -->
                     <div class="control-group">
-                        <h3><i class="fas fa-layer-group text-cyan-400"></i>Execute Batch</h3>
+                        <div id="parallel-execution-status" class="execution-status-panel glass-card mb-4">
+                            <!-- Dynamic parallel execution status will be inserted here -->
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3><i class="fas fa-layer-group text-cyan-400"></i>Execute Batch with Parallel Processing</h3>
                         <form id="batch-execution-form" class="execution-form">
                             <div class="form-row">
                                 <div class="form-group">
@@ -325,13 +322,14 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="parallel-threads">Parallel Threads:</label>
-                                    <input type="number" id="parallel-threads" name="parallelThreads" value="1" min="1"
-                                        max="10">
+                                    <input type="number" id="parallel-threads" name="parallelThreads" value="2" min="1"
+                                        max="10" title="Number of tests to run simultaneously">
+                                    <small class="form-help">Higher values = faster execution, but more resource usage</small>
                                 </div>
                             </div>
                             <button type="submit" class="btn-modern btn-success">
                                 <i class="fas fa-play"></i>
-                                Execute Batch
+                                Execute Batch in Parallel
                             </button>
                         </form>
                     </div>
@@ -360,6 +358,17 @@
                                 Execute Test
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Active Batch Monitoring Section -->
+                <div id="active-batches-section" class="glass-card mb-6">
+                    <h3 class="text-xl font-semibold text-white flex items-center mb-4">
+                        <i class="fas fa-cogs mr-3 text-cyan-400"></i>
+                        Active Batch Executions
+                    </h3>
+                    <div id="active-batches-container">
+                        <!-- Active batch progress will be dynamically inserted here -->
                     </div>
                 </div>
 
@@ -686,7 +695,8 @@
         </div>
     </div>
 
-    <script src="script-complete.js"></script>
+    <script src="script-complete-fixed.js"></script>
+    <script src="parallel-execution-monitor.js"></script>
 </body>
 
 </html>

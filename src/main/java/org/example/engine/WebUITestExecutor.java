@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.HashMap;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -49,6 +50,12 @@ public class WebUITestExecutor {
 
     @Value("${automation.framework.reporting.captureScreenshots:true}")
     private boolean captureScreenshots;
+
+    @Value("${automation.framework.webDriver.chromiumPath:/usr/bin/chromium-browser}")
+    private String chromiumPath;
+
+    @Value("${automation.framework.webDriver.autoDetectDisplay:true}")
+    private boolean autoDetectDisplay; // now used in environment detection
 
     private WebDriver webDriver;
     private WebDriverWait driverWait;
@@ -217,36 +224,206 @@ public class WebUITestExecutor {
     }
 
     private void initializeDriver(String browser) {
-        ChromeOptions chromeOptions = new ChromeOptions();
-        FirefoxOptions firefoxOptions = new FirefoxOptions();
-
-        if (headlessMode) {
-            chromeOptions.addArguments("--headless");
-            firefoxOptions.addArguments("--headless");
-        }
-
-        chromeOptions.addArguments("--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu");
-
         try {
+            log.info("Initializing WebDriver for browser: {}", browser);
+
+            // Add system property to suppress CDP warnings for Chrome 140
+            System.setProperty("webdriver.chrome.silentOutput", "true");
+            System.setProperty("org.openqa.selenium.logging.ignore", "org.openqa.selenium.devtools");
+
+            ChromeOptions chromeOptions = new ChromeOptions();
+            FirefoxOptions firefoxOptions = new FirefoxOptions();
+
+            // Enhanced Chrome options for Linux environment
+            chromeOptions.addArguments("--no-sandbox");
+            chromeOptions.addArguments("--disable-dev-shm-usage");
+            chromeOptions.addArguments("--disable-gpu");
+            chromeOptions.addArguments("--disable-extensions");
+            chromeOptions.addArguments("--disable-web-security");
+            chromeOptions.addArguments("--allow-running-insecure-content");
+            chromeOptions.addArguments("--disable-background-timer-throttling");
+            chromeOptions.addArguments("--disable-backgrounding-occluded-windows");
+            chromeOptions.addArguments("--disable-renderer-backgrounding");
+            chromeOptions.addArguments("--disable-features=TranslateUI");
+            chromeOptions.addArguments("--window-size=1920,1080");
+
+            // Disable DevTools Protocol features to avoid CDP version mismatch
+            chromeOptions.addArguments("--disable-dev-tools");
+            chromeOptions.addArguments("--disable-extensions-http-throttling");
+            chromeOptions.addArguments("--disable-logging");
+            chromeOptions.addArguments("--disable-background-networking");
+            chromeOptions.addArguments("--disable-default-apps");
+            chromeOptions.addArguments("--disable-sync");
+            chromeOptions.addArguments("--no-first-run");
+            chromeOptions.addArguments("--disable-features=VizDisplayCompositor");
+
+            // Set experimental options to disable CDP features
+            chromeOptions.setExperimentalOption("useAutomationExtension", false);
+            // Replace Arrays.asList single element warning with singletonList
+            chromeOptions.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
+
+            // Check if running in headless mode or on server environment
+            if (headlessMode || isServerEnvironment()) {
+                chromeOptions.addArguments("--headless=new");
+                chromeOptions.addArguments("--enable-features=NetworkService,NetworkServiceLogging");
+                chromeOptions.addArguments("--disable-client-side-phishing-detection");
+                chromeOptions.addArguments("--disable-hang-monitor");
+                chromeOptions.addArguments("--disable-popup-blocking");
+                chromeOptions.addArguments("--disable-prompt-on-repost");
+                chromeOptions.addArguments("--metrics-recording-only");
+                chromeOptions.addArguments("--safebrowsing-disable-auto-update");
+                chromeOptions.addArguments("--enable-automation");
+                chromeOptions.addArguments("--password-store=basic");
+                chromeOptions.addArguments("--use-mock-keychain");
+                log.info("Running in headless mode");
+            }
+
+            // Firefox options for Linux
+            if (headlessMode || isServerEnvironment()) {
+                firefoxOptions.addArguments("--headless");
+            }
+            firefoxOptions.addPreference("dom.webdriver.enabled", false);
+            firefoxOptions.addPreference("useAutomationExtension", false);
+
             switch (browser.toLowerCase()) {
                 case "firefox":
-                    WebDriverManager.firefoxdriver().setup();
-                    webDriver = new FirefoxDriver(firefoxOptions);
+                    log.info("Setting up Firefox WebDriver");
+                    try {
+                        WebDriverManager.firefoxdriver().setup();
+                        webDriver = new FirefoxDriver(firefoxOptions);
+                        log.info("Firefox WebDriver initialized successfully");
+                    } catch (Exception e) {
+                        log.error("Firefox WebDriver initialization failed: {}", e.getMessage());
+                        // Fallback to Chrome
+                        log.info("Falling back to Chrome WebDriver");
+                        setupChromeDriver(chromeOptions);
+                    }
                     break;
                 case "chrome":
                 default:
-                    WebDriverManager.chromedriver().setup();
-                    webDriver = new ChromeDriver(chromeOptions);
+                    setupChromeDriver(chromeOptions);
                     break;
             }
 
-            webDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(implicitWait));
-            webDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-            driverWait = new WebDriverWait(webDriver, Duration.ofSeconds(20));
+            if (webDriver != null) {
+                webDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(implicitWait));
+                webDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+                if (!headlessMode && !isServerEnvironment()) {
+                    webDriver.manage().window().maximize();
+                }
+                driverWait = new WebDriverWait(webDriver, Duration.ofSeconds(20));
+                log.info("WebDriver configured successfully with timeouts and window settings");
+            } else {
+                throw new RuntimeException("Failed to initialize any WebDriver");
+            }
 
         } catch (Exception e) {
-            log.error("Failed to initialize WebDriver: {}", e.getMessage());
-            throw new RuntimeException("WebDriver initialization failed", e);
+            log.error("Failed to initialize WebDriver: {}", e.getMessage(), e);
+            throw new RuntimeException("WebDriver initialization failed: " + e.getMessage(), e);
+        }
+    }
+
+    private void setupChromeDriver(ChromeOptions chromeOptions) {
+        log.info("Setting up Chrome WebDriver");
+        try {
+            // Check if Chrome is available
+            if (!isChromeAvailable()) {
+                log.warn("Chrome browser not detected, attempting to install or use alternative");
+                // Try to use Chromium as fallback
+                chromeOptions.setBinary(chromiumPath);
+            }
+
+            // Configure WebDriverManager to use compatible ChromeDriver version
+            // This will automatically download the correct ChromeDriver version for your Chrome browser
+            WebDriverManager chromeDriverManager = WebDriverManager.chromedriver();
+
+            // Force WebDriverManager to check for the correct version matching your Chrome installation
+            chromeDriverManager.clearDriverCache(); // Clear any cached incompatible drivers
+            chromeDriverManager.setup();
+
+            log.info("WebDriverManager configured ChromeDriver for Chrome browser");
+
+            webDriver = new ChromeDriver(chromeOptions);
+            log.info("Chrome WebDriver initialized successfully");
+        } catch (Exception e) {
+            log.error("Chrome WebDriver initialization failed: {}", e.getMessage());
+            // Try with Chromium as fallback
+            try {
+                log.info("Attempting to use Chromium browser as fallback");
+                chromeOptions.setBinary(chromiumPath);
+
+                // Try WebDriverManager setup again for Chromium path
+                WebDriverManager.chromedriver().clearDriverCache().setup();
+
+                webDriver = new ChromeDriver(chromeOptions);
+                log.info("Chromium WebDriver initialized successfully");
+            } catch (Exception chromiumError) {
+                log.error("Chromium WebDriver also failed: {}", chromiumError.getMessage());
+
+                // Final fallback: try to use a specific ChromeDriver version
+                try {
+                    log.info("Attempting final fallback with ChromeDriver version compatibility");
+                    WebDriverManager.chromedriver()
+                        .browserVersion("139") // Match your Chrome version
+                        .setup();
+                    webDriver = new ChromeDriver(chromeOptions);
+                    log.info("ChromeDriver 139 compatibility mode initialized successfully");
+                } catch (Exception finalError) {
+                    log.error("All ChromeDriver initialization attempts failed: {}", finalError.getMessage());
+                    throw new RuntimeException("All Chrome and Chromium WebDriver initialization attempts failed", finalError);
+                }
+            }
+        }
+    }
+
+    private boolean isServerEnvironment() {
+        // If auto detection disabled, rely purely on configured headless flag
+        if (!autoDetectDisplay) {
+            log.debug("Auto display detection disabled; using headlessMode config: {}", headlessMode);
+            return headlessMode;
+        }
+        // Check if running on a server (no display)
+        String display = System.getenv("DISPLAY");
+        String sessionType = System.getenv("XDG_SESSION_TYPE");
+        boolean isHeadless = display == null || display.trim().isEmpty();
+
+        log.debug("Environment check - DISPLAY: {}, XDG_SESSION_TYPE: {}, isHeadless: {}",
+                 display, sessionType, isHeadless);
+
+        return isHeadless;
+    }
+
+    private boolean isChromeAvailable() {
+        try {
+            Process process = Runtime.getRuntime().exec(new String[]{"which", "google-chrome"});
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                log.debug("Google Chrome found via 'which' command");
+                return true;
+            }
+
+            // Try alternative Chrome locations
+            String[] chromePaths = {
+                "/usr/bin/google-chrome",
+                "/usr/bin/google-chrome-stable",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/chromium",
+                "/snap/bin/chromium"
+            };
+
+            for (String path : chromePaths) {
+                File chromeFile = new File(path);
+                if (chromeFile.exists() && chromeFile.canExecute()) {
+                    log.debug("Chrome/Chromium found at: {}", path);
+                    return true;
+                }
+            }
+
+            log.warn("Chrome browser not found in standard locations");
+            return false;
+        } catch (Exception e) {
+            log.warn("Error checking Chrome availability: {}", e.getMessage());
+            return false;
         }
     }
 
