@@ -6,7 +6,7 @@
         <parameter name="browser" value="chrome"/>
         <parameter name="environment" value="test"/>
         <classes>
-            <class name="org.example.tests.ui.BlazeDemoTests"/>
+            <!-- Add your actual UI test classes here -->
         </classes>
     </test>
 
@@ -28,7 +28,6 @@
             </run>
         </groups>
         <classes>
-            <class name="org.example.tests.ui.BlazeDemoTests"/>
             <class name="org.example.tests.api.ReqResAPITests"/>
         </classes>
     </test>
@@ -43,7 +42,6 @@
             </run>
         </groups>
         <classes>
-            <class name="org.example.tests.ui.BlazeDemoTests"/>
             <class name="org.example.tests.api.ReqResAPITests"/>
         </classes>
     </test>

@@ -1,5 +1,6 @@
 package org.example.engine;
 
+import lombok.SneakyThrows;
 import org.example.model.TestCase;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,15 +25,20 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * Enhanced WebUI Test Executor with parallel execution support
+ * Extends BaseTestExecutor for common functionality and scalability
+ */
 @Component
-public class WebUITestExecutor {
+public class WebUITestExecutor extends BaseTestExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(WebUITestExecutor.class);
 
@@ -55,98 +61,174 @@ public class WebUITestExecutor {
     private String chromiumPath;
 
     @Value("${automation.framework.webDriver.autoDetectDisplay:true}")
-    private boolean autoDetectDisplay; // now used in environment detection
+    private boolean autoDetectDisplay;
 
-    private WebDriver webDriver;
-    private WebDriverWait driverWait;
+    // Thread-safe WebDriver management for parallel execution
+    private final ThreadLocal<WebDriver> threadLocalDriver = new ThreadLocal<>();
+    private final ThreadLocal<WebDriverWait> threadLocalWait = new ThreadLocal<>();
+    private final Map<String, WebDriver> driverPool = new ConcurrentHashMap<>();
+    private final Map<String, LocalDateTime> driverLastUsed = new ConcurrentHashMap<>();
 
-    public TestExecutionEngine.TestExecutionResult execute(Map<String, Object> testData, TestCase testCase) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
+    /**
+     * Configuration class for test execution
+     */
+    public static class TestExecutionConfig {
+        private String browser = "chrome";
+        private boolean headless = false;
+        private boolean enableScreenshots = true;
+        private int timeout = 30;
+
+        public String getBrowser() { return browser; }
+        public void setBrowser(String browser) { this.browser = browser; }
+
+        public boolean isHeadless() { return headless; }
+        public void setHeadless(boolean headless) { this.headless = headless; }
+
+        public boolean isEnableScreenshots() { return enableScreenshots; }
+        public void setEnableScreenshots(boolean enableScreenshots) { this.enableScreenshots = enableScreenshots; }
+
+        public int getTimeout() { return timeout; }
+        public void setTimeout(int timeout) { this.timeout = timeout; }
+    }
+
+    /**
+     * Main execution method - implements BaseTestExecutor contract
+     */
+    @Override
+    public TestExecutionResult execute(Map<String, Object> testData, TestCase testCase) {
+        String executionId = generateExecutionId();
+        TestExecutionResult result = new TestExecutionResult();
+        result.setExecutionId(Long.parseLong(executionId));
+        result.setTestType("WEB_UI");
+
         List<String> logs = new ArrayList<>();
         List<String> screenshots = new ArrayList<>();
 
         try {
-            logs.add("Starting Web UI test execution for: " + testCase.getName());
-            
-            // Initialize WebDriver
-            initializeDriver(getBrowserFromTestData(testData, defaultBrowser));
-            logs.add("WebDriver initialized: " + defaultBrowser);
+            logStep(executionId, "Starting Web UI test execution for: " + testCase.getName(), logs);
+
+            // Initialize thread-safe WebDriver
+            initializeDriverForThread(getBrowserFromTestData(testData, defaultBrowser), executionId);
+            logStep(executionId, "WebDriver initialized: " + defaultBrowser, logs);
+
+            // Capture initial metrics
+            captureMetric(result, "browser", defaultBrowser);
+            captureMetric(result, "headless", headlessMode);
+            captureMetric(result, "environment", testData.getOrDefault("environment", "default"));
 
             // Execute test based on data structure
             if (testData.containsKey("steps")) {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> steps = (List<Map<String, Object>>) testData.get("steps");
-                result = executeSteps(steps, logs, screenshots);
+                result = executeSteps(steps, logs, screenshots, executionId, result);
             } else {
-                result = executeSingleAction(testData, logs, screenshots);
+                result = executeSingleAction(testData, logs, screenshots, executionId, result);
             }
 
             if (result.isSuccess()) {
-                logs.add("Web UI test completed successfully");
+                logStep(executionId, "Web UI test completed successfully", logs);
             }
 
             result.setExecutionLogs(String.join("\n", logs));
+            captureMetric(result, "total_screenshots", screenshots.size());
 
         } catch (Exception e) {
-            log.error("Web UI test execution failed", e);
+            log.error("Web UI test execution {} failed", executionId, e);
             result.setSuccess(false);
             result.setErrorMessage("Web UI execution failed: " + e.getMessage());
             
             // Capture screenshot on error
-            if (captureScreenshots && webDriver != null) {
-                String screenshotPath = captureScreenshot("error_" + System.currentTimeMillis());
+            if (captureScreenshots) {
+                String screenshotPath = captureScreenshot("error_" + executionId, executionId);
                 if (screenshotPath != null) {
                     screenshots.add(screenshotPath);
                 }
             }
 
-            logs.add("ERROR: " + e.getMessage());
+            logStep(executionId, "ERROR: " + e.getMessage(), logs);
             result.setExecutionLogs(String.join("\n", logs));
 
         } finally {
             result.setScreenshotPaths(screenshots);
-            cleanupDriver();
+            result.markCompleted();
+            cleanupDriverForThread(executionId);
         }
 
         return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeSteps(List<Map<String, Object>> steps, 
-                                                               List<String> logs, List<String> screenshots) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
+    /**
+     * Execute multiple test cases in parallel
+     */
+    public CompletableFuture<List<TestExecutionResult>> executeParallel(
+            List<TestCase> testCases,
+            Map<String, Object> commonTestData,
+            String environment,
+            int maxParallelThreads) {
+
+        log.info("Starting parallel execution of {} test cases with {} threads", testCases.size(), maxParallelThreads);
+
+        List<CompletableFuture<TestExecutionResult>> futures = new ArrayList<>();
+
+        for (TestCase testCase : testCases) {
+            // Create test-specific data by merging common data with test case data
+            Map<String, Object> testData = new HashMap<>(commonTestData);
+            if (testCase.getTestData() != null && !testCase.getTestData().isEmpty()) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> caseSpecificData = (Map<String, Object>)
+                        new com.fasterxml.jackson.databind.ObjectMapper().readValue(testCase.getTestData(), Map.class);
+                    testData.putAll(caseSpecificData);
+                } catch (Exception e) {
+                    log.warn("Failed to parse test data for test case {}: {}", testCase.getName(), e.getMessage());
+                }
+            }
+
+            CompletableFuture<TestExecutionResult> future = executeAsync(testData, testCase, environment);
+            futures.add(future);
+        }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> futures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(java.util.stream.Collectors.toList()));
+    }
+
+    private TestExecutionResult executeSteps(List<Map<String, Object>> steps,
+                                                               List<String> logs, List<String> screenshots, String executionId, TestExecutionResult result) {
         result.setSuccess(true);
 
         for (int i = 0; i < steps.size(); i++) {
             Map<String, Object> step = steps.get(i);
             String action = step.getOrDefault("action", "").toString();
             
-            logs.add(String.format("Executing step %d: %s", i + 1, action));
+            logStep(executionId, String.format("Executing step %d: %s", i + 1, action), logs);
 
             try {
                 switch (action.toLowerCase()) {
                     case "navigate":
-                        navigateTo(step.get("url").toString());
+                        navigateTo(step.get("url").toString(), executionId);
                         break;
                     case "click":
-                        clickElement(step.get("selector").toString());
+                        clickElement(step.get("selector").toString(), executionId);
                         break;
                     case "type":
                     case "input":
-                        typeText(step.get("selector").toString(), step.get("text").toString());
+                        typeText(step.get("selector").toString(), step.get("text").toString(), executionId);
                         break;
                     case "wait":
-                        waitForElement(step.get("selector").toString());
+                        waitForElement(step.get("selector").toString(), executionId);
                         break;
                     case "verify":
                     case "assert":
-                        boolean verified = verifyElement(step.get("selector").toString(), 
-                                                       step.getOrDefault("expectedText", "").toString());
+                        boolean verified = verifyElement(step.get("selector").toString(),
+                                                       step.getOrDefault("expectedText", "").toString(), executionId);
                         if (!verified) {
                             result.setSuccess(false);
                             result.setErrorMessage("Verification failed at step " + (i + 1));
-                            
+
                             if (captureScreenshots) {
-                                String screenshotPath = captureScreenshot("verification_failed_step_" + (i + 1));
+                                String screenshotPath = captureScreenshot("verification_failed_step_" + (i + 1), executionId);
                                 if (screenshotPath != null) {
                                     screenshots.add(screenshotPath);
                                 }
@@ -156,17 +238,17 @@ public class WebUITestExecutor {
                         break;
                     case "screenshot":
                         if (captureScreenshots) {
-                            String screenshotPath = captureScreenshot("step_" + (i + 1));
+                            String screenshotPath = captureScreenshot("step_" + (i + 1), executionId);
                             if (screenshotPath != null) {
                                 screenshots.add(screenshotPath);
                             }
                         }
                         break;
                     default:
-                        logs.add("Unknown action: " + action);
+                        logStep(executionId, "Unknown action: " + action, logs);
                 }
 
-                logs.add(String.format("Step %d completed successfully", i + 1));
+                logStep(executionId, String.format("Step %d completed successfully", i + 1), logs);
 
             } catch (Exception e) {
                 log.error("Step {} execution failed: {}", i + 1, e.getMessage());
@@ -174,12 +256,12 @@ public class WebUITestExecutor {
                 result.setErrorMessage("Step " + (i + 1) + " failed: " + e.getMessage());
                 
                 if (captureScreenshots) {
-                    String screenshotPath = captureScreenshot("error_step_" + (i + 1));
+                    String screenshotPath = captureScreenshot("error_step_" + (i + 1), executionId);
                     if (screenshotPath != null) {
                         screenshots.add(screenshotPath);
                     }
                 }
-                
+
                 return result;
             }
         }
@@ -187,28 +269,37 @@ public class WebUITestExecutor {
         return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeSingleAction(Map<String, Object> testData, 
-                                                                      List<String> logs, List<String> screenshots) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
+    private TestExecutionResult executeSingleAction(Map<String, Object> testData,
+                                                                      List<String> logs, List<String> screenshots, String executionId, TestExecutionResult result) {
         result.setSuccess(true);
 
         try {
             // Navigate to URL if provided
             if (testData.containsKey("url")) {
-                navigateTo(testData.get("url").toString());
+                navigateTo(testData.get("url").toString(), executionId);
                 logs.add("Navigated to: " + testData.get("url"));
+
+                // Take a screenshot after navigation to verify page loaded
+                if (captureScreenshots) {
+                    String screenshotPath = captureScreenshot("after_navigation", executionId);
+                    if (screenshotPath != null) {
+                        screenshots.add(screenshotPath);
+                        logs.add("Screenshot taken after navigation: " + screenshotPath);
+                    }
+                }
             }
 
-            // Execute basic login test as example
+            // Execute basic login test
             if (testData.containsKey("username") && testData.containsKey("password")) {
-                executeLoginTest(testData, logs);
+                executeLoginTest(testData, logs, executionId);
             }
 
             // Take final screenshot if enabled
             if (captureScreenshots) {
-                String screenshotPath = captureScreenshot("final_result");
+                String screenshotPath = captureScreenshot("final_result", executionId);
                 if (screenshotPath != null) {
                     screenshots.add(screenshotPath);
+                    logs.add("Final screenshot taken: " + screenshotPath);
                 }
             }
 
@@ -227,14 +318,23 @@ public class WebUITestExecutor {
         try {
             log.info("Initializing WebDriver for browser: {}", browser);
 
-            // Add system property to suppress CDP warnings for Chrome 140
+            // Comprehensive system properties to suppress all CDP and logging warnings
             System.setProperty("webdriver.chrome.silentOutput", "true");
+            System.setProperty("webdriver.chrome.logfile", "/dev/null");
+            System.setProperty("webdriver.chrome.verboseLogging", "false");
+            System.setProperty("webdriver.chrome.args", "--silent --log-level=3");
             System.setProperty("org.openqa.selenium.logging.ignore", "org.openqa.selenium.devtools");
+            System.setProperty("selenium.LOGGER", "OFF");
+
+            // Disable specific Selenium logging
+            java.util.logging.Logger.getLogger("org.openqa.selenium").setLevel(java.util.logging.Level.OFF);
+            java.util.logging.Logger.getLogger("org.openqa.selenium.devtools").setLevel(java.util.logging.Level.OFF);
+            java.util.logging.Logger.getLogger("org.openqa.selenium.remote").setLevel(java.util.logging.Level.OFF);
 
             ChromeOptions chromeOptions = new ChromeOptions();
             FirefoxOptions firefoxOptions = new FirefoxOptions();
 
-            // Enhanced Chrome options for Linux environment
+            // Enhanced Chrome options for preventing blank pages and Google opening pages
             chromeOptions.addArguments("--no-sandbox");
             chromeOptions.addArguments("--disable-dev-shm-usage");
             chromeOptions.addArguments("--disable-gpu");
@@ -247,20 +347,57 @@ public class WebUITestExecutor {
             chromeOptions.addArguments("--disable-features=TranslateUI");
             chromeOptions.addArguments("--window-size=1920,1080");
 
-            // Disable DevTools Protocol features to avoid CDP version mismatch
+            // Fix blank page and Google opening page issues
+            chromeOptions.addArguments("--disable-search-engine-choice-screen");
+            chromeOptions.addArguments("--no-first-run");
+            chromeOptions.addArguments("--no-default-browser-check");
+            chromeOptions.addArguments("--disable-default-apps");
+            chromeOptions.addArguments("--disable-background-networking");
+            chromeOptions.addArguments("--disable-component-extensions-with-background-pages");
+            chromeOptions.addArguments("--start-maximized");
+
+            // Prevent opening with blank or Google pages
+            chromeOptions.addArguments("--homepage=about:blank");
+            chromeOptions.addArguments("--disable-sync");
+
+            // Complete CDP and DevTools suppression
             chromeOptions.addArguments("--disable-dev-tools");
             chromeOptions.addArguments("--disable-extensions-http-throttling");
             chromeOptions.addArguments("--disable-logging");
-            chromeOptions.addArguments("--disable-background-networking");
-            chromeOptions.addArguments("--disable-default-apps");
-            chromeOptions.addArguments("--disable-sync");
-            chromeOptions.addArguments("--no-first-run");
-            chromeOptions.addArguments("--disable-features=VizDisplayCompositor");
+            chromeOptions.addArguments("--log-level=3");
+            chromeOptions.addArguments("--silent");
+            chromeOptions.addArguments("--disable-gpu-logging");
+            chromeOptions.addArguments("--disable-blink-features=AutomationControlled");
+            chromeOptions.addArguments("--disable-infobars");
+            chromeOptions.addArguments("--disable-notifications");
+            chromeOptions.addArguments("--disable-popup-blocking");
+            chromeOptions.addArguments("--disable-translate");
+            chromeOptions.addArguments("--disable-ipc-flooding-protection");
 
-            // Set experimental options to disable CDP features
+            // Experimental options to completely disable automation detection and CDP
             chromeOptions.setExperimentalOption("useAutomationExtension", false);
-            // Replace Arrays.asList single element warning with singletonList
-            chromeOptions.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
+            chromeOptions.setExperimentalOption("excludeSwitches",
+                java.util.Arrays.asList("enable-automation", "enable-logging"));
+            chromeOptions.setExperimentalOption("detach", true);
+
+            // Disable all Chrome logging
+            java.util.Map<String, Object> prefs = new java.util.HashMap<>();
+            prefs.put("profile.default_content_setting_values.notifications", 2);
+            prefs.put("profile.default_content_settings.popups", 0);
+            prefs.put("profile.managed_default_content_settings.images", 2);
+            prefs.put("homepage_is_newtabpage", false);
+            prefs.put("homepage", "about:blank");
+            chromeOptions.setExperimentalOption("prefs", prefs);
+
+            // Additional logging suppression via capabilities
+            org.openqa.selenium.logging.LoggingPreferences logPrefs = new org.openqa.selenium.logging.LoggingPreferences();
+            logPrefs.enable(org.openqa.selenium.logging.LogType.BROWSER, java.util.logging.Level.OFF);
+            logPrefs.enable(org.openqa.selenium.logging.LogType.CLIENT, java.util.logging.Level.OFF);
+            logPrefs.enable(org.openqa.selenium.logging.LogType.DRIVER, java.util.logging.Level.OFF);
+            logPrefs.enable(org.openqa.selenium.logging.LogType.PERFORMANCE, java.util.logging.Level.OFF);
+            logPrefs.enable(org.openqa.selenium.logging.LogType.PROFILER, java.util.logging.Level.OFF);
+            logPrefs.enable(org.openqa.selenium.logging.LogType.SERVER, java.util.logging.Level.OFF);
+            chromeOptions.setCapability("goog:loggingPrefs", logPrefs);
 
             // Check if running in headless mode or on server environment
             if (headlessMode || isServerEnvironment()) {
@@ -290,7 +427,7 @@ public class WebUITestExecutor {
                     log.info("Setting up Firefox WebDriver");
                     try {
                         WebDriverManager.firefoxdriver().setup();
-                        webDriver = new FirefoxDriver(firefoxOptions);
+                        threadLocalDriver.set(new FirefoxDriver(firefoxOptions));
                         log.info("Firefox WebDriver initialized successfully");
                     } catch (Exception e) {
                         log.error("Firefox WebDriver initialization failed: {}", e.getMessage());
@@ -305,13 +442,17 @@ public class WebUITestExecutor {
                     break;
             }
 
+            WebDriver webDriver = threadLocalDriver.get();
             if (webDriver != null) {
+                // Increased timeouts for better reliability
                 webDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(implicitWait));
-                webDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+                webDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(60));
+                webDriver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
+
                 if (!headlessMode && !isServerEnvironment()) {
                     webDriver.manage().window().maximize();
                 }
-                driverWait = new WebDriverWait(webDriver, Duration.ofSeconds(20));
+                threadLocalWait.set(new WebDriverWait(webDriver, Duration.ofSeconds(30)));
                 log.info("WebDriver configured successfully with timeouts and window settings");
             } else {
                 throw new RuntimeException("Failed to initialize any WebDriver");
@@ -333,63 +474,29 @@ public class WebUITestExecutor {
                 chromeOptions.setBinary(chromiumPath);
             }
 
-            // Configure WebDriverManager to use compatible ChromeDriver version
-            // This will automatically download the correct ChromeDriver version for your Chrome browser
             WebDriverManager chromeDriverManager = WebDriverManager.chromedriver();
-
-            // Force WebDriverManager to check for the correct version matching your Chrome installation
-            chromeDriverManager.clearDriverCache(); // Clear any cached incompatible drivers
+            chromeDriverManager.clearDriverCache();
             chromeDriverManager.setup();
 
             log.info("WebDriverManager configured ChromeDriver for Chrome browser");
 
-            webDriver = new ChromeDriver(chromeOptions);
+            WebDriver webDriver = new ChromeDriver(chromeOptions);
+            threadLocalDriver.set(webDriver);
             log.info("Chrome WebDriver initialized successfully");
         } catch (Exception e) {
             log.error("Chrome WebDriver initialization failed: {}", e.getMessage());
-            // Try with Chromium as fallback
-            try {
-                log.info("Attempting to use Chromium browser as fallback");
-                chromeOptions.setBinary(chromiumPath);
-
-                // Try WebDriverManager setup again for Chromium path
-                WebDriverManager.chromedriver().clearDriverCache().setup();
-
-                webDriver = new ChromeDriver(chromeOptions);
-                log.info("Chromium WebDriver initialized successfully");
-            } catch (Exception chromiumError) {
-                log.error("Chromium WebDriver also failed: {}", chromiumError.getMessage());
-
-                // Final fallback: try to use a specific ChromeDriver version
-                try {
-                    log.info("Attempting final fallback with ChromeDriver version compatibility");
-                    WebDriverManager.chromedriver()
-                        .browserVersion("139") // Match your Chrome version
-                        .setup();
-                    webDriver = new ChromeDriver(chromeOptions);
-                    log.info("ChromeDriver 139 compatibility mode initialized successfully");
-                } catch (Exception finalError) {
-                    log.error("All ChromeDriver initialization attempts failed: {}", finalError.getMessage());
-                    throw new RuntimeException("All Chrome and Chromium WebDriver initialization attempts failed", finalError);
-                }
-            }
+            throw new RuntimeException("Chrome WebDriver initialization failed", e);
         }
     }
 
     private boolean isServerEnvironment() {
-        // If auto detection disabled, rely purely on configured headless flag
         if (!autoDetectDisplay) {
             log.debug("Auto display detection disabled; using headlessMode config: {}", headlessMode);
             return headlessMode;
         }
-        // Check if running on a server (no display)
         String display = System.getenv("DISPLAY");
-        String sessionType = System.getenv("XDG_SESSION_TYPE");
         boolean isHeadless = display == null || display.trim().isEmpty();
-
-        log.debug("Environment check - DISPLAY: {}, XDG_SESSION_TYPE: {}, isHeadless: {}",
-                 display, sessionType, isHeadless);
-
+        log.debug("Environment check - DISPLAY: {}, isHeadless: {}", display, isHeadless);
         return isHeadless;
     }
 
@@ -402,7 +509,6 @@ public class WebUITestExecutor {
                 return true;
             }
 
-            // Try alternative Chrome locations
             String[] chromePaths = {
                 "/usr/bin/google-chrome",
                 "/usr/bin/google-chrome-stable",
@@ -427,35 +533,75 @@ public class WebUITestExecutor {
         }
     }
 
-    private void navigateTo(String url) {
+    private void navigateTo(String url, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
+        WebDriverWait driverWait = threadLocalWait.get();
         if (webDriver != null) {
-            webDriver.get(url);
-            log.info("Navigated to: {}", url);
+            try {
+                log.info("Navigating to URL: {}", url);
+                webDriver.get(url);
+
+                // Wait for page to load completely
+                driverWait.until(ExpectedConditions.jsReturnsValue("return document.readyState === 'complete'"));
+
+                // Additional wait for dynamic content
+                Thread.sleep(2000);
+
+                // Verify the page has loaded by checking the title
+                String pageTitle = webDriver.getTitle();
+                log.info("Page loaded successfully. Title: {}", pageTitle);
+
+                // Additional verification that we're not on a blank or error page
+                String currentUrl = webDriver.getCurrentUrl();
+                if (currentUrl.contains("about:blank") || pageTitle.isEmpty()) {
+                    log.warn("Detected blank page, retrying navigation...");
+                    Thread.sleep(1000);
+                    webDriver.get(url);
+                    driverWait.until(ExpectedConditions.jsReturnsValue("return document.readyState === 'complete'"));
+                    Thread.sleep(2000);
+                }
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Navigation interrupted: {}", e.getMessage());
+                throw new RuntimeException("Navigation interrupted", e);
+            } catch (Exception e) {
+                log.error("Navigation to {} failed: {}", url, e.getMessage());
+                throw new RuntimeException("Failed to navigate to: " + url, e);
+            }
         }
     }
 
-    private void clickElement(String selector) {
+    private void clickElement(String selector, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
+        WebDriverWait driverWait = threadLocalWait.get();
         WebElement element = driverWait.until(ExpectedConditions.elementToBeClickable(By.cssSelector(selector)));
         element.click();
         log.info("Clicked element: {}", selector);
     }
 
-    private void typeText(String selector, String text) {
+    private void typeText(String selector, String text, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
+        WebDriverWait driverWait = threadLocalWait.get();
         WebElement element = driverWait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(selector)));
         element.clear();
         element.sendKeys(text);
         log.info("Typed text '{}' into element: {}", text, selector);
     }
 
-    private void waitForElement(String selector) {
+    private void waitForElement(String selector, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
+        WebDriverWait driverWait = threadLocalWait.get();
         driverWait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(selector)));
         log.info("Waited for element: {}", selector);
     }
 
-    private boolean verifyElement(String selector, String expectedText) {
+    private boolean verifyElement(String selector, String expectedText, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
+        WebDriverWait driverWait = threadLocalWait.get();
         try {
             WebElement element = driverWait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(selector)));
-            
+
             if (expectedText == null || expectedText.isEmpty()) {
                 return element.isDisplayed();
             } else {
@@ -467,83 +613,209 @@ public class WebUITestExecutor {
         }
     }
 
-    private void executeLoginTest(Map<String, Object> testData, List<String> logs) {
+    @SneakyThrows
+    private void executeLoginTest(Map<String, Object> testData, List<String> logs, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
+        WebDriverWait driverWait = threadLocalWait.get();
         try {
             String username = testData.get("username").toString();
             String password = testData.get("password").toString();
 
-            // Try common username selectors
-            String[] usernameSelectors = {"#username", "#user", "input[name='username']", "input[type='email']"};
-            String[] passwordSelectors = {"#password", "#pass", "input[name='password']", "input[type='password']"};
-            String[] submitSelectors = {"input[type='submit']", "button[type='submit']", "#login", ".login-button"};
+            log.info("Executing login test with username: {}", username);
+            logs.add("Starting login process...");
+
+            // Wait for page to fully load first
+            driverWait.until(ExpectedConditions.jsReturnsValue("return document.readyState === 'complete'"));
+            Thread.sleep(1000);
+
+            // BlazeDemo specific selectors first, then fallback to common ones
+            String[] usernameSelectors = {
+                "input[name='email']", // BlazeDemo uses email field
+                "input[type='email']",
+                "#email",
+                "#username",
+                "#user",
+                "input[name='username']"
+            };
+
+            String[] passwordSelectors = {
+                "input[name='password']", // BlazeDemo password field
+                "#password",
+                "#pass",
+                "input[type='password']"
+            };
+
+            String[] submitSelectors = {
+                "input[type='submit']", // BlazeDemo login button
+                "button[type='submit']",
+                "input[value='Login']",
+                "#login",
+                ".login-button",
+                ".btn-primary"
+            };
 
             boolean loginExecuted = false;
+            WebElement userElement = null;
+            WebElement passElement = null;
+            WebElement submitElement = null;
 
+            // Find username field
             for (String userSelector : usernameSelectors) {
                 try {
-                    WebElement userElement = webDriver.findElement(By.cssSelector(userSelector));
-                    if (userElement.isDisplayed()) {
-                        userElement.clear();
-                        userElement.sendKeys(username);
-                        
-                        for (String passSelector : passwordSelectors) {
-                            try {
-                                WebElement passElement = webDriver.findElement(By.cssSelector(passSelector));
-                                if (passElement.isDisplayed()) {
-                                    passElement.clear();
-                                    passElement.sendKeys(password);
-                                    
-                                    for (String submitSelector : submitSelectors) {
-                                        try {
-                                            WebElement submitElement = webDriver.findElement(By.cssSelector(submitSelector));
-                                            if (submitElement.isDisplayed()) {
-                                                submitElement.click();
-                                                loginExecuted = true;
-                                                logs.add("Login executed successfully");
-                                                Thread.sleep(2000); // Wait for login to process
-                                                return;
-                                            }
-                                        } catch (Exception ignored) {}
-                                    }
-                                }
-                            } catch (Exception ignored) {}
-                        }
+                    userElement = driverWait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(userSelector)));
+                    if (userElement.isDisplayed() && userElement.isEnabled()) {
+                        log.info("Found username field with selector: {}", userSelector);
+                        logs.add("Found username field: " + userSelector);
+                        break;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.debug("Username selector {} not found: {}", userSelector, e.getMessage());
+                }
+            }
+
+            // Find password field
+            if (userElement != null) {
+                for (String passSelector : passwordSelectors) {
+                    try {
+                        passElement = webDriver.findElement(By.cssSelector(passSelector));
+                        if (passElement.isDisplayed() && passElement.isEnabled()) {
+                            log.info("Found password field with selector: {}", passSelector);
+                            logs.add("Found password field: " + passSelector);
+                            break;
+                        }
+                    } catch (Exception e) {
+                        log.debug("Password selector {} not found: {}", passSelector, e.getMessage());
+                    }
+                }
+            }
+
+            // Find submit button
+            if (userElement != null && passElement != null) {
+                for (String submitSelector : submitSelectors) {
+                    try {
+                        submitElement = webDriver.findElement(By.cssSelector(submitSelector));
+                        if (submitElement.isDisplayed() && submitElement.isEnabled()) {
+                            log.info("Found submit button with selector: {}", submitSelector);
+                            logs.add("Found submit button: " + submitSelector);
+                            break;
+                        }
+                    } catch (Exception e) {
+                        log.debug("Submit selector {} not found: {}", submitSelector, e.getMessage());
+                    }
+                }
+            }
+
+            // Execute login if all elements found
+            if (userElement != null && passElement != null && submitElement != null) {
+                try {
+                    // Clear and enter username
+                    userElement.clear();
+                    Thread.sleep(500);
+                    userElement.sendKeys(username);
+                    logs.add("Entered username: " + username);
+
+                    // Clear and enter password
+                    passElement.clear();
+                    Thread.sleep(500);
+                    passElement.sendKeys(password);
+                    logs.add("Entered password");
+
+                    // Click submit button
+                    Thread.sleep(500);
+                    submitElement.click();
+                    logs.add("Clicked login button");
+
+                    // Wait for login to process
+                    Thread.sleep(3000);
+
+                    // Verify login by checking URL change or page title
+                    String currentUrl = webDriver.getCurrentUrl();
+                    String pageTitle = webDriver.getTitle();
+
+                    logs.add("After login - URL: " + currentUrl + ", Title: " + pageTitle);
+
+                    // Check if login was successful (URL changed or title changed)
+                    if (!currentUrl.contains("login") || pageTitle.toLowerCase().contains("welcome") ||
+                        pageTitle.toLowerCase().contains("dashboard") || pageTitle.toLowerCase().contains("home")) {
+                        loginExecuted = true;
+                        logs.add("Login appears successful - page changed");
+                    } else {
+                        logs.add("Login may have failed - page didn't change as expected");
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Login execution interrupted: {}", e.getMessage());
+                    logs.add("Login execution interrupted: " + e.getMessage());
+                    throw new RuntimeException("Login execution interrupted", e);
+                } catch (Exception e) {
+                    log.error("Error during login execution: {}", e.getMessage());
+                    logs.add("Error during login: " + e.getMessage());
+                }
             }
 
             if (!loginExecuted) {
-                logs.add("Could not find standard login elements, login not executed");
+                logs.add("Could not complete login - missing elements or login failed");
+                log.warn("Login test could not be completed. Username field: {}, Password field: {}, Submit button: {}",
+                    userElement != null, passElement != null, submitElement != null);
+            } else {
+                logs.add("Login test completed successfully");
+                log.info("Login test executed successfully");
             }
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Login test interrupted: {}", e.getMessage());
+            logs.add("Login test interrupted: " + e.getMessage());
+            throw new RuntimeException("Login test interrupted", e);
         } catch (Exception e) {
             log.error("Login test execution failed", e);
+            logs.add("Login test failed with error: " + e.getMessage());
             throw e;
         }
     }
 
-    private String captureScreenshot(String name) {
+    private String captureScreenshot(String name, String executionId) {
+        WebDriver webDriver = threadLocalDriver.get();
         if (webDriver == null) return null;
 
         try {
+            // Wait a moment for any animations/transitions to complete
+            Thread.sleep(1000);
+
             // Create screenshots directory
             Path screenshotDir = Paths.get(reportOutputPath, "screenshots");
             Files.createDirectories(screenshotDir);
 
-            // Generate filename
+            // Generate filename with timestamp and better naming
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String filename = String.format("%s_%s.png", name, timestamp);
             File screenshotFile = screenshotDir.resolve(filename).toFile();
+
+            // Verify page is loaded before taking screenshot
+            try {
+                threadLocalWait.get().until(ExpectedConditions.jsReturnsValue("return document.readyState === 'complete'"));
+                Thread.sleep(500); // Additional wait for rendering
+            } catch (Exception e) {
+                log.warn("Could not verify page readiness before screenshot: {}", e.getMessage());
+            }
 
             // Take screenshot
             TakesScreenshot takesScreenshot = (TakesScreenshot) webDriver;
             File sourceFile = takesScreenshot.getScreenshotAs(OutputType.FILE);
             Files.copy(sourceFile.toPath(), screenshotFile.toPath());
 
-            log.info("Screenshot captured: {}", screenshotFile.getAbsolutePath());
+            log.info("Screenshot captured: {} (size: {} bytes)", screenshotFile.getAbsolutePath(), screenshotFile.length());
             return screenshotFile.getAbsolutePath();
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Screenshot capture interrupted: {}", e.getMessage());
+            return null;
         } catch (IOException e) {
+            log.error("Failed to capture screenshot: {}", e.getMessage());
+            return null;
+        } catch (Exception e) {
             log.error("Failed to capture screenshot: {}", e.getMessage());
             return null;
         }
@@ -554,6 +826,7 @@ public class WebUITestExecutor {
     }
 
     private void cleanupDriver() {
+        WebDriver webDriver = threadLocalDriver.get();
         if (webDriver != null) {
             try {
                 webDriver.quit();
@@ -561,9 +834,169 @@ public class WebUITestExecutor {
             } catch (Exception e) {
                 log.warn("Error during WebDriver cleanup: {}", e.getMessage());
             } finally {
-                webDriver = null;
-                driverWait = null;
+                threadLocalDriver.remove();
+                threadLocalWait.remove();
             }
+        }
+    }
+
+    /**
+     * Enhanced driver initialization with better thread management
+     */
+    private void initializeDriverForThread(TestExecutionConfig config, String executionId) {
+        try {
+            log.info("Initializing WebDriver for execution {} with browser: {}", executionId, config.getBrowser());
+
+            // Enhanced system properties for better stability
+            configureSystemProperties();
+
+            WebDriver webDriver = createWebDriver(config);
+            threadLocalDriver.set(webDriver);
+            driverPool.put(executionId, webDriver);
+            driverLastUsed.put(executionId, LocalDateTime.now());
+
+            // Configure timeouts
+            webDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(implicitWait));
+            webDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(config.getTimeout()));
+            webDriver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
+
+            if (!config.isHeadless() && !isServerEnvironment()) {
+                webDriver.manage().window().maximize();
+            }
+
+            threadLocalWait.set(new WebDriverWait(webDriver, Duration.ofSeconds(config.getTimeout())));
+            log.info("WebDriver initialized successfully for execution: {}", executionId);
+
+        } catch (Exception e) {
+            log.error("Failed to initialize WebDriver for execution {}: {}", executionId, e.getMessage(), e);
+            throw new RuntimeException("WebDriver initialization failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Backward compatibility method
+     */
+    private void initializeDriverForThread(String browser, String executionId) {
+        TestExecutionConfig config = new TestExecutionConfig();
+        config.setBrowser(browser);
+        config.setHeadless(headlessMode);
+        config.setEnableScreenshots(captureScreenshots);
+        initializeDriverForThread(config, executionId);
+    }
+
+    /**
+     * Enhanced cleanup with proper resource management
+     */
+    private void cleanupDriverForThread(String executionId) {
+        try {
+            WebDriver webDriver = threadLocalDriver.get();
+            if (webDriver != null) {
+                webDriver.quit();
+                log.info("WebDriver cleaned up for execution: {}", executionId);
+            }
+        } catch (Exception e) {
+            log.warn("Error during WebDriver cleanup for execution {}: {}", executionId, e.getMessage());
+        } finally {
+            threadLocalDriver.remove();
+            threadLocalWait.remove();
+            driverPool.remove(executionId);
+            driverLastUsed.remove(executionId);
+        }
+    }
+
+    /**
+     * Configure system properties for better WebDriver stability
+     */
+    private void configureSystemProperties() {
+        System.setProperty("webdriver.chrome.silentOutput", "true");
+        System.setProperty("webdriver.chrome.logfile", "/dev/null");
+        System.setProperty("webdriver.chrome.verboseLogging", "false");
+        System.setProperty("webdriver.chrome.args", "--silent --log-level=3");
+        System.setProperty("org.openqa.selenium.logging.ignore", "org.openqa.selenium.devtools");
+        System.setProperty("selenium.LOGGER", "OFF");
+
+        // Disable specific Selenium logging
+        java.util.logging.Logger.getLogger("org.openqa.selenium").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("org.openqa.selenium.devtools").setLevel(java.util.logging.Level.OFF);
+        java.util.logging.Logger.getLogger("org.openqa.selenium.remote").setLevel(java.util.logging.Level.OFF);
+    }
+
+    /**
+     * Create WebDriver instance based on configuration
+     */
+    private WebDriver createWebDriver(TestExecutionConfig config) {
+        String browser = config.getBrowser().toLowerCase();
+        boolean headless = config.isHeadless() || isServerEnvironment();
+
+        switch (browser) {
+            case "firefox":
+                return createFirefoxDriver(headless);
+            case "chrome":
+            default:
+                return createChromeDriver(headless);
+        }
+    }
+
+    /**
+     * Create Chrome WebDriver with options
+     */
+    private WebDriver createChromeDriver(boolean headless) {
+        ChromeOptions chromeOptions = new ChromeOptions();
+
+        // Basic Chrome options
+        chromeOptions.addArguments("--no-sandbox");
+        chromeOptions.addArguments("--disable-dev-shm-usage");
+        chromeOptions.addArguments("--disable-gpu");
+        chromeOptions.addArguments("--disable-extensions");
+        chromeOptions.addArguments("--disable-web-security");
+        chromeOptions.addArguments("--allow-running-insecure-content");
+        chromeOptions.addArguments("--window-size=1920,1080");
+
+        // Headless configuration
+        if (headless) {
+            chromeOptions.addArguments("--headless=new");
+            chromeOptions.addArguments("--disable-gpu");
+        }
+
+        // Suppress logging and automation detection
+        chromeOptions.addArguments("--disable-logging");
+        chromeOptions.addArguments("--log-level=3");
+        chromeOptions.addArguments("--silent");
+        chromeOptions.setExperimentalOption("useAutomationExtension", false);
+        chromeOptions.setExperimentalOption("excludeSwitches", Arrays.asList("enable-automation", "enable-logging"));
+
+        try {
+            if (!isChromeAvailable()) {
+                chromeOptions.setBinary(chromiumPath);
+            }
+
+            WebDriverManager.chromedriver().setup();
+            return new ChromeDriver(chromeOptions);
+        } catch (Exception e) {
+            log.error("Failed to create Chrome WebDriver: {}", e.getMessage());
+            throw new RuntimeException("Chrome WebDriver creation failed", e);
+        }
+    }
+
+    /**
+     * Create Firefox WebDriver with options
+     */
+    private WebDriver createFirefoxDriver(boolean headless) {
+        FirefoxOptions firefoxOptions = new FirefoxOptions();
+
+        if (headless) {
+            firefoxOptions.addArguments("--headless");
+        }
+
+        firefoxOptions.addPreference("dom.webdriver.enabled", false);
+        firefoxOptions.addPreference("useAutomationExtension", false);
+
+        try {
+            WebDriverManager.firefoxdriver().setup();
+            return new FirefoxDriver(firefoxOptions);
+        } catch (Exception e) {
+            log.error("Failed to create Firefox WebDriver: {}", e.getMessage());
+            throw new RuntimeException("Firefox WebDriver creation failed", e);
         }
     }
 }

@@ -13,7 +13,7 @@ public class ReqResAPITests extends BaseAPITest {
     private static final String BASE_URL = "https://reqres.in/api";
     private static final String USERS_ENDPOINT = "/users";
 
-    @Test(description = "Placeholder test - REST Assured tests temporarily disabled")
+    @Test(description = "Placeholder test - REST Assured tests temporarily disabled", groups = {"ci","api"})
     public void placeholderTest() {
         testLogger.info("REST Assured API tests are temporarily disabled for compilation");
         // TODO: Re-enable when REST Assured dependency issues are resolved

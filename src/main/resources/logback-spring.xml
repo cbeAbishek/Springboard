@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/automation-framework.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/automation-framework.log.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Suppress all Selenium and WebDriver logging -->
+    <logger name="org.openqa.selenium" level="OFF"/>
+    <logger name="org.openqa.selenium.devtools" level="OFF"/>
+    <logger name="org.openqa.selenium.remote" level="OFF"/>
+    <logger name="org.openqa.selenium.chrome" level="OFF"/>
+    <logger name="org.seleniumhq.selenium" level="OFF"/>
+    <logger name="io.github.bonigarcia.wdm" level="WARN"/>
+
+    <!-- Suppress CDP and DevTools warnings specifically -->
+    <logger name="org.openqa.selenium.devtools.CdpVersionFinder" level="OFF"/>
+    <logger name="org.openqa.selenium.devtools.ChromeDevToolsLocator" level="OFF"/>
+    <logger name="org.openqa.selenium.chrome.ChromeDriverService" level="OFF"/>
+
+    <!-- Application logging -->
+    <logger name="org.example" level="INFO"/>
+    <logger name="org.springframework" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

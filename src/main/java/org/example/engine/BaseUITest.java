@@ -19,20 +19,29 @@ public class BaseUITest {
     @Autowired
     private WebDriverManager webDriverManager;
 
+    private boolean isHeadlessEnv() {
+        // CI env variable or system property/headless hints
+        if (System.getenv("CI") != null) return true;
+        if ("true".equalsIgnoreCase(System.getenv("CI_HEADLESS"))) return true;
+        if (Boolean.getBoolean("headless")) return true;
+        return false;
+    }
+
     @BeforeMethod
     @Parameters({"browser"})
     public void setUp(String browser) {
+        boolean headless = isHeadlessEnv();
+        String resolvedBrowser = browser != null ? browser : "chrome";
         try {
             if (webDriverManager != null) {
-                driver = webDriverManager.createDriver(browser != null ? browser : "chrome", false);
+                driver = webDriverManager.createDriver(resolvedBrowser, headless);
             } else {
-                // Fallback to manual WebDriver creation if autowiring fails
-                driver = createFallbackDriver();
+                driver = createFallbackDriver(headless);
             }
-            testLogger.info("Starting UI test: " + this.getClass().getSimpleName() + " with browser: " + browser);
+            testLogger.info("Starting UI test: {} with browser: {} (headless: {})", this.getClass().getSimpleName(), resolvedBrowser, headless);
         } catch (Exception e) {
-            testLogger.error("Failed to set up WebDriver", e);
-            driver = createFallbackDriver();
+            testLogger.error("Failed to set up WebDriver (primary path)", e);
+            driver = createFallbackDriver(headless);
         }
     }
 
@@ -41,17 +50,17 @@ public class BaseUITest {
         if (driver != null) {
             try {
                 driver.quit();
-                testLogger.info("Completed UI test: " + this.getClass().getSimpleName());
+                testLogger.info("Completed UI test: {}", this.getClass().getSimpleName());
             } catch (Exception e) {
                 testLogger.error("Error during WebDriver cleanup", e);
             }
         }
     }
 
-    private WebDriver createFallbackDriver() {
+    private WebDriver createFallbackDriver(boolean headless) {
         try {
-            // Use WebDriverManager utility if available
-            return new WebDriverManager().createDriver("chrome", false);
+            testLogger.warn("Using fallback WebDriver creation (headless: {})", headless);
+            return new WebDriverManager().createDriver("chrome", headless);
         } catch (Exception e) {
             testLogger.error("Failed to create fallback driver", e);
             throw new RuntimeException("Cannot create WebDriver instance", e);

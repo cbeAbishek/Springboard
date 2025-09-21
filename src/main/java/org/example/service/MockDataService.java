@@ -49,48 +49,18 @@ public class MockDataService implements ApplicationRunner {
 
     private void createMockTestCases() {
         List<TestCase> testCases = Arrays.asList(
-            // BlazeDemo UI Tests
-            createTestCase("BlazeDemo Homepage Load Test", "Verify homepage loads successfully with all elements",
-                TestCase.TestType.UI, "smoke", TestCase.Priority.HIGH,
-                "{\"url\":\"https://blazedemo.com\",\"expectedTitle\":\"BlazeDemo\"}"),
+            // API Tests
+            createTestCase("Get User API Test", "Verify user retrieval API works correctly",
+                TestCase.TestType.API, "smoke", TestCase.Priority.HIGH,
+                "{\"endpoint\":\"/api/users/2\",\"method\":\"GET\",\"expectedStatus\":200}"),
 
-            createTestCase("Flight Search Functionality", "Test flight search from Boston to London",
-                TestCase.TestType.UI, "functional", TestCase.Priority.HIGH,
-                "{\"fromCity\":\"Boston\",\"toCity\":\"London\",\"expectedResults\":\">=1\"}"),
+            createTestCase("Create User API Test", "Test user creation functionality",
+                TestCase.TestType.API, "functional", TestCase.Priority.HIGH,
+                "{\"endpoint\":\"/api/users\",\"method\":\"POST\",\"requestBody\":{\"name\":\"John\",\"job\":\"Developer\"},\"expectedStatus\":201}"),
 
-            createTestCase("Complete Flight Booking E2E", "End-to-end flight booking process",
-                TestCase.TestType.UI, "e2e", TestCase.Priority.CRITICAL,
-                "{\"passenger\":\"John Doe\",\"cardType\":\"Visa\",\"cardNumber\":\"4111111111111111\"}"),
-
-            createTestCase("Form Validation Testing", "Test input validation on booking forms",
-                TestCase.TestType.UI, "validation", TestCase.Priority.MEDIUM,
-                "{\"testType\":\"negative\",\"expectedError\":\"required field\"}"),
-
-            // ReqRes API Tests
-            createTestCase("Get Users List API", "Retrieve paginated users list",
-                TestCase.TestType.API, "api", TestCase.Priority.HIGH,
-                "{\"endpoint\":\"/api/users\",\"page\":2,\"expectedCount\":6}"),
-
-            createTestCase("Create User API", "Create new user via API",
-                TestCase.TestType.API, "api", TestCase.Priority.HIGH,
-                "{\"name\":\"John Doe\",\"job\":\"QA Engineer\"}"),
-
-            createTestCase("User Authentication API", "Test login and registration",
-                TestCase.TestType.API, "auth", TestCase.Priority.CRITICAL,
-                "{\"email\":\"eve.holt@reqres.in\",\"password\":\"cityslicka\"}"),
-
-            createTestCase("API Error Handling", "Test API error responses",
-                TestCase.TestType.API, "negative", TestCase.Priority.MEDIUM,
-                "{\"testType\":\"missing_password\",\"expectedError\":\"Missing password\"}"),
-
-            // Performance Tests
-            createTestCase("Load Test - 100 Users", "Performance test with 100 concurrent users",
-                TestCase.TestType.INTEGRATION, "performance", TestCase.Priority.MEDIUM,
-                "{\"users\":100,\"duration\":\"5min\",\"threshold\":\"2s\"}"),
-
-            createTestCase("Stress Test - API Endpoints", "Stress test for API endpoints",
-                TestCase.TestType.INTEGRATION, "performance", TestCase.Priority.LOW,
-                "{\"rps\":50,\"duration\":\"10min\",\"endpoints\":[\"/api/users\",\"/api/login\"]}")
+            createTestCase("Update User API Test", "Test user update functionality",
+                TestCase.TestType.API, "regression", TestCase.Priority.MEDIUM,
+                "{\"endpoint\":\"/api/users/2\",\"method\":\"PUT\",\"requestBody\":{\"name\":\"John\",\"job\":\"Senior Developer\"},\"expectedStatus\":200}")
         );
 
         testCaseRepository.saveAll(testCases);

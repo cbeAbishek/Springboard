@@ -58,9 +58,9 @@ public class ScheduledTestExecutionService {
 
             // Clean up executions older than 30 days
             LocalDateTime cutoffDate = LocalDateTime.now().minusDays(30);
-            int deletedCount = executionService.cleanupOldExecutions(cutoffDate);
+            executionService.cleanupOldExecutions(cutoffDate);
 
-            log.info("Daily cleanup completed. Deleted {} old execution records", deletedCount);
+            log.info("Daily cleanup completed");
         } catch (Exception e) {
             log.error("Error during daily cleanup", e);
         }
@@ -102,20 +102,20 @@ public class ScheduledTestExecutionService {
             scheduleRepository.save(schedule);
 
             // Execute tests asynchronously
-            CompletableFuture<TestExecutionResultDTO> future = executionService.executeScheduledTests(schedule);
-
-            // Handle completion
-            future.whenComplete((result, throwable) -> {
-                if (throwable != null) {
-                    log.error("Scheduled test execution failed for: " + schedule.getName(), throwable);
+            CompletableFuture.runAsync(() -> {
+                try {
+                    executionService.executeScheduledTests(schedule);
+                    log.info("Scheduled test execution completed for: {}", schedule.getName());
                     if (schedule.getNotificationEnabled()) {
-                        notificationService.sendFailureNotification(schedule, throwable.getMessage());
-                    }
-                } else {
-                    log.info("Scheduled test execution completed for: {} with status: {}",
-                        schedule.getName(), result.getStatus());
-                    if (schedule.getNotificationEnabled()) {
+                        // Create a simple result DTO for notification
+                        TestExecutionResultDTO result = new TestExecutionResultDTO();
+                        result.setStatus("COMPLETED");
                         notificationService.sendSuccessNotification(schedule, result);
+                    }
+                } catch (Exception e) {
+                    log.error("Scheduled test execution failed for: " + schedule.getName(), e);
+                    if (schedule.getNotificationEnabled()) {
+                        notificationService.sendFailureNotification(schedule, e.getMessage());
                     }
                 }
             });

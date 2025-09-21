@@ -29,15 +29,10 @@ public class TestExecutionEngine {
     private APITestExecutor apiExecutor;
 
     @Autowired
-    private AITestExecutor aiExecutor;
-
-    @Autowired
     private DatabaseTestExecutor databaseExecutor;
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    private final ExecutorService parallelExecutor = Executors.newFixedThreadPool(10);
 
     /**
      * Execute a single test case
@@ -56,14 +51,14 @@ public class TestExecutionEngine {
             Map<String, Object> testData = parseTestData(testCase.getTestData());
             
             // Execute based on test type
-            TestExecutionResult result = executeByType(testCase.getTestType(), testData, testCase);
-            
+            BaseTestExecutor.TestExecutionResult result = executeByType(testCase.getTestType(), testData, testCase);
+
             // Update execution with results
             execution.setStatus(result.isSuccess() ? 
                 TestExecution.ExecutionStatus.PASSED : TestExecution.ExecutionStatus.FAILED);
             execution.setErrorMessage(result.getErrorMessage());
             execution.setExecutionLogs(result.getExecutionLogs());
-            execution.setScreenshotPaths(result.getScreenshotPaths());
+            execution.setScreenshotPaths(String.join(",", result.getScreenshotPaths()));
             execution.setRequestResponseData(result.getRequestResponseData());
             
         } catch (Exception e) {
@@ -125,8 +120,8 @@ public class TestExecutionEngine {
                     stepLogs.add(String.format("Step %d: %s", i + 1, step.getDescription()));
                 }
 
-                TestExecutionResult stepResult = executeTestStep(step, testCase.getTestType(), environment);
-                
+                BaseTestExecutor.TestExecutionResult stepResult = executeTestStep(step, testCase.getTestType());
+
                 if (!stepResult.isSuccess()) {
                     execution.setStatus(TestExecution.ExecutionStatus.FAILED);
                     execution.setErrorMessage(String.format("Step %d failed: %s", i + 1, stepResult.getErrorMessage()));
@@ -159,32 +154,25 @@ public class TestExecutionEngine {
         return execution;
     }
 
-    private TestExecutionResult executeByType(TestCase.TestType testType, Map<String, Object> testData, TestCase testCase) {
-        switch (testType) {
-            case WEB_UI:
-            case UI:
-                return webUIExecutor.execute(testData, testCase);
-            case API:
-                return apiExecutor.execute(testData, testCase);
-            case DATABASE:
-                return databaseExecutor.execute(testData, testCase);
-            case INTEGRATION:
-                // For integration tests, we might combine multiple executors
-                return executeIntegrationTest(testData, testCase);
-            default:
-                throw new UnsupportedOperationException("Test type not supported: " + testType);
-        }
+    private BaseTestExecutor.TestExecutionResult executeByType(TestCase.TestType testType, Map<String, Object> testData, TestCase testCase) {
+        return switch (testType) {
+            case WEB_UI, UI -> webUIExecutor.execute(testData, testCase);
+            case API -> apiExecutor.execute(testData, testCase);
+            case DATABASE -> databaseExecutor.execute(testData, testCase);
+            case INTEGRATION -> executeIntegrationTest(testData, testCase);
+            default -> throw new UnsupportedOperationException("Test type not supported: " + testType);
+        };
     }
 
-    private TestExecutionResult executeIntegrationTest(Map<String, Object> testData, TestCase testCase) {
+    private BaseTestExecutor.TestExecutionResult executeIntegrationTest(Map<String, Object> testData, TestCase testCase) {
         // Implementation for integration tests that might involve multiple systems
-        TestExecutionResult result = new TestExecutionResult();
+        BaseTestExecutor.TestExecutionResult result = new BaseTestExecutor.TestExecutionResult();
         result.setSuccess(true);
         result.setExecutionLogs("Integration test executed successfully");
         return result;
     }
 
-    private TestExecutionResult executeTestStep(TestStep step, TestCase.TestType testType, String environment) {
+    private BaseTestExecutor.TestExecutionResult executeTestStep(TestStep step, TestCase.TestType testType) {
         Map<String, Object> stepData = step.getStepData();
         
         // Create a temporary test case for the step
@@ -196,13 +184,14 @@ public class TestExecutionEngine {
 
     private Map<String, Object> parseTestData(String testDataJson) {
         try {
-            return objectMapper.readValue(testDataJson, new TypeReference<Map<String, Object>>() {});
+            return objectMapper.readValue(testDataJson, new TypeReference<>() {});
         } catch (Exception e) {
             log.warn("Failed to parse test data JSON, using empty map: {}", e.getMessage());
             return new HashMap<>();
         }
     }
 
+    @SuppressWarnings("unchecked")
     private List<TestStep> parseTestSteps(String testDataJson) {
         try {
             Map<String, Object> testData = parseTestData(testDataJson);
@@ -238,36 +227,5 @@ public class TestExecutionEngine {
             singleStep.setStepData(new HashMap<>());
             return Collections.singletonList(singleStep);
         }
-    }
-
-    /**
-     * Result container for test execution
-     */
-    public static class TestExecutionResult {
-        private boolean success;
-        private String errorMessage;
-        private String executionLogs;
-        private List<String> screenshotPaths;
-        private String requestResponseData;
-
-        // Constructors, getters, and setters
-        public TestExecutionResult() {
-            this.screenshotPaths = new ArrayList<>();
-        }
-
-        public boolean isSuccess() { return success; }
-        public void setSuccess(boolean success) { this.success = success; }
-
-        public String getErrorMessage() { return errorMessage; }
-        public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
-
-        public String getExecutionLogs() { return executionLogs; }
-        public void setExecutionLogs(String executionLogs) { this.executionLogs = executionLogs; }
-
-        public List<String> getScreenshotPaths() { return screenshotPaths; }
-        public void setScreenshotPaths(List<String> screenshotPaths) { this.screenshotPaths = screenshotPaths; }
-
-        public String getRequestResponseData() { return requestResponseData; }
-        public void setRequestResponseData(String requestResponseData) { this.requestResponseData = requestResponseData; }
     }
 }

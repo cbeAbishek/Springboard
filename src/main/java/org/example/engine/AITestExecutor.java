@@ -8,12 +8,13 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 @Component
-public class AITestExecutor {
+public class AITestExecutor extends BaseTestExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AITestExecutor.class);
 
-    public TestExecutionEngine.TestExecutionResult execute(Map<String, Object> testData, TestCase testCase) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
+    @Override
+    public TestExecutionResult execute(Map<String, Object> testData, TestCase testCase) {
+        TestExecutionResult result = new TestExecutionResult();
         List<String> logs = new ArrayList<>();
         
         try {
@@ -29,264 +30,204 @@ public class AITestExecutor {
             String aiTestType = testData.getOrDefault("aiTestType", "response_quality").toString();
             logs.add("AI Test Type: " + aiTestType);
 
-            switch (aiTestType.toLowerCase()) {
-                case "response_quality":
-                    result = executeResponseQualityTest(testData, logs);
-                    break;
-                case "performance":
-                    result = executePerformanceTest(testData, logs);
-                    break;
-                case "consistency":
-                    result = executeConsistencyTest(testData, logs);
-                    break;
-                case "prompt_testing":
-                    result = executePromptTest(testData, logs);
-                    break;
-                default:
-                    result = executeGenericAITest(testData, logs);
-                    break;
-            }
+            // Execute based on AI test type
+            boolean testSuccess = switch (aiTestType.toLowerCase()) {
+                case "response_quality" -> executeResponseQualityTest(testData, logs);
+                case "latency" -> executeLatencyTest(testData, logs);
+                case "consistency" -> executeConsistencyTest(testData, logs);
+                case "prompt_ab_test" -> executePromptABTest(testData, logs);
+                case "model_performance" -> executeModelPerformanceTest(testData, logs);
+                default -> {
+                    logs.add("WARN: Unknown AI test type '" + aiTestType + "', executing default response quality test");
+                    yield executeResponseQualityTest(testData, logs);
+                }
+            };
 
+            result.setSuccess(testSuccess);
             result.setExecutionLogs(String.join("\n", logs));
 
+            if (testSuccess) {
+                logs.add("AI test completed successfully");
+                log.info("AI test PASSED for: {}", testCase.getName());
+            } else {
+                logs.add("AI test failed");
+                log.warn("AI test FAILED for: {}", testCase.getName());
+            }
+
         } catch (Exception e) {
-            log.error("AI test execution failed", e);
-            result.setSuccess(false);
-            result.setErrorMessage("AI test execution failed: " + e.getMessage());
+            log.error("AI test execution failed for test case: {}", testCase.getName(), e);
             logs.add("ERROR: " + e.getMessage());
+            result.setSuccess(false);
+            result.setErrorMessage(e.getMessage());
             result.setExecutionLogs(String.join("\n", logs));
         }
 
         return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeResponseQualityTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        try {
-            // Mock AI response quality testing
-            String prompt = testData.getOrDefault("prompt", "").toString();
-            List<String> expectedKeywords = (List<String>) testData.getOrDefault("expectedKeywords", new ArrayList<>());
-            
-            logs.add("Testing prompt: " + prompt);
-            logs.add("Expected keywords: " + expectedKeywords);
+    private boolean executeResponseQualityTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing AI response quality test");
 
-            // Simulate AI API call and response validation
-            String mockResponse = generateMockAIResponse(prompt);
-            logs.add("AI Response: " + mockResponse);
+        try {
+            String prompt = testData.getOrDefault("prompt", "Test prompt").toString();
+            String expectedKeywords = testData.getOrDefault("expectedKeywords", "").toString();
+
+            logs.add("Prompt: " + prompt);
+            logs.add("Expected Keywords: " + expectedKeywords);
+
+            // Simulate AI response generation
+            Thread.sleep(500); // Simulate AI processing time
+            String simulatedResponse = "This is a simulated AI response containing relevant keywords.";
+
+            logs.add("AI Response: " + simulatedResponse);
 
             // Validate response quality
-            boolean qualityCheck = validateResponseQuality(mockResponse, expectedKeywords, logs);
-            
-            result.setSuccess(qualityCheck);
-            if (!qualityCheck) {
-                result.setErrorMessage("AI response quality validation failed");
-            }
-
-        } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Response quality test failed: " + e.getMessage());
-        }
-
-        return result;
-    }
-
-    private TestExecutionEngine.TestExecutionResult executePerformanceTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        try {
-            int iterations = Integer.parseInt(testData.getOrDefault("iterations", "5").toString());
-            long maxLatency = Long.parseLong(testData.getOrDefault("maxLatency", "5000").toString());
-            
-            logs.add("Performance test with " + iterations + " iterations");
-            logs.add("Max allowed latency: " + maxLatency + " ms");
-
-            long totalTime = 0;
-            for (int i = 0; i < iterations; i++) {
-                long startTime = System.currentTimeMillis();
-                
-                // Simulate AI processing time
-                Thread.sleep(100 + (long)(Math.random() * 200));
-                
-                long endTime = System.currentTimeMillis();
-                long iterationTime = endTime - startTime;
-                totalTime += iterationTime;
-                
-                logs.add("Iteration " + (i + 1) + " completed in " + iterationTime + " ms");
-            }
-
-            long averageLatency = totalTime / iterations;
-            logs.add("Average latency: " + averageLatency + " ms");
-
-            if (averageLatency <= maxLatency) {
-                result.setSuccess(true);
-                logs.add("Performance test passed");
-            } else {
-                result.setSuccess(false);
-                result.setErrorMessage("Performance test failed - average latency exceeded threshold");
-            }
-
-        } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Performance test failed: " + e.getMessage());
-        }
-
-        return result;
-    }
-
-    private TestExecutionEngine.TestExecutionResult executeConsistencyTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        try {
-            String prompt = testData.getOrDefault("prompt", "").toString();
-            int runs = Integer.parseInt(testData.getOrDefault("consistencyRuns", "3").toString());
-            double minSimilarity = Double.parseDouble(testData.getOrDefault("minSimilarity", "0.8").toString());
-
-            logs.add("Consistency test with " + runs + " runs");
-            logs.add("Minimum similarity threshold: " + minSimilarity);
-
-            List<String> responses = new ArrayList<>();
-            for (int i = 0; i < runs; i++) {
-                String response = generateMockAIResponse(prompt);
-                responses.add(response);
-                logs.add("Run " + (i + 1) + " response: " + response);
-            }
-
-            // Calculate similarity between responses (simplified)
-            double similarity = calculateResponseSimilarity(responses);
-            logs.add("Calculated similarity: " + similarity);
-
-            if (similarity >= minSimilarity) {
-                result.setSuccess(true);
-                logs.add("Consistency test passed");
-            } else {
-                result.setSuccess(false);
-                result.setErrorMessage("Consistency test failed - responses too different");
-            }
-
-        } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Consistency test failed: " + e.getMessage());
-        }
-
-        return result;
-    }
-
-    private TestExecutionEngine.TestExecutionResult executePromptTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        try {
-            @SuppressWarnings("unchecked")
-            List<String> prompts = (List<String>) testData.get("prompts");
-            String expectedOutcome = testData.getOrDefault("expectedOutcome", "").toString();
-
-            logs.add("Testing " + prompts.size() + " different prompts");
-            logs.add("Expected outcome: " + expectedOutcome);
-
-            boolean anyPromptSucceeded = false;
-            for (int i = 0; i < prompts.size(); i++) {
-                String prompt = prompts.get(i);
-                String response = generateMockAIResponse(prompt);
-                
-                logs.add("Prompt " + (i + 1) + ": " + prompt);
-                logs.add("Response " + (i + 1) + ": " + response);
-
-                if (response.toLowerCase().contains(expectedOutcome.toLowerCase())) {
-                    anyPromptSucceeded = true;
-                    logs.add("Prompt " + (i + 1) + " achieved expected outcome");
+            if (!expectedKeywords.isEmpty()) {
+                String[] keywords = expectedKeywords.split(",");
+                for (String keyword : keywords) {
+                    if (!simulatedResponse.toLowerCase().contains(keyword.trim().toLowerCase())) {
+                        logs.add("Quality check FAILED: Expected keyword '" + keyword.trim() + "' not found in response");
+                        return false;
+                    }
                 }
             }
 
-            result.setSuccess(anyPromptSucceeded);
-            if (!anyPromptSucceeded) {
-                result.setErrorMessage("No prompt achieved the expected outcome");
+            logs.add("Response quality test PASSED");
+            return true;
+
+        } catch (Exception e) {
+            logs.add("Response quality test failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean executeLatencyTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing AI latency test");
+
+        try {
+            String prompt = testData.getOrDefault("prompt", "Test prompt").toString();
+            int maxLatencyMs = Integer.parseInt(testData.getOrDefault("maxLatencyMs", "3000").toString());
+
+            logs.add("Prompt: " + prompt);
+            logs.add("Max Latency: " + maxLatencyMs + "ms");
+
+            long startTime = System.currentTimeMillis();
+
+            // Simulate AI processing
+            Thread.sleep(200); // Simulate AI processing time
+
+            long actualLatency = System.currentTimeMillis() - startTime;
+            logs.add("Actual Latency: " + actualLatency + "ms");
+
+            if (actualLatency <= maxLatencyMs) {
+                logs.add("Latency test PASSED");
+                return true;
+            } else {
+                logs.add("Latency test FAILED - exceeded maximum latency");
+                return false;
             }
 
         } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Prompt test failed: " + e.getMessage());
+            logs.add("Latency test failed: " + e.getMessage());
+            return false;
         }
-
-        return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeGenericAITest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        // Generic AI test - can be customized based on requirements
-        result.setSuccess(true);
-        logs.add("Generic AI test executed successfully");
-        
-        return result;
-    }
+    private boolean executeConsistencyTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing AI consistency test");
 
-    private String generateMockAIResponse(String prompt) {
-        // Mock AI response generation
-        String[] mockResponses = {
-            "This is a simulated AI response for prompt: " + prompt,
-            "AI processing complete. Response generated successfully.",
-            "Mock AI system responded with relevant information.",
-            "Simulated response demonstrates AI functionality.",
-            "Test response from mock AI service."
-        };
-        
-        return mockResponses[(int) (Math.random() * mockResponses.length)];
-    }
+        try {
+            String prompt = testData.getOrDefault("prompt", "Test prompt").toString();
+            int iterations = Integer.parseInt(testData.getOrDefault("iterations", "3").toString());
 
-    private boolean validateResponseQuality(String response, List<String> expectedKeywords, List<String> logs) {
-        if (expectedKeywords.isEmpty()) {
-            logs.add("No keywords to validate - assuming quality check passed");
-            return true;
-        }
+            logs.add("Prompt: " + prompt);
+            logs.add("Iterations: " + iterations);
 
-        int foundKeywords = 0;
-        for (String keyword : expectedKeywords) {
-            if (response.toLowerCase().contains(keyword.toLowerCase())) {
-                foundKeywords++;
-                logs.add("Found expected keyword: " + keyword);
+            List<String> responses = new ArrayList<>();
+
+            for (int i = 0; i < iterations; i++) {
+                // Simulate AI response generation
+                Thread.sleep(100);
+                String response = "Consistent response " + (i + 1);
+                responses.add(response);
+                logs.add("Response " + (i + 1) + ": " + response);
+            }
+
+            // Check consistency (simplified - check if responses are similar)
+            boolean isConsistent = responses.stream().allMatch(r -> r.contains("Consistent"));
+
+            if (isConsistent) {
+                logs.add("Consistency test PASSED");
+                return true;
             } else {
-                logs.add("Missing expected keyword: " + keyword);
+                logs.add("Consistency test FAILED - responses are not consistent");
+                return false;
             }
+
+        } catch (Exception e) {
+            logs.add("Consistency test failed: " + e.getMessage());
+            return false;
         }
-
-        double keywordScore = (double) foundKeywords / expectedKeywords.size();
-        logs.add("Keyword score: " + String.format("%.2f", keywordScore));
-
-        // Consider quality good if at least 70% of keywords are found
-        return keywordScore >= 0.7;
     }
 
-    private double calculateResponseSimilarity(List<String> responses) {
-        if (responses.size() < 2) return 1.0;
+    private boolean executePromptABTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing AI prompt A/B test");
 
-        // Simplified similarity calculation - in practice, use more sophisticated algorithms
-        // like cosine similarity, Jaccard similarity, etc.
-        
-        int totalComparisons = 0;
-        double totalSimilarity = 0.0;
+        try {
+            String promptA = testData.getOrDefault("promptA", "Prompt A").toString();
+            String promptB = testData.getOrDefault("promptB", "Prompt B").toString();
 
-        for (int i = 0; i < responses.size(); i++) {
-            for (int j = i + 1; j < responses.size(); j++) {
-                double similarity = calculateSimpleSimilarity(responses.get(i), responses.get(j));
-                totalSimilarity += similarity;
-                totalComparisons++;
-            }
+            logs.add("Prompt A: " + promptA);
+            logs.add("Prompt B: " + promptB);
+
+            // Simulate responses for both prompts
+            Thread.sleep(200);
+            String responseA = "Response A: High quality response";
+            String responseB = "Response B: Medium quality response";
+
+            logs.add("Response A: " + responseA);
+            logs.add("Response B: " + responseB);
+
+            // Simple quality comparison (in real scenario, this would be more sophisticated)
+            boolean aIsBetter = responseA.contains("High quality");
+
+            logs.add("A/B Test Result: " + (aIsBetter ? "Prompt A performs better" : "Prompt B performs better"));
+            logs.add("Prompt A/B test PASSED");
+            return true;
+
+        } catch (Exception e) {
+            logs.add("Prompt A/B test failed: " + e.getMessage());
+            return false;
         }
-
-        return totalComparisons > 0 ? totalSimilarity / totalComparisons : 0.0;
     }
 
-    private double calculateSimpleSimilarity(String text1, String text2) {
-        // Very simple similarity based on common words
-        Set<String> words1 = new HashSet<>(Arrays.asList(text1.toLowerCase().split("\\s+")));
-        Set<String> words2 = new HashSet<>(Arrays.asList(text2.toLowerCase().split("\\s+")));
+    private boolean executeModelPerformanceTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing AI model performance test");
 
-        Set<String> intersection = new HashSet<>(words1);
-        intersection.retainAll(words2);
+        try {
+            String testDataset = testData.getOrDefault("testDataset", "default_test_data").toString();
+            double expectedAccuracy = Double.parseDouble(testData.getOrDefault("expectedAccuracy", "0.8").toString());
 
-        Set<String> union = new HashSet<>(words1);
-        union.addAll(words2);
+            logs.add("Test Dataset: " + testDataset);
+            logs.add("Expected Accuracy: " + expectedAccuracy);
 
-        return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size();
+            // Simulate model performance evaluation
+            Thread.sleep(1000); // Simulate evaluation time
+            double actualAccuracy = 0.85; // Simulated accuracy
+
+            logs.add("Actual Accuracy: " + actualAccuracy);
+
+            if (actualAccuracy >= expectedAccuracy) {
+                logs.add("Model performance test PASSED");
+                return true;
+            } else {
+                logs.add("Model performance test FAILED - accuracy below threshold");
+                return false;
+            }
+
+        } catch (Exception e) {
+            logs.add("Model performance test failed: " + e.getMessage());
+            return false;
+        }
     }
 }

@@ -1,0 +1,14 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="CI-Suite" parallel="false" verbose="1">
+  <test name="CI-Groups">
+    <groups>
+      <run>
+        <include name="ci"/>
+      </run>
+    </groups>
+    <classes>
+      <class name="org.example.tests.api.ReqResAPITests"/>
+      <!-- Add your actual test classes here -->
+    </classes>
+  </test>
+</suite>

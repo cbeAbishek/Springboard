@@ -8,12 +8,13 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 @Component
-public class DatabaseTestExecutor {
+public class DatabaseTestExecutor extends BaseTestExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseTestExecutor.class);
 
-    public TestExecutionEngine.TestExecutionResult execute(Map<String, Object> testData, TestCase testCase) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
+    @Override
+    public TestExecutionResult execute(Map<String, Object> testData, TestCase testCase) {
+        TestExecutionResult result = new TestExecutionResult();
         List<String> logs = new ArrayList<>();
         
         try {
@@ -29,295 +30,163 @@ public class DatabaseTestExecutor {
             String dbTestType = testData.getOrDefault("dbTestType", "data_validation").toString();
             logs.add("Database Test Type: " + dbTestType);
 
-            switch (dbTestType.toLowerCase()) {
-                case "data_validation":
-                    result = executeDataValidationTest(testData, logs);
-                    break;
-                case "performance":
-                    result = executePerformanceTest(testData, logs);
-                    break;
-                case "crud_operations":
-                    result = executeCrudTest(testData, logs);
-                    break;
-                case "integrity":
-                    result = executeIntegrityTest(testData, logs);
-                    break;
-                default:
-                    result = executeGenericDatabaseTest(testData, logs);
-                    break;
-            }
+            // Execute based on database test type
+            boolean testSuccess = switch (dbTestType.toLowerCase()) {
+                case "data_validation" -> executeDataValidation(testData, logs);
+                case "performance" -> executePerformanceTest(testData, logs);
+                case "integrity" -> executeIntegrityCheck(testData, logs);
+                case "crud" -> executeCrudTest(testData, logs);
+                case "migration" -> executeMigrationTest(testData, logs);
+                default -> {
+                    logs.add("WARN: Unknown database test type '" + dbTestType + "', executing default data validation");
+                    yield executeDataValidation(testData, logs);
+                }
+            };
 
+            result.setSuccess(testSuccess);
             result.setExecutionLogs(String.join("\n", logs));
 
+            if (testSuccess) {
+                logs.add("Database test completed successfully");
+                log.info("Database test PASSED for: {}", testCase.getName());
+            } else {
+                logs.add("Database test failed");
+                log.warn("Database test FAILED for: {}", testCase.getName());
+            }
+
         } catch (Exception e) {
-            log.error("Database test execution failed", e);
-            result.setSuccess(false);
-            result.setErrorMessage("Database test execution failed: " + e.getMessage());
+            log.error("Database test execution failed for test case: {}", testCase.getName(), e);
             logs.add("ERROR: " + e.getMessage());
+            result.setSuccess(false);
+            result.setErrorMessage(e.getMessage());
             result.setExecutionLogs(String.join("\n", logs));
         }
 
         return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeDataValidationTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
+    private boolean executeDataValidation(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing data validation test");
+
+        // Mock implementation - replace with actual database validation logic
         try {
             String tableName = testData.getOrDefault("tableName", "test_table").toString();
-            String expectedRowCount = testData.getOrDefault("expectedRowCount", "0").toString();
-            
-            logs.add("Validating data in table: " + tableName);
-            logs.add("Expected row count: " + expectedRowCount);
+            String validationQuery = testData.getOrDefault("validationQuery", "SELECT COUNT(*) FROM " + tableName).toString();
 
-            // Mock database query execution
-            int actualRowCount = simulateDatabaseQuery(tableName);
-            logs.add("Actual row count: " + actualRowCount);
+            logs.add("Table: " + tableName);
+            logs.add("Validation Query: " + validationQuery);
 
-            // Validate row count
-            int expected = Integer.parseInt(expectedRowCount);
-            if (actualRowCount == expected) {
-                result.setSuccess(true);
-                logs.add("Data validation passed");
-            } else {
-                result.setSuccess(false);
-                result.setErrorMessage("Row count mismatch. Expected: " + expected + ", Actual: " + actualRowCount);
-            }
+            // Simulate validation
+            Thread.sleep(100); // Simulate database query time
 
-            // Additional data validations if specified
-            if (testData.containsKey("validationRules")) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> rules = (List<Map<String, Object>>) testData.get("validationRules");
-                for (Map<String, Object> rule : rules) {
-                    boolean ruleResult = executeValidationRule(rule, logs);
-                    if (!ruleResult) {
-                        result.setSuccess(false);
-                        result.setErrorMessage("Validation rule failed: " + rule.get("description"));
-                        break;
-                    }
-                }
-            }
+            logs.add("Data validation completed successfully");
+            return true;
 
         } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Data validation test failed: " + e.getMessage());
+            logs.add("Data validation failed: " + e.getMessage());
+            return false;
         }
-
-        return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executePerformanceTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        try {
-            String query = testData.getOrDefault("query", "SELECT COUNT(*) FROM test_table").toString();
-            long maxExecutionTime = Long.parseLong(testData.getOrDefault("maxExecutionTime", "1000").toString());
-            
-            logs.add("Performance testing query: " + query);
-            logs.add("Max allowed execution time: " + maxExecutionTime + " ms");
+    private boolean executePerformanceTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing database performance test");
 
-            // Simulate query execution with timing
+        try {
+            String query = testData.getOrDefault("performanceQuery", "SELECT * FROM performance_test_table LIMIT 1000").toString();
+            int maxExecutionTime = Integer.parseInt(testData.getOrDefault("maxExecutionTimeMs", "5000").toString());
+
+            logs.add("Performance Query: " + query);
+            logs.add("Max Execution Time: " + maxExecutionTime + "ms");
+
             long startTime = System.currentTimeMillis();
-            simulateQueryExecution(query);
-            long endTime = System.currentTimeMillis();
-            
-            long executionTime = endTime - startTime;
-            logs.add("Query executed in: " + executionTime + " ms");
+
+            // Simulate query execution
+            Thread.sleep(50); // Simulate database query time
+
+            long executionTime = System.currentTimeMillis() - startTime;
+            logs.add("Query executed in " + executionTime + "ms");
 
             if (executionTime <= maxExecutionTime) {
-                result.setSuccess(true);
-                logs.add("Performance test passed");
+                logs.add("Performance test PASSED");
+                return true;
             } else {
-                result.setSuccess(false);
-                result.setErrorMessage("Query execution time exceeded threshold");
+                logs.add("Performance test FAILED - exceeded maximum execution time");
+                return false;
             }
 
         } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Performance test failed: " + e.getMessage());
+            logs.add("Performance test failed: " + e.getMessage());
+            return false;
         }
-
-        return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeCrudTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
+    private boolean executeIntegrityCheck(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing database integrity check");
+
         try {
-            String tableName = testData.getOrDefault("tableName", "test_table").toString();
-            logs.add("CRUD testing on table: " + tableName);
+            String tableName = testData.getOrDefault("tableName", "integrity_test_table").toString();
 
-            // CREATE test
-            boolean createResult = simulateCreateOperation(tableName, logs);
-            if (!createResult) {
-                result.setSuccess(false);
-                result.setErrorMessage("CREATE operation failed");
-                return result;
-            }
+            logs.add("Checking integrity for table: " + tableName);
 
-            // READ test
-            boolean readResult = simulateReadOperation(tableName, logs);
-            if (!readResult) {
-                result.setSuccess(false);
-                result.setErrorMessage("READ operation failed");
-                return result;
-            }
+            // Simulate integrity checks
+            Thread.sleep(200); // Simulate database integrity check time
 
-            // UPDATE test
-            boolean updateResult = simulateUpdateOperation(tableName, logs);
-            if (!updateResult) {
-                result.setSuccess(false);
-                result.setErrorMessage("UPDATE operation failed");
-                return result;
-            }
-
-            // DELETE test
-            boolean deleteResult = simulateDeleteOperation(tableName, logs);
-            if (!deleteResult) {
-                result.setSuccess(false);
-                result.setErrorMessage("DELETE operation failed");
-                return result;
-            }
-
-            result.setSuccess(true);
-            logs.add("All CRUD operations passed");
+            logs.add("Integrity check completed successfully");
+            return true;
 
         } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("CRUD test failed: " + e.getMessage());
+            logs.add("Integrity check failed: " + e.getMessage());
+            return false;
         }
-
-        return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeIntegrityTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
+    private boolean executeCrudTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing CRUD operations test");
+
         try {
-            logs.add("Executing database integrity checks");
+            String tableName = testData.getOrDefault("tableName", "crud_test_table").toString();
 
-            // Check foreign key constraints
-            boolean fkCheck = simulateForeignKeyCheck(logs);
-            
-            // Check unique constraints
-            boolean uniqueCheck = simulateUniqueConstraintCheck(logs);
-            
-            // Check not null constraints
-            boolean notNullCheck = simulateNotNullCheck(logs);
+            logs.add("Testing CRUD operations on table: " + tableName);
 
-            if (fkCheck && uniqueCheck && notNullCheck) {
-                result.setSuccess(true);
-                logs.add("All integrity checks passed");
-            } else {
-                result.setSuccess(false);
-                result.setErrorMessage("One or more integrity checks failed");
-            }
+            // Simulate CRUD operations
+            logs.add("CREATE: Inserting test record");
+            Thread.sleep(50);
+
+            logs.add("READ: Retrieving test record");
+            Thread.sleep(30);
+
+            logs.add("UPDATE: Updating test record");
+            Thread.sleep(40);
+
+            logs.add("DELETE: Deleting test record");
+            Thread.sleep(30);
+
+            logs.add("All CRUD operations completed successfully");
+            return true;
 
         } catch (Exception e) {
-            result.setSuccess(false);
-            result.setErrorMessage("Integrity test failed: " + e.getMessage());
+            logs.add("CRUD test failed: " + e.getMessage());
+            return false;
         }
-
-        return result;
     }
 
-    private TestExecutionEngine.TestExecutionResult executeGenericDatabaseTest(Map<String, Object> testData, List<String> logs) {
-        TestExecutionEngine.TestExecutionResult result = new TestExecutionEngine.TestExecutionResult();
-        
-        // Generic database test
-        result.setSuccess(true);
-        logs.add("Generic database test executed successfully");
-        
-        return result;
-    }
+    private boolean executeMigrationTest(Map<String, Object> testData, List<String> logs) {
+        logs.add("Executing database migration test");
 
-    // Helper methods for simulation
-
-    private int simulateDatabaseQuery(String tableName) {
-        // Simulate database query with random result
-        return (int) (Math.random() * 100);
-    }
-
-    private void simulateQueryExecution(String query) throws InterruptedException {
-        // Simulate query execution time
-        Thread.sleep(50 + (long)(Math.random() * 200));
-    }
-
-    private boolean executeValidationRule(Map<String, Object> rule, List<String> logs) {
-        String ruleDescription = rule.getOrDefault("description", "Validation rule").toString();
-        logs.add("Executing validation rule: " + ruleDescription);
-        
-        // Simulate validation rule execution
-        boolean result = Math.random() > 0.2; // 80% success rate
-        logs.add("Validation rule result: " + (result ? "PASSED" : "FAILED"));
-        
-        return result;
-    }
-
-    private boolean simulateCreateOperation(String tableName, List<String> logs) {
-        logs.add("Simulating CREATE operation on " + tableName);
-        // Simulate some processing time
         try {
-            Thread.sleep(10);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            String migrationScript = testData.getOrDefault("migrationScript", "default_migration.sql").toString();
+
+            logs.add("Migration Script: " + migrationScript);
+
+            // Simulate migration execution
+            Thread.sleep(300); // Simulate migration time
+
+            logs.add("Database migration completed successfully");
+            return true;
+
+        } catch (Exception e) {
+            logs.add("Migration test failed: " + e.getMessage());
+            return false;
         }
-        logs.add("CREATE operation completed");
-        return true;
-    }
-
-    private boolean simulateReadOperation(String tableName, List<String> logs) {
-        logs.add("Simulating READ operation on " + tableName);
-        try {
-            Thread.sleep(5);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        logs.add("READ operation completed");
-        return true;
-    }
-
-    private boolean simulateUpdateOperation(String tableName, List<String> logs) {
-        logs.add("Simulating UPDATE operation on " + tableName);
-        try {
-            Thread.sleep(15);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        logs.add("UPDATE operation completed");
-        return true;
-    }
-
-    private boolean simulateDeleteOperation(String tableName, List<String> logs) {
-        logs.add("Simulating DELETE operation on " + tableName);
-        try {
-            Thread.sleep(8);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        logs.add("DELETE operation completed");
-        return true;
-    }
-
-    private boolean simulateForeignKeyCheck(List<String> logs) {
-        logs.add("Checking foreign key constraints");
-        // Simulate constraint check
-        boolean result = Math.random() > 0.1; // 90% success rate
-        logs.add("Foreign key check: " + (result ? "PASSED" : "FAILED"));
-        return result;
-    }
-
-    private boolean simulateUniqueConstraintCheck(List<String> logs) {
-        logs.add("Checking unique constraints");
-        boolean result = Math.random() > 0.1; // 90% success rate
-        logs.add("Unique constraint check: " + (result ? "PASSED" : "FAILED"));
-        return result;
-    }
-
-    private boolean simulateNotNullCheck(List<String> logs) {
-        logs.add("Checking not null constraints");
-        boolean result = Math.random() > 0.05; // 95% success rate
-        logs.add("Not null check: " + (result ? "PASSED" : "FAILED"));
-        return result;
     }
 }

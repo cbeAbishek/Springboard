@@ -80,6 +80,9 @@ public class TestExecution {
     @Column(name = "request_response_data", columnDefinition = "TEXT")
     private String requestResponseData;
 
+    @Column(name = "execution_metrics", columnDefinition = "TEXT")
+    private String executionMetrics;
+
     @PrePersist
     protected void onCreate() {
         if (startTime == null) {
@@ -156,6 +159,9 @@ public class TestExecution {
 
     public String getRequestResponseData() { return requestResponseData; }
     public void setRequestResponseData(String requestResponseData) { this.requestResponseData = requestResponseData; }
+
+    public String getExecutionMetrics() { return executionMetrics; }
+    public void setExecutionMetrics(String executionMetrics) { this.executionMetrics = executionMetrics; }
 
     public enum ExecutionStatus {
         PENDING, RUNNING, PASSED, FAILED, SKIPPED, ERROR

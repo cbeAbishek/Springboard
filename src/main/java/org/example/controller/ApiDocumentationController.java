@@ -15,8 +15,8 @@ public class ApiDocumentationController {
     public ResponseEntity<ApiDocumentation> getAllEndpoints() {
         ApiDocumentation documentation = new ApiDocumentation();
         documentation.setTitle("Test Automation Framework API Documentation");
-        documentation.setVersion("1.0");
-        documentation.setDescription("Complete API documentation for the test automation framework");
+        documentation.setVersion("2.0");
+        documentation.setDescription("Complete API documentation for the test automation framework - Updated with all actual endpoints");
 
         List<EndpointInfo> endpoints = new ArrayList<>();
 
@@ -34,10 +34,10 @@ public class ApiDocumentationController {
 
         endpoints.add(new EndpointInfo(
             "POST", "/api/execution/single/{testCaseId}", "Execute Single Test",
-            "Execute a single test case by ID",
+            "Execute a single test case by ID with environment parameter",
             Map.of(
                 "testCaseId", "long - ID of the test case to execute (path parameter)",
-                "environment", "string - Target environment (query parameter)"
+                "environment", "string - Target environment (query parameter, required)"
             ),
             "TestExecution object with execution details"
         ));
@@ -54,6 +54,13 @@ public class ApiDocumentationController {
             "Get all test executions for a specific batch",
             Map.of("batchId", "string - Unique identifier of the batch (path parameter)"),
             "List of TestExecution objects"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/execution/batch/{batchId}/progress", "Get Batch Progress",
+            "Get detailed progress information for a specific batch including pass/fail counts",
+            Map.of("batchId", "string - Unique identifier of the batch (path parameter)"),
+            "BatchProgressResponse with detailed progress metrics"
         ));
 
         endpoints.add(new EndpointInfo(
@@ -99,30 +106,30 @@ public class ApiDocumentationController {
             "GET", "/api/testcases", "Get All Test Cases",
             "Retrieve all active test cases",
             Map.of(),
-            "List of TestCase objects"
+            "List of active TestCase objects"
         ));
 
         endpoints.add(new EndpointInfo(
             "GET", "/api/testcases/{id}", "Get Test Case",
             "Get a specific test case by ID",
             Map.of("id", "long - ID of the test case (path parameter)"),
-            "TestCase object"
+            "TestCase object or 404 if not found"
         ));
 
         endpoints.add(new EndpointInfo(
             "POST", "/api/testcases", "Create Test Case",
             "Create a new test case",
             Map.of(
-                "name", "string - Name of the test case",
+                "name", "string - Name of the test case (required)",
                 "description", "string - Description of the test case",
-                "testType", "enum - Type of test (WEB_UI, API)",
+                "testType", "enum - Type of test (API, UI, INTEGRATION)",
                 "testData", "string - Test data in JSON format",
                 "expectedResult", "string - Expected test result",
-                "priority", "enum - Priority level (HIGH, MEDIUM, LOW)",
+                "priority", "enum - Priority level (HIGH, MEDIUM, LOW, CRITICAL)",
                 "testSuite", "string - Test suite name",
                 "environment", "string - Target environment"
             ),
-            "Created TestCase object"
+            "Created TestCase object with generated ID"
         ));
 
         endpoints.add(new EndpointInfo(
@@ -139,109 +146,171 @@ public class ApiDocumentationController {
                 "testSuite", "string - Updated test suite",
                 "environment", "string - Updated environment"
             ),
-            "Updated TestCase object"
+            "Updated TestCase object or 404 if not found"
         ));
 
         endpoints.add(new EndpointInfo(
             "DELETE", "/api/testcases/{id}", "Delete Test Case",
             "Soft delete a test case (marks as inactive)",
             Map.of("id", "long - ID of the test case to delete (path parameter)"),
-            "No content (204)"
+            "No content (204) or 404 if not found"
         ));
 
         endpoints.add(new EndpointInfo(
             "GET", "/api/testcases/suite/{testSuite}", "Get Test Cases by Suite",
             "Get all active test cases for a specific test suite",
             Map.of("testSuite", "string - Name of the test suite (path parameter)"),
-            "List of TestCase objects"
+            "List of TestCase objects filtered by test suite"
         ));
 
         endpoints.add(new EndpointInfo(
             "GET", "/api/testcases/environment/{environment}", "Get Test Cases by Environment",
             "Get all active test cases for a specific environment",
             Map.of("environment", "string - Environment name (path parameter)"),
-            "List of TestCase objects"
+            "List of TestCase objects filtered by environment"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/testcases/meta/testsuites", "Get Available Test Suites",
+            "Get list of all unique test suites from active test cases",
+            Map.of(),
+            "List of distinct test suite names"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/testcases/meta/environments", "Get Available Environments",
+            "Get list of all unique environments from active test cases",
+            Map.of(),
+            "List of distinct environment names"
         ));
 
         // Schedule Management Endpoints
         endpoints.add(new EndpointInfo(
             "GET", "/api/schedules", "Get All Schedules",
-            "Retrieve all test schedules",
+            "Retrieve all test schedules as DTO objects",
             Map.of(),
-            "List of TestSchedule objects"
+            "List of ScheduleDTO objects"
         ));
 
         endpoints.add(new EndpointInfo(
             "GET", "/api/schedules/active", "Get Active Schedules",
-            "Retrieve only active test schedules",
+            "Retrieve only active test schedules as DTO objects",
             Map.of(),
-            "List of active TestSchedule objects"
+            "List of active ScheduleDTO objects"
         ));
 
         endpoints.add(new EndpointInfo(
             "POST", "/api/schedules", "Create Schedule",
-            "Create a new test schedule",
+            "Create a new test schedule with validation",
             Map.of(
-                "scheduleName", "string - Name of the schedule",
-                "cronExpression", "string - Cron expression for scheduling",
+                "scheduleName", "string - Name of the schedule (required)",
+                "cronExpression", "string - Valid cron expression for scheduling (required)",
                 "testSuite", "string - Test suite to execute",
                 "environment", "string - Target environment",
-                "parallelThreads", "integer - Number of parallel threads (default: 1)"
+                "parallelThreads", "integer - Number of parallel threads (default: 1)",
+                "enabled", "boolean - Whether schedule is active (default: true)"
             ),
-            "Created TestSchedule object"
+            "Response object with success status and created schedule DTO"
         ));
 
         endpoints.add(new EndpointInfo(
             "PUT", "/api/schedules/{id}", "Update Schedule",
-            "Update an existing test schedule",
+            "Update an existing test schedule with flexible validation",
             Map.of(
                 "id", "long - ID of the schedule to update (path parameter)",
-                "scheduleName", "string - Updated schedule name",
-                "cronExpression", "string - Updated cron expression",
+                "scheduleName", "string - Updated schedule name (required if cronExpression provided)",
+                "cronExpression", "string - Updated cron expression (required if scheduleName provided)",
                 "testSuite", "string - Updated test suite",
                 "environment", "string - Updated environment",
-                "parallelThreads", "integer - Updated parallel threads"
+                "parallelThreads", "integer - Updated parallel threads",
+                "enabled", "boolean - Updated active status (can be used alone for toggle)"
             ),
-            "Updated TestSchedule object"
+            "Response object with success status and updated schedule DTO"
         ));
 
         endpoints.add(new EndpointInfo(
             "DELETE", "/api/schedules/{id}", "Delete Schedule",
-            "Soft delete a test schedule (marks as inactive)",
+            "Soft delete a test schedule (marks as inactive and unschedules)",
             Map.of("id", "long - ID of the schedule to delete (path parameter)"),
-            "No content (204)"
+            "No content (204) or 404 if not found"
         ));
 
         endpoints.add(new EndpointInfo(
             "POST", "/api/schedules/{id}/activate", "Activate Schedule",
-            "Activate a test schedule",
+            "Activate a test schedule and schedule it in Quartz",
             Map.of("id", "long - ID of the schedule to activate (path parameter)"),
-            "Activated TestSchedule object"
+            "Activated TestSchedule object or 404 if not found"
         ));
 
         endpoints.add(new EndpointInfo(
             "POST", "/api/schedules/{id}/deactivate", "Deactivate Schedule",
-            "Deactivate a test schedule",
+            "Deactivate a test schedule and unschedule it from Quartz",
             Map.of("id", "long - ID of the schedule to deactivate (path parameter)"),
-            "Deactivated TestSchedule object"
+            "Deactivated TestSchedule object or 404 if not found"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/schedules/{id}/preview", "Preview Schedule Executions",
+            "Preview next execution times for a schedule based on its cron expression",
+            Map.of(
+                "id", "long - ID of the schedule (path parameter)",
+                "count", "integer - Number of next executions to preview (default: 5, max: 20)"
+            ),
+            "List of next execution timestamps or 404 if schedule not found"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "POST", "/api/schedules/{id}/execute", "Execute Schedule Now",
+            "Trigger immediate execution of a scheduled test",
+            Map.of("id", "long - ID of the schedule to execute (path parameter)"),
+            "BatchResponse with execution details or 404 if schedule not found"
         ));
 
         // Reporting Endpoints
         endpoints.add(new EndpointInfo(
-            "POST", "/api/reports/generate/{batchId}", "Generate All Reports",
-            "Generate all types of reports for a specific batch",
+            "POST", "/api/reports/generate/{batchId}", "Generate All Reports (Deprecated)",
+            "Legacy endpoint - redirects to comprehensive report API",
             Map.of("batchId", "string - Unique identifier of the batch (path parameter)"),
-            "String message confirming report generation started"
+            "Redirect message to use /comprehensive/* endpoints"
         ));
 
         endpoints.add(new EndpointInfo(
-            "POST", "/api/reports/html/{batchId}", "Generate HTML Report",
-            "Generate HTML report for a specific batch",
+            "POST", "/api/reports/html/{batchId}", "Generate HTML Report (Deprecated)",
+            "Legacy endpoint - use comprehensive report API instead",
             Map.of("batchId", "string - Unique identifier of the batch (path parameter)"),
-            "ReportResult object with report details"
+            "ReportResult object with redirect message"
         ));
 
-        // Analytics Endpoints
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/reports/list", "List Available Reports",
+            "Get list of all generated report files with metadata",
+            Map.of(),
+            "List of ReportInfo objects with file details, sorted by creation time"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/reports/download/{filename}", "Download Report File",
+            "Download a specific report file",
+            Map.of("filename", "string - Name of the report file (path parameter)"),
+            "File download response or 404 if file not found"
+        ));
+
+        // Dashboard Endpoints
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/dashboard/metrics", "Get Dashboard Metrics",
+            "Retrieve comprehensive dashboard metrics including counts and success rates",
+            Map.of(),
+            "Dashboard metrics object with test cases, batches, executions, and schedules statistics"
+        ));
+
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/dashboard/recent-activity", "Get Recent Activity",
+            "Retrieve recent activity including recent batches and executions from the last 24 hours",
+            Map.of(),
+            "Recent activity object with recent batches, execution counts, and timestamp information"
+        ));
+
+        // Analytics Endpoints (if AnalyticsController exists)
         endpoints.add(new EndpointInfo(
             "GET", "/api/analytics/trends", "Get Trend Analysis",
             "Get test trend analysis for a specified date range",
@@ -262,15 +331,22 @@ public class ApiDocumentationController {
             "RegressionMetrics object with regression data"
         ));
 
-        // Documentation Endpoint
+        // Validation Endpoints
         endpoints.add(new EndpointInfo(
-            "GET", "/api/docs/endpoints", "Get API Documentation",
-            "Get complete API documentation with all available endpoints",
+            "GET", "/api/validation/framework", "Validate Framework",
+            "Perform comprehensive framework validation with real data to ensure system integrity",
             Map.of(),
-            "ApiDocumentation object with all endpoint information"
+            "ValidationResult object with validation status, checks performed, and any issues found"
         ));
 
-        // Demo Data Endpoints
+        endpoints.add(new EndpointInfo(
+            "GET", "/api/validation/health", "Health Check",
+            "Perform a basic health check of the validation service",
+            Map.of(),
+            "String message confirming validation service status"
+        ));
+
+        // Demo Data Endpoints (if MockDataService endpoints exist)
         endpoints.add(new EndpointInfo(
             "GET", "/api/demo/test-cases", "Get Demo Test Cases",
             "Retrieve sample test cases for demonstration purposes",
@@ -306,34 +382,12 @@ public class ApiDocumentationController {
             "Response object with success status, test ID, and confirmation message"
         ));
 
-        // Dashboard Endpoints
+        // API Documentation Endpoint
         endpoints.add(new EndpointInfo(
-            "GET", "/api/dashboard/metrics", "Get Dashboard Metrics",
-            "Retrieve comprehensive dashboard metrics including test cases, batches, executions, and schedules",
+            "GET", "/api/docs/endpoints", "Get API Documentation",
+            "Get complete API documentation with all available endpoints (this endpoint)",
             Map.of(),
-            "Dashboard metrics object with counts, success rates, and status breakdowns"
-        ));
-
-        endpoints.add(new EndpointInfo(
-            "GET", "/api/dashboard/recent-activity", "Get Recent Activity",
-            "Retrieve recent activity including recent batches and executions from the last 24 hours",
-            Map.of(),
-            "Recent activity object with recent batches, execution counts, and timestamp information"
-        ));
-
-        // Validation Endpoints
-        endpoints.add(new EndpointInfo(
-            "GET", "/api/validation/framework", "Validate Framework",
-            "Perform comprehensive framework validation with real data to ensure system integrity",
-            Map.of(),
-            "ValidationResult object with validation status, checks performed, and any issues found"
-        ));
-
-        endpoints.add(new EndpointInfo(
-            "GET", "/api/validation/health", "Health Check",
-            "Perform a basic health check of the validation service",
-            Map.of(),
-            "String message confirming validation service status"
+            "ApiDocumentation object with all endpoint information"
         ));
 
         documentation.setEndpoints(endpoints);
