@@ -24,4 +24,17 @@ public interface TestCaseRepository extends JpaRepository<TestCase, Long> {
 
     @Query("SELECT tc FROM TestCase tc WHERE tc.priority = :priority AND tc.isActive = true ORDER BY tc.createdAt DESC")
     List<TestCase> findByPriority(@Param("priority") TestCase.Priority priority);
+
+    // Add missing methods called by DashboardController
+    @Query("SELECT COUNT(tc) FROM TestCase tc WHERE tc.isActive = true")
+    long countActiveTestCases();
+
+    @Query("SELECT COUNT(tc) FROM TestCase tc WHERE tc.isActive = false")
+    long countInactiveTestCases();
+
+    @Query("SELECT tc FROM TestCase tc ORDER BY tc.createdAt DESC")
+    List<TestCase> findAllOrderByCreatedAtDesc();
+
+    @Query("SELECT tc FROM TestCase tc WHERE tc.isActive = false")
+    List<TestCase> findByIsActiveFalse();
 }

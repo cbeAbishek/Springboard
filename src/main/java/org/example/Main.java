@@ -14,6 +14,6 @@ public class Main {
         SpringApplication.run(Main.class, args);
 
         System.out.println("Application started successfully.");
-        System.out.println("Access the API documentation at: http://localhost:8080/automation-framework/");
+        System.out.println("Access the API documentation at: http://localhost:8080/");
     }
 }

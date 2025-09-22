@@ -39,4 +39,14 @@ public interface TestBatchRepository extends JpaRepository<TestBatch, Long> {
 
     @Query("SELECT tb FROM TestBatch tb WHERE tb.status = :status ORDER BY tb.createdAt DESC")
     List<TestBatch> findByStatusOrderByCreatedAtDesc(@Param("status") TestBatch.BatchStatus status);
+
+    // Add missing methods called by controllers
+    @Query("SELECT COUNT(tb) FROM TestBatch tb WHERE tb.status = 'COMPLETED'")
+    long countByStatusCompleted();
+
+    @Query("SELECT COUNT(tb) FROM TestBatch tb WHERE tb.status IN ('SCHEDULED', 'RUNNING')")
+    long countActiveBatches();
+
+    @Query("SELECT tb FROM TestBatch tb WHERE tb.createdAt >= :startDate ORDER BY tb.createdAt DESC LIMIT 10")
+    List<TestBatch> findRecentBatchesWithLimit(@Param("startDate") LocalDateTime startDate);
 }

@@ -703,7 +703,7 @@ async function switchSection(sectionName) {
     if (currentSection === sectionName) return;
 
     try {
-        loadingManager.show(`Loading ${sectionName}...`);
+        const loadingId = loadingManager.show(`Loading ${sectionName}...`);
 
         // Update navigation
         document.querySelectorAll('.nav-link').forEach(link => {
@@ -717,935 +717,150 @@ async function switchSection(sectionName) {
             section.classList.remove('active');
         });
 
-        // Show target section
-        const targetSection = document.getElementById(sectionName);
-        if (targetSection) targetSection.classList.add('active');
+        // Show target section - check for both formats
+        let targetSection = document.getElementById(sectionName + '-section');
+        if (!targetSection) {
+            targetSection = document.getElementById(sectionName);
+        }
 
-        // Update page title
-        const titles = {
-            'dashboard': 'Dashboard',
-            'testcases': 'Test Cases',
-            'execution': 'Test Execution',
-            'schedules': 'Schedules',
-            'reports': 'Reports',
-            'analytics': 'Analytics'
-        };
-        const titleElement = document.getElementById('page-title');
-        if (titleElement) titleElement.textContent = titles[sectionName];
-
-        // Load section-specific data
-        await loadSectionData(sectionName);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        } else {
+            console.warn(`Section not found: ${sectionName}`);
+            // Create a placeholder section if it doesn't exist
+            createPlaceholderSection(sectionName);
+        }
 
         currentSection = sectionName;
-    } catch (error) {
-        console.error(`Error switching to section ${sectionName}:`, error);
-        notificationManager.show(`Failed to load ${sectionName} section`, 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
 
-async function loadSectionData(sectionName) {
-    switch (sectionName) {
-        case 'dashboard':
-            await loadDashboardData();
-            break;
-        case 'testcases':
-            await loadTestCases();
-            break;
-        case 'execution':
-            await loadExecutions();
-            break;
-        case 'schedules':
-            await loadSchedules();
-            break;
-        case 'reports':
-            await loadReports();
-            break;
-        case 'analytics':
-            // Analytics loads on demand
-            break;
-    }
-}
-
-// Data Loading Functions
-async function loadAllData() {
-    try {
-        await Promise.all([
-            loadDashboardData(),
-            loadTestCases(),
-            loadExecutions(),
-            loadSchedules(),
-            loadReports()
-        ]);
-    } catch (error) {
-        console.error('Error loading data:', error);
-        notificationManager.show('Some data failed to load', 'warning');
-    }
-}
-
-async function loadDashboardData() {
-    try {
-        const [testCases, executions, schedules, batches] = await Promise.all([
-            ApiClient.get('/testcases'),
-            ApiClient.get('/execution/executions'),
-            ApiClient.get('/schedules'),
-            ApiClient.get('/execution/batches')
-        ]);
-
-        updateDashboardStats(testCases, executions, schedules);
-        updateRecentBatches(batches);
-
-    } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        notificationManager.show('Failed to load dashboard data', 'error');
-    }
-}
-
-function updateDashboardStats(testCases, executions, schedules) {
-    const totalTestCasesEl = document.getElementById('total-testcases');
-    const totalExecutionsEl = document.getElementById('total-executions');
-    const activeSchedulesEl = document.getElementById('active-schedules');
-    const successRateEl = document.getElementById('success-rate');
-
-    if (totalTestCasesEl) totalTestCasesEl.textContent = testCases.length || 0;
-    if (totalExecutionsEl) totalExecutionsEl.textContent = executions.length || 0;
-    if (activeSchedulesEl) activeSchedulesEl.textContent = schedules.filter(s => s.enabled).length || 0;
-
-    // Calculate success rate
-    const successfulExecutions = executions.filter(e => e.status === 'PASSED').length;
-    const successRate = executions.length > 0 ? Math.round((successfulExecutions / executions.length) * 100) : 0;
-    if (successRateEl) successRateEl.textContent = `${successRate}%`;
-}
-
-function updateRecentBatches(batches) {
-    const tbody = document.getElementById('recent-batches-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (!batches || batches.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">No recent batches found</td></tr>';
-        return;
-    }
-
-    // Show latest 10 batches
-    batches.slice(0, 10).forEach(batch => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="font-mono text-sm">${batch.batchId}</td>
-            <td><span class="status-badge status-${batch.status.toLowerCase()}">${batch.status}</span></td>
-            <td><span class="env-badge env-${batch.environment}">${batch.environment}</span></td>
-            <td>${formatDateTime(batch.startTime)}</td>
-            <td>${formatDuration(batch.duration)}</td>
-            <td class="action-buttons">
-                <button class="action-btn" onclick="viewBatchDetails('${batch.batchId}')" title="View Details">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="action-btn" onclick="generateBatchReport('${batch.batchId}')" title="Generate Report">
-                    <i class="fas fa-file-alt"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Test Cases Management
-async function loadTestCases() {
-    try {
-        const testCases = await ApiClient.get('/testcases');
-        updateTestCasesTable(testCases);
-    } catch (error) {
-        console.error('Error loading test cases:', error);
-        notificationManager.show('Failed to load test cases', 'error');
-    }
-}
-
-function updateTestCasesTable(testCases) {
-    const tbody = document.getElementById('testcases-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (!testCases || testCases.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-8">No test cases found. <a href="#" onclick="showCreateTestCaseModal()" class="text-cyan-400 hover:underline">Create your first test case</a></td></tr>';
-        return;
-    }
-
-    testCases.forEach(testCase => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="font-mono">${testCase.id}</td>
-            <td class="font-medium">${testCase.name}</td>
-            <td><span class="type-badge type-${testCase.testType?.toLowerCase() || 'unknown'}">${testCase.testType || 'N/A'}</span></td>
-            <td><span class="priority-badge priority-${testCase.priority?.toLowerCase() || 'medium'}">${testCase.priority || 'MEDIUM'}</span></td>
-            <td><span class="env-badge env-${testCase.environment || 'dev'}">${testCase.environment || 'dev'}</span></td>
-            <td>${testCase.testSuite || 'default'}</td>
-            <td><span class="status-badge status-${testCase.isActive ? 'active' : 'inactive'}">${testCase.isActive ? 'Active' : 'Inactive'}</span></td>
-            <td class="action-buttons">
-                <button class="action-btn" onclick="executeTestCase(${testCase.id})" title="Execute Test">
-                    <i class="fas fa-play"></i>
-                </button>
-                <button class="action-btn" onclick="editTestCase(${testCase.id})" title="Edit Test">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="action-btn action-btn-danger" onclick="deleteTestCase(${testCase.id})" title="Delete Test">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Test Execution Management
-async function loadExecutions() {
-    try {
-        const executions = await ApiClient.get('/execution/executions');
-        updateExecutionsTable(executions);
-    } catch (error) {
-        console.error('Error loading executions:', error);
-        notificationManager.show('Failed to load executions', 'error');
-    }
-}
-
-function updateExecutionsTable(executions) {
-    const tbody = document.getElementById('executions-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (!executions || executions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-8">No executions found. Execute a test to see results here.</td></tr>';
-        return;
-    }
-
-    // Show latest 50 executions
-    executions.slice(0, 50).forEach(execution => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="font-mono">${execution.id}</td>
-            <td class="font-medium">${execution.testCase?.name || 'N/A'}</td>
-            <td><span class="status-badge status-${execution.status?.toLowerCase() || 'unknown'}">${execution.status || 'UNKNOWN'}</span></td>
-            <td><span class="env-badge env-${execution.environment || 'dev'}">${execution.environment || 'dev'}</span></td>
-            <td>${formatDateTime(execution.startTime)}</td>
-            <td>${formatDuration(execution.executionDuration)}</td>
-            <td class="action-buttons">
-                <button class="action-btn" onclick="viewExecutionDetails(${execution.id})" title="View Details">
-                    <i class="fas fa-eye"></i>
-                </button>
-                ${execution.status === 'FAILED' ? `
-                    <button class="action-btn" onclick="downloadExecutionLogs(${execution.id})" title="Download Logs">
-                        <i class="fas fa-download"></i>
-                    </button>
-                ` : ''}
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Schedule Management
-async function loadSchedules() {
-    try {
-        const schedules = await ApiClient.get('/schedules');
-        updateSchedulesTable(schedules);
-    } catch (error) {
-        console.error('Error loading schedules:', error);
-        notificationManager.show('Failed to load schedules', 'error');
-    }
-}
-
-function updateSchedulesTable(schedules) {
-    const tbody = document.getElementById('schedules-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (!schedules || schedules.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-8">No schedules found. <a href="#" onclick="showCreateScheduleModal()" class="text-cyan-400 hover:underline">Create your first schedule</a></td></tr>';
-        return;
-    }
-
-    schedules.forEach(schedule => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="font-mono">${schedule.id}</td>
-            <td class="font-medium">${schedule.scheduleName}</td>
-            <td class="font-mono text-sm">${schedule.cronExpression}</td>
-            <td>${schedule.testSuite}</td>
-            <td><span class="env-badge env-${schedule.environment}">${schedule.environment}</span></td>
-            <td><span class="status-badge status-${schedule.enabled ? 'active' : 'inactive'}">${schedule.enabled ? 'Active' : 'Inactive'}</span></td>
-            <td>${formatDateTime(schedule.nextExecutionTime)}</td>
-            <td class="action-buttons">
-                <button class="action-btn" onclick="toggleSchedule(${schedule.id}, ${!schedule.enabled})" title="${schedule.enabled ? 'Disable' : 'Enable'} Schedule">
-                    <i class="fas fa-${schedule.enabled ? 'pause' : 'play'}"></i>
-                </button>
-                <button class="action-btn" onclick="executeScheduleNow(${schedule.id})" title="Execute Now">
-                    <i class="fas fa-bolt"></i>
-                </button>
-                <button class="action-btn action-btn-danger" onclick="deleteSchedule(${schedule.id})" title="Delete Schedule">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Reports Management
-async function loadReports() {
-    try {
-        const reports = await ApiClient.get('/reports/list');
-        updateReportsTable(reports);
-    } catch (error) {
-        console.error('Error loading reports:', error);
-        updateReportsTable([]);
-    }
-}
-
-function updateReportsTable(reports) {
-    const tbody = document.getElementById('reports-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (!reports || reports.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">No reports generated yet. Execute some tests and generate reports to see them here.</td></tr>';
-        return;
-    }
-
-    reports.forEach(report => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="font-mono text-sm">${report.filename}</td>
-            <td class="font-mono text-sm">${report.batchId}</td>
-            <td><span class="type-badge type-${report.type?.toLowerCase() || 'html'}">${report.type || 'HTML'}</span></td>
-            <td>${formatFileSize(report.size)}</td>
-            <td>${formatDateTime(report.createdAt)}</td>
-            <td class="action-buttons">
-                <button class="action-btn" onclick="downloadReport('${report.filename}')" title="Download Report">
-                    <i class="fas fa-download"></i>
-                </button>
-                <button class="action-btn" onclick="previewReport('${report.filename}')" title="Preview Report">
-                    <i class="fas fa-eye"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Form Handlers
-function initializeFormHandlers() {
-    // Test Case Creation Form
-    const createTestCaseForm = document.getElementById('create-testcase-form');
-    if (createTestCaseForm) {
-        createTestCaseForm.addEventListener('submit', handleCreateTestCase);
-    }
-
-    // Schedule Creation Form
-    const createScheduleForm = document.getElementById('create-schedule-form');
-    if (createScheduleForm) {
-        createScheduleForm.addEventListener('submit', handleCreateSchedule);
-    }
-
-    // Batch Execution Form
-    const batchExecutionForm = document.getElementById('batch-execution-form');
-    if (batchExecutionForm) {
-        batchExecutionForm.addEventListener('submit', handleBatchExecution);
-    }
-
-    // Single Test Execution Form
-    const singleExecutionForm = document.getElementById('single-execution-form');
-    if (singleExecutionForm) {
-        singleExecutionForm.addEventListener('submit', handleSingleExecution);
-    }
-
-    // Search and Filter Handlers
-    setupSearchAndFilters();
-}
-
-function setupSearchAndFilters() {
-    const searchInput = document.getElementById('testcase-search');
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                filterTestCases();
-            }, 300);
-        });
-    }
-
-    const filterSelects = document.querySelectorAll('#testcase-filter-type, #testcase-filter-env');
-    filterSelects.forEach(select => {
-        select.addEventListener('change', filterTestCases);
-    });
-}
-
-// Form Submit Handlers
-async function handleCreateTestCase(event) {
-    event.preventDefault();
-
-    const formData = new FormData(event.target);
-    const testCaseData = {};
-
-    for (let [key, value] of formData.entries()) {
-        if (key === 'testData') {
-            // Validate JSON format but keep it as string for backend
-            if (value && value.trim()) {
-                try {
-                    JSON.parse(value); // Validate JSON format
-                    testCaseData[key] = value; // Send as string
-                } catch (e) {
-                    notificationManager.show('Invalid JSON in test data field', 'error');
-                    return;
-                }
-            } else {
-                testCaseData[key] = '{}'; // Default empty JSON object as string
-            }
-        } else if (key === 'testSteps') {
-            // Handle testSteps similarly - validate JSON but send as string
-            if (value && value.trim()) {
-                try {
-                    JSON.parse(value); // Validate JSON format
-                    testCaseData[key] = value; // Send as string
-                } catch (e) {
-                    notificationManager.show('Invalid JSON in test steps field', 'error');
-                    return;
-                }
-            } else {
-                testCaseData[key] = '[]'; // Default empty array as string
-            }
-        } else if (key === 'isActive') {
-            testCaseData[key] = value === 'true';
-        } else {
-            testCaseData[key] = value;
+        // Stop any ongoing executions in the previous section
+        if (executionStatusPolling.has(currentSection)) {
+            clearInterval(executionStatusPolling.get(currentSection));
+            executionStatusPolling.delete(currentSection);
         }
-    }
 
-    try {
-        loadingManager.show('Creating test case...');
-        await ApiClient.post('/testcases', testCaseData);
-
-        notificationManager.show('✅ Test case created successfully!', 'success');
-        closeModal('testcase-modal');
-        event.target.reset();
-
-        await loadTestCases();
-        await loadDashboardData();
-
-    } catch (error) {
-        console.error('Error creating test case:', error);
-        notificationManager.show('❌ Failed to create test case', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function handleCreateSchedule(event) {
-    event.preventDefault();
-
-    const formData = new FormData(event.target);
-    const scheduleData = {};
-
-    for (let [key, value] of formData.entries()) {
-        if (key === 'parallelThreads') {
-            scheduleData[key] = parseInt(value);
-        } else if (key === 'enabled') {
-            scheduleData[key] = value === 'true';
-        } else {
-            scheduleData[key] = value;
+        // Start execution status polling for the new section, if applicable
+        if (currentSection === 'execution') {
+            startExecutionStatusPolling();
         }
-    }
 
-    scheduleData.enabled = true;
-
-    try {
-        loadingManager.show('Creating schedule...');
-        await ApiClient.post('/schedules', scheduleData);
-
-        notificationManager.show('✅ Schedule created successfully!', 'success');
-        closeModal('schedule-modal');
-        event.target.reset();
-
-        await loadSchedules();
-        await loadDashboardData();
+        loadingManager.hide(loadingId);
 
     } catch (error) {
-        console.error('Error creating schedule:', error);
-        notificationManager.show('❌ Failed to create schedule', 'error');
-    } finally {
-        loadingManager.hide();
+        console.error('Error switching section:', error);
+        notificationManager.show('Failed to load section', 'error');
+        loadingManager.hide(loadingId);
     }
 }
 
-async function handleBatchExecution(event) {
-    event.preventDefault();
-
-    const formData = new FormData(event.target);
-    const executionData = {
-        testSuite: formData.get('testSuite'),
-        environment: formData.get('environment'),
-        parallelThreads: parseInt(formData.get('parallelThreads'))
-    };
-
-    try {
-        loadingManager.show('Executing test batch...');
-        const result = await ApiClient.post('/execution/batch', executionData);
-
-        notificationManager.show(`🚀 Batch execution started! Batch ID: ${result.batchId}`, 'success');
-
-        // Start polling for execution status
-        startExecutionStatusPolling(result.batchId);
-
-        // Refresh executions
-        setTimeout(() => {
-            loadExecutions();
-            loadDashboardData();
-        }, 2000);
-
-    } catch (error) {
-        console.error('Error executing batch:', error);
-        notificationManager.show('❌ Failed to execute batch', 'error');
-    } finally {
-        loadingManager.hide();
-    }
+function createPlaceholderSection(sectionName) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'content-section placeholder';
+    placeholder.id = `placeholder-${sectionName}`;
+    placeholder.innerHTML = `<p>No content available for ${sectionName}. Please check back later.</p>`;
+    document.querySelector('.content-container').appendChild(placeholder);
 }
 
-async function handleSingleExecution(event) {
-    event.preventDefault();
-
-    const formData = new FormData(event.target);
-    const testCaseId = formData.get('testCaseId');
-    const environment = formData.get('environment');
-
-    try {
-        loadingManager.show('Executing test case...');
-        const result = await ApiClient.post(`/execution/single/${testCaseId}?environment=${environment}`, {});
-
-        notificationManager.show(`🚀 Test execution started! Test Case ID: ${testCaseId}`, 'success');
-
-        setTimeout(() => {
-            loadExecutions();
-            loadDashboardData();
-        }, 2000);
-
-    } catch (error) {
-        console.error('Error executing test case:', error);
-        notificationManager.show('❌ Failed to execute test case', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-// Action Functions
-async function executeTestCase(testCaseId) {
-    const environment = prompt('Enter environment (dev/staging/production):', 'dev');
-    if (!environment) return;
-
-    try {
-        loadingManager.show('Executing test case...');
-        const result = await ApiClient.post(`/execution/single/${testCaseId}?environment=${environment}`, {});
-
-        notificationManager.show(`🚀 Test execution started! Test Case ID: ${testCaseId}`, 'success');
-
-        setTimeout(() => {
-            loadExecutions();
-            loadDashboardData();
-        }, 2000);
-
-    } catch (error) {
-        console.error('Error executing test case:', error);
-        notificationManager.show('❌ Failed to execute test case', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function deleteTestCase(testCaseId) {
-    if (!confirm('Are you sure you want to delete this test case? This action cannot be undone.')) {
-        return;
-    }
-
-    try {
-        loadingManager.show('Deleting test case...');
-        await ApiClient.delete(`/testcases/${testCaseId}`);
-
-        notificationManager.show('✅ Test case deleted successfully!', 'success');
-
-        await loadTestCases();
-        await loadDashboardData();
-
-    } catch (error) {
-        console.error('Error deleting test case:', error);
-        notificationManager.show('❌ Failed to delete test case', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function toggleSchedule(scheduleId, enabled) {
-    try {
-        loadingManager.show(`${enabled ? 'Enabling' : 'Disabling'} schedule...`);
-        await ApiClient.patch(`/schedules/${scheduleId}/status`, { enabled });
-        notificationManager.show(`✅ Schedule ${enabled ? 'enabled' : 'disabled'} successfully!`, 'success');
-        await loadSchedules();
-        await loadDashboardData();
-
-    } catch (error) {
-        console.error('Error toggling schedule:', error);
-        notificationManager.show('❌ Failed to update schedule', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function deleteSchedule(scheduleId) {
-    if (!confirm('Are you sure you want to delete this schedule? This action cannot be undone.')) {
-        return;
-    }
-
-    try {
-        loadingManager.show('Deleting schedule...');
-        await ApiClient.delete(`/schedules/${scheduleId}`);
-
-        notificationManager.show('✅ Schedule deleted successfully!', 'success');
-
-        await loadSchedules();
-        await loadDashboardData();
-
-    } catch (error) {
-        console.error('Error deleting schedule:', error);
-        notificationManager.show('❌ Failed to delete schedule', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function executeScheduleNow(scheduleId) {
-    try {
-        loadingManager.show('Executing schedule...');
-        const result = await ApiClient.post(`/schedules/${scheduleId}/execute`);
-
-        notificationManager.show(`🚀 Schedule executed! Batch ID: ${result.batchId}`, 'success');
-
-        setTimeout(() => {
-            loadExecutions();
-            loadDashboardData();
-        }, 2000);
-
-    } catch (error) {
-        console.error('Error executing schedule:', error);
-        notificationManager.show('❌ Failed to execute schedule', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function generateBatchReport(batchId) {
-    try {
-        loadingManager.show('Generating batch report...');
-        await ApiClient.post(`/reports/html/${batchId}`);
-
-        notificationManager.show('✅ Batch report generated successfully!', 'success');
-
-        await loadReports();
-
-    } catch (error) {
-        console.error('Error generating batch report:', error);
-        notificationManager.show('❌ Failed to generate batch report', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-function viewBatchDetails(batchId) {
-    notificationManager.show(`Viewing details for batch: ${batchId}`, 'info');
-}
-
-function viewExecutionDetails(executionId) {
-    notificationManager.show(`Viewing details for execution: ${executionId}`, 'info');
-}
-
-function downloadExecutionLogs(executionId) {
-    notificationManager.show(`Downloading logs for execution: ${executionId}`, 'info');
-}
-
-function editTestCase(testCaseId) {
-    notificationManager.show(`Edit functionality not implemented for test case: ${testCaseId}`, 'warning');
-}
-
-function downloadReport(filename) {
-    notificationManager.show(`Download functionality not implemented for: ${filename}`, 'warning');
-}
-
-function previewReport(filename) {
-    notificationManager.show(`Preview functionality not implemented for: ${filename}`, 'warning');
-}
-
-// Utility Functions
-function filterTestCases() {
-    const searchTerm = document.getElementById('testcase-search')?.value?.toLowerCase() || '';
-    const typeFilter = document.getElementById('testcase-filter-type')?.value || '';
-    const envFilter = document.getElementById('testcase-filter-env')?.value || '';
-
-    const rows = document.querySelectorAll('#testcases-body tr');
-
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 5) return;
-
-        const name = cells[1]?.textContent?.toLowerCase() || '';
-        const type = cells[2]?.textContent?.toLowerCase() || '';
-        const env = cells[4]?.textContent?.toLowerCase() || '';
-
-        const matchesSearch = !searchTerm || name.includes(searchTerm);
-        const matchesType = !typeFilter || type.includes(typeFilter.toLowerCase());
-        const matchesEnv = !envFilter || env.includes(envFilter.toLowerCase());
-
-        row.style.display = matchesSearch && matchesType && matchesEnv ? '' : 'none';
-    });
-}
-
-function formatDateTime(timestamp) {
-    if (!timestamp) return 'N/A';
-    return new Date(timestamp).toLocaleString();
-}
-
-function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
-}
-
-function formatDuration(milliseconds) {
-    if (!milliseconds || milliseconds === 0) return '0s';
-
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (hours > 0) {
-        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${seconds % 60}s`;
-    } else {
-        return `${seconds}s`;
-    }
-}
-
-function formatFileSize(bytes) {
-    if (!bytes) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function setDefaultFormValues() {
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const fromDateInput = document.getElementById('trend-from-date');
-    const toDateInput = document.getElementById('trend-to-date');
-
-    if (fromDateInput) fromDateInput.value = oneWeekAgo.toISOString().slice(0, 16);
-    if (toDateInput) toDateInput.value = now.toISOString().slice(0, 16);
-}
-
-// Modal Functions
-function showCreateTestCaseModal() {
-    const modal = document.getElementById('testcase-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function showCreateScheduleModal() {
-    const modal = document.getElementById('schedule-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
-}
-
-// API Status Check
-async function checkApiStatus() {
-    const statusIndicator = document.getElementById('api-status');
-    const statusText = document.getElementById('status-text');
-
-    try {
-        await ApiClient.get('/validation/health');
-        if (statusIndicator) statusIndicator.className = 'status-indicator status-online';
-        if (statusText) {
-            statusText.textContent = 'API Online';
-            statusText.className = 'text-sm font-medium text-green-400';
-        }
-    } catch (error) {
-        if (statusIndicator) statusIndicator.className = 'status-indicator status-offline';
-        if (statusText) {
-            statusText.textContent = 'API Offline';
-            statusText.className = 'text-sm font-medium text-red-400';
-        }
-    }
-}
-
-// Enhanced Auto-refresh Setup
+// Smart Refresh Logic
 function setupSmartRefresh() {
-    const refreshRate = {
-        'dashboard': 30000, // 30 seconds
-        'execution': 15000, // 15 seconds
-        'default': 60000 // 1 minute
+    const refreshConfig = {
+        'dashboard': 30000,
+        'testcases': 30000,
+        'execution': 5000,
+        'reports': 30000
     };
 
-    refreshInterval = setInterval(async () => {
-        try {
-            if (currentSection === 'dashboard') {
-                await loadDashboardData();
-            } else if (currentSection === 'execution') {
-                await loadExecutions();
-            }
+    function getRefreshInterval(section) {
+        return refreshConfig[section] || 30000;
+    }
 
-            await checkApiStatus();
+    async function refreshData() {
+        if (!currentSection || !refreshConfig[currentSection]) return;
+
+        try {
+            const interval = getRefreshInterval(currentSection);
+            console.log(`Refreshing data for ${currentSection}...`);
+
+            // Add your data fetching and refreshing logic here
+            await fetchDataForSection(currentSection);
+
+            // Schedule next refresh
+            refreshInterval = setTimeout(refreshData, interval);
         } catch (error) {
-            console.debug('Auto-refresh error:', error);
+            console.error('Error refreshing data:', error);
+            notificationManager.show('Error refreshing data', 'error');
         }
-    }, refreshRate[currentSection] || refreshRate['default']);
+    }
+
+    // Start the initial refresh
+    refreshData();
+}
+
+// Placeholder for actual data fetching logic
+async function fetchDataForSection(section) {
+    // Implement your data fetching logic here
+    // Example:
+    // if (section === 'dashboard') {
+    //     await ApiClient.get('/dashboard/data');
+    // } else if (section === 'testcases') {
+    //     await ApiClient.get('/testcases/data');
+    // }
 }
 
 // Execution Status Polling
-function startExecutionStatusPolling(batchId) {
-    if (executionStatusPolling.has(batchId)) return;
+function startExecutionStatusPolling() {
+    const section = 'execution';
+    const interval = 5000;
 
-    const pollInterval = setInterval(async () => {
+    if (parallelExecutionMonitor) {
+        clearInterval(parallelExecutionMonitor);
+    }
+
+    parallelExecutionMonitor = setInterval(async () => {
         try {
-            const batchStatus = await ApiClient.get(`/execution/batch/${batchId}`);
-
-            if (batchStatus.status === 'COMPLETED' || batchStatus.status === 'FAILED') {
-                clearInterval(pollInterval);
-                executionStatusPolling.delete(batchId);
-
-                notificationManager.show(
-                    `Batch ${batchId} completed with status: ${batchStatus.status}`,
-                    batchStatus.status === 'COMPLETED' ? 'success' : 'error'
-                );
-
-                setTimeout(() => {
-                    loadExecutions();
-                    loadDashboardData();
-                }, 2000);
-            }
+            console.log('Polling execution status...');
+            // Fetch and update execution status
+            await updateExecutionStatus();
         } catch (error) {
             console.error('Error polling execution status:', error);
-            clearInterval(pollInterval);
-            executionStatusPolling.delete(batchId);
+            notificationManager.show('Error polling execution status', 'error');
         }
-    }, 5000);
-
-    executionStatusPolling.set(batchId, pollInterval);
+    }, interval);
 }
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
-    }
+async function updateExecutionStatus() {
+    // Implement your execution status updating logic here
+    // Example:
+    // const status = await ApiClient.get('/execution/status');
+    // document.getElementById('execution-status').textContent = status;
+}
 
-    executionStatusPolling.forEach((interval, batchId) => {
-        clearInterval(interval);
+// Enhanced Error Boundary
+function setupErrorBoundary() {
+    window.addEventListener('error', (event) => {
+        event.preventDefault();
+        notificationManager.show('An unexpected error occurred. Please try again later.', 'error');
+        return true;
     });
-});
 
-// Click outside modal to close
-window.addEventListener('click', (event) => {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    });
-});
-
-// Additional utility functions that might be missing
-function showElement(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) element.style.display = 'block';
-}
-
-function hideElement(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) element.style.display = 'none';
-}
-
-function toggleElement(elementId) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.style.display = element.style.display === 'none' ? 'block' : 'none';
-    }
-}
-
-// Handle API errors gracefully
-function handleApiError(error, context = 'operation') {
-    console.error(`API Error in ${context}:`, error);
-
-    if (error.message && error.message.includes('fetch')) {
-        notificationManager.show(`Connection failed during ${context}. Please check your network.`, 'error');
-    } else {
-        notificationManager.show(`Failed to perform ${context}. Please try again.`, 'error');
-    }
-}
-
-// Populate test case dropdown for single execution
-async function populateTestCaseDropdown() {
-    try {
-        const testCases = await ApiClient.get('/testcases');
-        const dropdown = document.getElementById('single-testcase-id');
-
-        if (dropdown && testCases) {
-            dropdown.innerHTML = '<option value="">Select a test case</option>';
-            testCases.forEach(testCase => {
-                const option = document.createElement('option');
-                option.value = testCase.id;
-                option.textContent = `${testCase.name} (${testCase.testType})`;
-                dropdown.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.warn('Failed to populate test case dropdown:', error);
-    }
-}
-
-// Initialize tooltips and other UI enhancements
-function initializeUIEnhancements() {
-    // Add loading states to buttons
-    const buttons = document.querySelectorAll('.btn-modern, .action-btn');
-    buttons.forEach(button => {
-        button.addEventListener('click', function() {
-            this.classList.add('loading');
-            setTimeout(() => {
-                this.classList.remove('loading');
-            }, 2000);
-        });
+    window.addEventListener('unhandledrejection', (event) => {
+        event.preventDefault();
+        notificationManager.show('A background task failed. Please try again later.', 'error');
+        return true;
     });
 }
 
-// Ensure all referenced functions exist
-window.loadDashboardData = loadDashboardData;
-window.showCreateTestCaseModal = showCreateTestCaseModal;
-window.showCreateScheduleModal = showCreateScheduleModal;
-window.closeModal = closeModal;
-window.executeTestCase = executeTestCase;
-window.editTestCase = editTestCase;
-window.deleteTestCase = deleteTestCase;
-window.viewBatchDetails = viewBatchDetails;
-window.generateBatchReport = generateBatchReport;
-window.viewExecutionDetails = viewExecutionDetails;
-window.downloadExecutionLogs = downloadExecutionLogs;
-window.toggleSchedule = toggleSchedule;
-window.executeScheduleNow = executeScheduleNow;
-window.deleteSchedule = deleteSchedule;
-window.downloadReport = downloadReport;
-window.previewReport = previewReport;
+// Initialize application enhancements
+function initializeEnhancements() {
+    // Add any additional initialization logic for enhancements here
+    console.log('Initializing application enhancements...');
+}
 
+// Call this function to initialize all enhancements
+function initializeAll() {
+    initializeEnhancements();
+    setupErrorBoundary();
+}
+
+// Start the application
+initializeAll();

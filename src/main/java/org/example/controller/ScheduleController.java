@@ -305,19 +305,25 @@ public class ScheduleController {
         private String cronExpression;
         private String testSuite;
         private String environment;
-        private Integer parallelThreads = 1;
-        private Boolean enabled; // optional toggle
-        // getters/setters already present below or rely on Lombok
+        private Integer parallelThreads;
+        private Boolean enabled;
+
+        // Getters and setters
         public String getScheduleName() { return scheduleName; }
         public void setScheduleName(String scheduleName) { this.scheduleName = scheduleName; }
+
         public String getCronExpression() { return cronExpression; }
         public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
+
         public String getTestSuite() { return testSuite; }
         public void setTestSuite(String testSuite) { this.testSuite = testSuite; }
+
         public String getEnvironment() { return environment; }
         public void setEnvironment(String environment) { this.environment = environment; }
+
         public Integer getParallelThreads() { return parallelThreads; }
         public void setParallelThreads(Integer parallelThreads) { this.parallelThreads = parallelThreads; }
+
         public Boolean getEnabled() { return enabled; }
         public void setEnabled(Boolean enabled) { this.enabled = enabled; }
     }

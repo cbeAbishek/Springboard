@@ -31,6 +31,9 @@ async function initializeApplication() {
     // Initialize mobile support and responsive behavior
     initializeMobileSupport();
 
+    // CRITICAL FIX: Initialize dashboard data immediately
+    await initializeDashboardData();
+
     // Initialize navigation system
     await initializeNavigation();
 
@@ -49,13 +52,9 @@ async function initializeApplication() {
     // Initialize error boundary
     setupGlobalErrorHandler();
 
-    // Initialize API status checking
-    await checkApiStatus();
-
-    // Load initial data (non-blocking)
-    loadInitialData().catch(error => {
-        console.warn('Initial data loading failed:', error);
-        notificationManager.show('Some data may not be available', 'warning');
+    // Initialize API status checking (non-blocking)
+    checkApiStatus().catch(error => {
+        console.warn('API status check failed:', error);
     });
 
     console.log('Modular application initialization completed');
@@ -63,7 +62,9 @@ async function initializeApplication() {
 
 async function loadInitialData() {
     try {
-        await loadDashboardData();
+        // Dashboard data is already loaded in initializeDashboardData()
+        // This is kept for backward compatibility
+        console.log('Initial data loading completed (dashboard already loaded)');
     } catch (error) {
         console.error('Error loading initial data:', error);
     }
@@ -93,13 +94,70 @@ function initializeFormHandlers() {
         saveScheduleBtn.addEventListener('click', handleCreateSchedule);
     }
 
-    // Batch Execution
+    // FIXED: Multiple Test Execution Handlers
+    // Single Test Execution Form
+    const singleExecutionForm = document.getElementById('single-execution-form');
+    if (singleExecutionForm) {
+        singleExecutionForm.addEventListener('submit', handleSingleTestExecution);
+    }
+
+    // Batch Execution Form
+    const batchExecutionForm = document.getElementById('batch-execution-form');
+    if (batchExecutionForm) {
+        batchExecutionForm.addEventListener('submit', handleBatchTestExecution);
+    }
+
+    // Execution Control Buttons
+    const singleTestExecuteBtn = document.getElementById('single-test-execute-btn');
+    if (singleTestExecuteBtn) {
+        singleTestExecuteBtn.addEventListener('click', () => {
+            const form = document.getElementById('single-execution-form');
+            if (form) {
+                // Trigger form validation and submission
+                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                form.dispatchEvent(submitEvent);
+            }
+        });
+    }
+
+    const batchExecuteBtn = document.getElementById('batch-execute-btn');
+    if (batchExecuteBtn) {
+        batchExecuteBtn.addEventListener('click', () => {
+            const form = document.getElementById('batch-execution-form');
+            if (form) {
+                // Trigger form validation and submission
+                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                form.dispatchEvent(submitEvent);
+            }
+        });
+    }
+
+    const stopAllExecutionsBtn = document.getElementById('stop-all-executions-btn');
+    if (stopAllExecutionsBtn) {
+        stopAllExecutionsBtn.addEventListener('click', handleStopAllExecutions);
+    }
+
+    // Batch Threads Slider Handler
+    const batchThreadsSlider = document.getElementById('batch-threads-slider');
+    const batchThreadsValue = document.getElementById('batch-threads-value');
+    if (batchThreadsSlider && batchThreadsValue) {
+        batchThreadsSlider.addEventListener('input', function() {
+            batchThreadsValue.textContent = this.value;
+        });
+    }
+
+    // Execution Monitoring Controls
+    const pauseMonitoringBtn = document.getElementById('pause-monitoring-btn');
+    if (pauseMonitoringBtn) {
+        pauseMonitoringBtn.addEventListener('click', handleToggleMonitoring);
+    }
+
+    // Legacy handlers for backward compatibility
     const executeBatchBtn = document.getElementById('execute-batch-btn');
     if (executeBatchBtn) {
         executeBatchBtn.addEventListener('click', handleBatchExecution);
     }
 
-    // Single Test Execution
     const executeSingleBtn = document.getElementById('execute-single-btn');
     if (executeSingleBtn) {
         executeSingleBtn.addEventListener('click', handleSingleExecution);
@@ -138,6 +196,7 @@ function setupSearchAndFilters() {
         'testcase-suite-filter',
         'testcase-env-filter',
         'testcase-type-filter',
+        'testcase-priority-filter',
         'batch-status-filter'
     ];
 
@@ -153,6 +212,12 @@ function setupSearchAndFilters() {
             });
         }
     });
+
+    // Clear filters button
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', clearAllFilters);
+    }
 }
 
 function initializeQuickActions() {
@@ -232,6 +297,11 @@ function initializeReportHandlers() {
     if (generateBatchReportBtn) {
         generateBatchReportBtn.addEventListener('click', handleGenerateReport);
     }
+
+    const refreshDocsBtn = document.getElementById('refresh-docs-btn');
+    if (refreshDocsBtn) {
+        refreshDocsBtn.addEventListener('click', () => loadApiDocs());
+    }
 }
 
 function setupModalHandlers() {
@@ -251,6 +321,16 @@ function setupModalHandlers() {
             const modal = e.target.closest('.modal');
             if (modal) closeModal(modal.id);
         });
+    });
+
+    // ESC key to close modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const openModal = document.querySelector('.modal[style*="flex"]');
+            if (openModal) {
+                closeModal(openModal.id);
+            }
+        }
     });
 }
 
@@ -502,462 +582,6 @@ async function generateBatchReport(batchId) {
     } finally {
         loadingManager.hide();
     }
-}
-
-// Analytics Handlers
-async function handleLoadTrends() {
-    const fromDate = document.getElementById('analytics-from-date')?.value;
-    const toDate = document.getElementById('analytics-to-date')?.value;
-
-    if (!fromDate || !toDate) {
-        notificationManager.show('Please select both from and to dates', 'error');
-        return;
-    }
-
-    try {
-        loadingManager.show('Loading trend analysis...');
-        const trends = await ApiClient.get(`/analytics/trends?fromDate=${fromDate}&toDate=${toDate}`);
-
-        const container = document.getElementById('trend-analysis-content');
-        if (container && trends) {
-            container.innerHTML = `
-                <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Total Tests:</span>
-                        <span class="text-white">${trends.totalTests || 0}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Success Rate:</span>
-                        <span class="text-green-400">${trends.successRate || 0}%</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Average Duration:</span>
-                        <span class="text-white">${formatDuration(trends.avgDuration) || 'N/A'}</span>
-                    </div>
-                </div>
-            `;
-        }
-
-    } catch (error) {
-        console.error('Error loading trends:', error);
-        notificationManager.show('❌ Failed to load trend analysis', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function handleLoadRegression() {
-    const environment = document.getElementById('regression-env')?.value;
-    const days = document.getElementById('regression-days')?.value;
-
-    try {
-        loadingManager.show('Loading regression metrics...');
-        const metrics = await ApiClient.get(`/analytics/regression/${environment}?days=${days}`);
-
-        const container = document.getElementById('regression-metrics-content');
-        if (container && metrics) {
-            container.innerHTML = `
-                <div class="space-y-3">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Environment:</span>
-                        <span class="text-white">${environment}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Period:</span>
-                        <span class="text-white">${days} days</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Regression Rate:</span>
-                        <span class="text-${metrics.regressionRate > 5 ? 'red' : 'green'}-400">${metrics.regressionRate || 0}%</span>
-                    </div>
-                </div>
-            `;
-        }
-
-    } catch (error) {
-        console.error('Error loading regression metrics:', error);
-        notificationManager.show('❌ Failed to load regression metrics', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-// Validation Handlers
-async function handleHealthCheck() {
-    try {
-        loadingManager.show('Performing health check...');
-        const result = await ApiClient.get('/validation/health');
-
-        const container = document.getElementById('health-check-results');
-        if (container) {
-            container.innerHTML = `
-                <div class="p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
-                    <div class="flex items-center mb-2">
-                        <i class="fas fa-check-circle text-green-400 mr-2"></i>
-                        <span class="text-green-400 font-medium">Health Check Passed</span>
-                    </div>
-                    <p class="text-green-300 text-sm">${result || 'All systems operational'}</p>
-                </div>
-            `;
-        }
-
-    } catch (error) {
-        console.error('Error performing health check:', error);
-        const container = document.getElementById('health-check-results');
-        if (container) {
-            container.innerHTML = `
-                <div class="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-                    <div class="flex items-center mb-2">
-                        <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
-                        <span class="text-red-400 font-medium">Health Check Failed</span>
-                    </div>
-                    <p class="text-red-300 text-sm">${error.message}</p>
-                </div>
-            `;
-        }
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function handleFrameworkValidation() {
-    try {
-        loadingManager.show('Performing framework validation...');
-        const result = await ApiClient.get('/validation/framework');
-
-        const container = document.getElementById('framework-validation-results');
-        if (container) {
-            container.innerHTML = `
-                <div class="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-                    <div class="flex items-center mb-2">
-                        <i class="fas fa-shield-alt text-blue-400 mr-2"></i>
-                        <span class="text-blue-400 font-medium">Framework Validation Complete</span>
-                    </div>
-                    <div class="text-sm text-blue-300 space-y-1">
-                        <div>Status: ${result?.status || 'Unknown'}</div>
-                        <div>Checks: ${result?.checksPerformed || 0}</div>
-                        <div>Issues: ${result?.issuesFound || 0}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-    } catch (error) {
-        console.error('Error performing framework validation:', error);
-        notificationManager.show('❌ Failed to perform framework validation', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-// Demo Data Handlers
-async function handleLoadAllDemo() {
-    try {
-        loadingManager.show('Loading all demo data...');
-        const data = await ApiClient.get('/demo/sample-data');
-
-        const container = document.getElementById('demo-content-display');
-        if (container) {
-            container.innerHTML = `<pre class="text-gray-300 text-xs overflow-auto">${JSON.stringify(data, null, 2)}</pre>`;
-        }
-
-    } catch (error) {
-        console.error('Error loading demo data:', error);
-        notificationManager.show('❌ Failed to load demo data', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function handleLoadDemoData(type) {
-    try {
-        loadingManager.show(`Loading demo ${type}...`);
-        const data = await ApiClient.get(`/demo/${type}`);
-
-        const container = document.getElementById('demo-content-display');
-        if (container) {
-            container.innerHTML = `<pre class="text-gray-300 text-xs overflow-auto">${JSON.stringify(data, null, 2)}</pre>`;
-        }
-
-    } catch (error) {
-        console.error(`Error loading demo ${type}:`, error);
-        notificationManager.show(`❌ Failed to load demo ${type}`, 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-async function handleCreateSampleTest() {
-    const testData = document.getElementById('sample-test-data')?.value;
-
-    if (!testData) {
-        notificationManager.show('Please enter test data', 'error');
-        return;
-    }
-
-    try {
-        JSON.parse(testData);
-    } catch (e) {
-        notificationManager.show('Invalid JSON format', 'error');
-        return;
-    }
-
-    try {
-        loadingManager.show('Creating sample test...');
-        const result = await ApiClient.post('/demo/create-sample-test', { testData: JSON.parse(testData) });
-        notificationManager.show('✅ Sample test created successfully!', 'success');
-
-    } catch (error) {
-        console.error('Error creating sample test:', error);
-        notificationManager.show('❌ Failed to create sample test', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-// Report Handlers
-async function handleGenerateReport() {
-    const batchId = document.getElementById('report-batch-id')?.value;
-    const reportType = document.getElementById('report-type')?.value;
-
-    if (!batchId) {
-        notificationManager.show('Please select a batch', 'error');
-        return;
-    }
-
-    try {
-        loadingManager.show('Generating report...');
-
-        if (reportType === 'html') {
-            await ApiClient.post(`/reports/html/${batchId}`);
-        } else {
-            await ApiClient.post(`/reports/generate/${batchId}`);
-        }
-
-        notificationManager.show('✅ Report generated successfully!', 'success');
-
-        if (currentSection === 'reports') await loadReports();
-
-    } catch (error) {
-        console.error('Error generating report:', error);
-        notificationManager.show('❌ Failed to generate report', 'error');
-    } finally {
-        loadingManager.hide();
-    }
-}
-
-// Quick Action Functions
-function showQuickTestDialog() {
-    const testCaseId = prompt('Enter Test Case ID:');
-function setupSearchAndFilters() {
-    const searchInput = document.getElementById('testcase-search');
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                filterTestCases();
-            }, 300);
-        });
-    }
-
-    // Filter handlers
-    const filters = [
-        'testcase-suite-filter',
-        'testcase-env-filter',
-        'testcase-type-filter',
-        'testcase-priority-filter',
-        'batch-status-filter'
-    ];
-
-    filters.forEach(filterId => {
-        const filter = document.getElementById(filterId);
-        if (filter) {
-            filter.addEventListener('change', () => {
-                if (filterId.includes('testcase')) {
-                    filterTestCases();
-                } else if (filterId.includes('batch')) {
-                    filterBatches();
-                }
-            });
-        }
-    });
-
-    // Clear filters button
-    const clearFiltersBtn = document.getElementById('clear-filters-btn');
-    if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener('click', clearAllFilters);
-    }
-}
-
-function filterTestCases() {
-    const searchTerm = document.getElementById('testcase-search')?.value?.toLowerCase() || '';
-    const suiteFilter = document.getElementById('testcase-suite-filter')?.value || '';
-    const envFilter = document.getElementById('testcase-env-filter')?.value || '';
-    const typeFilter = document.getElementById('testcase-type-filter')?.value || '';
-    const priorityFilter = document.getElementById('testcase-priority-filter')?.value || '';
-
-    const rows = document.querySelectorAll('#testcases-table-body tr:not(.skeleton-row)');
-    let visibleCount = 0;
-
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 6) return;
-
-        const name = cells[1]?.textContent?.toLowerCase() || '';
-        const suite = cells[2]?.textContent?.toLowerCase() || '';
-        const type = cells[3]?.textContent?.toLowerCase() || '';
-        const env = cells[4]?.textContent?.toLowerCase() || '';
-        const priority = cells[5]?.textContent?.toLowerCase() || '';
-
-        const matchesSearch = !searchTerm || name.includes(searchTerm);
-        const matchesSuite = !suiteFilter || suite.includes(suiteFilter.toLowerCase());
-        const matchesEnv = !envFilter || env.includes(envFilter.toLowerCase());
-        const matchesType = !typeFilter || type.includes(typeFilter.toLowerCase());
-        const matchesPriority = !priorityFilter || priority.includes(priorityFilter.toLowerCase());
-
-        const isVisible = matchesSearch && matchesSuite && matchesEnv && matchesType && matchesPriority;
-        row.style.display = isVisible ? '' : 'none';
-
-        if (isVisible) visibleCount++;
-    });
-
-    // Update count
-    updateTestCaseCount(visibleCount);
-}
-
-function clearAllFilters() {
-    const filters = [
-        'testcase-search',
-        'testcase-suite-filter',
-        'testcase-env-filter',
-        'testcase-type-filter',
-        'testcase-priority-filter'
-    ];
-
-    filters.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.value = '';
-        }
-    });
-
-    filterTestCases();
-    notificationManager.show('Filters cleared', 'info', { duration: 2000 });
-}
-
-function initializeQuickActions() {
-    const quickTestBtn = document.getElementById('quick-test-btn');
-    if (quickTestBtn) {
-        quickTestBtn.addEventListener('click', showQuickTestDialog);
-    }
-
-    const batchRunBtn = document.getElementById('batch-run-btn');
-    if (batchRunBtn) {
-        batchRunBtn.addEventListener('click', showQuickBatchDialog);
-    }
-
-    const healthCheckBtn = document.getElementById('health-check-btn');
-    if (healthCheckBtn) {
-        healthCheckBtn.addEventListener('click', performQuickHealthCheck);
-    }
-
-    const refreshDataBtn = document.getElementById('refresh-data-btn');
-    if (refreshDataBtn) {
-        refreshDataBtn.addEventListener('click', refreshCurrentSection);
-    }
-}
-
-function initializeAnalyticsHandlers() {
-    const loadTrendsBtn = document.getElementById('load-trends-btn');
-    if (loadTrendsBtn) {
-        loadTrendsBtn.addEventListener('click', handleLoadTrends);
-    }
-
-    const loadRegressionBtn = document.getElementById('load-regression-btn');
-    if (loadRegressionBtn) {
-        loadRegressionBtn.addEventListener('click', handleLoadRegression);
-    }
-
-    // Set default dates
-    setDefaultAnalyticsDates();
-}
-
-function initializeValidationHandlers() {
-    const healthCheckFullBtn = document.getElementById('health-check-full-btn');
-    if (healthCheckFullBtn) {
-        healthCheckFullBtn.addEventListener('click', handleHealthCheck);
-    }
-
-    const frameworkValidateBtn = document.getElementById('framework-validate-btn');
-    if (frameworkValidateBtn) {
-        frameworkValidateBtn.addEventListener('click', handleFrameworkValidation);
-    }
-}
-
-function initializeDemoHandlers() {
-    const loadAllDemoBtn = document.getElementById('load-all-demo-btn');
-    if (loadAllDemoBtn) {
-        loadAllDemoBtn.addEventListener('click', handleLoadAllDemo);
-    }
-
-    const demoButtons = [
-        { id: 'demo-test-cases-btn', handler: () => handleLoadDemoData('test-cases') },
-        { id: 'demo-executions-btn', handler: () => handleLoadDemoData('executions') },
-        { id: 'demo-batches-btn', handler: () => handleLoadDemoData('batches') }
-    ];
-
-    demoButtons.forEach(({ id, handler }) => {
-        const btn = document.getElementById(id);
-        if (btn) btn.addEventListener('click', handler);
-    });
-
-    const createSampleTestBtn = document.getElementById('create-sample-test-btn');
-    if (createSampleTestBtn) {
-        createSampleTestBtn.addEventListener('click', handleCreateSampleTest);
-    }
-}
-
-function initializeReportHandlers() {
-    const generateBatchReportBtn = document.getElementById('generate-batch-report-btn');
-    if (generateBatchReportBtn) {
-        generateBatchReportBtn.addEventListener('click', handleGenerateReport);
-    }
-
-    const refreshDocsBtn = document.getElementById('refresh-docs-btn');
-    if (refreshDocsBtn) {
-        refreshDocsBtn.addEventListener('click', () => loadApiDocs());
-    }
-}
-
-function setupModalHandlers() {
-    // Click outside modal to close
-    window.addEventListener('click', (event) => {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            if (event.target === modal) {
-                closeModal(modal.id);
-            }
-        });
-    });
-
-    // Close button handlers
-    document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const modal = e.target.closest('.modal');
-            if (modal) closeModal(modal.id);
-        });
-    });
-
-    // ESC key to close modals
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            const openModal = document.querySelector('.modal[style*="flex"]');
-            if (openModal) {
-                closeModal(openModal.id);
-            }
-        }
-    });
 }
 
 // Analytics Handlers
@@ -1248,173 +872,9 @@ async function handleGenerateReport() {
     }
 }
 
-// Utility Functions
-function setDefaultAnalyticsDates() {
-    const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const fromDateInput = document.getElementById('analytics-from-date');
-    const toDateInput = document.getElementById('analytics-to-date');
-
-    if (fromDateInput) fromDateInput.value = oneWeekAgo.toISOString().slice(0, 10);
-    if (toDateInput) toDateInput.value = now.toISOString().slice(0, 10);
-}
-
-function showCreateScheduleForm() {
-    // Just scroll to the schedule form section
-    const scheduleForm = document.querySelector('#schedules-section .glass-effect');
-    if (scheduleForm) {
-        scheduleForm.scrollIntoView({ behavior: 'smooth' });
-
-        // Focus on the first input
-        setTimeout(() => {
-            const firstInput = scheduleForm.querySelector('input');
-            if (firstInput) firstInput.focus();
-        }, 500);
-    }
-}
-
-// Keyboard Shortcuts
-function initializeKeyboardShortcuts() {
-    const shortcuts = {
-        'ctrl+/': () => showKeyboardShortcuts(),
-        'ctrl+r': (e) => { e.preventDefault(); refreshCurrentSection(); },
-        'ctrl+n': (e) => { e.preventDefault(); createNewItem(); },
-        'esc': () => closeModalsAndNotifications(),
-        'ctrl+1': () => switchSection('dashboard'),
-        'ctrl+2': () => switchSection('testcases'),
-        'ctrl+3': () => switchSection('execution'),
-        'ctrl+4': () => switchSection('batches'),
-        'ctrl+5': () => switchSection('schedules'),
-        'ctrl+6': () => switchSection('reports')
-    };
-
-    document.addEventListener('keydown', (e) => {
-        const key = `${e.ctrlKey ? 'ctrl+' : ''}${e.shiftKey ? 'shift+' : ''}${e.altKey ? 'alt+' : ''}${e.key.toLowerCase()}`;
-
-        if (shortcuts[key]) {
-            shortcuts[key](e);
-        }
-    });
-}
-
-function showKeyboardShortcuts() {
-    notificationManager.show('⌨️ Shortcuts: Ctrl+R: Refresh, Ctrl+N: New, Ctrl+1-6: Sections, Esc: Close', 'info', { duration: 5000 });
-}
-
-function createNewItem() {
-    if (currentSection === 'testcases') {
-        showModal('testcase-modal');
-    } else if (currentSection === 'schedules') {
-        showCreateScheduleForm();
-    } else {
-        notificationManager.show('No new item available for this section', 'info');
-    }
-}
-
-// Enhanced Auto-refresh Setup
-function setupSmartRefresh() {
-    const refreshRates = {
-        'dashboard': 30000, // 30 seconds
-        'execution': 15000, // 15 seconds
-        'batches': 20000,   // 20 seconds
-        'default': 60000    // 1 minute
-    };
-
-    refreshInterval = setInterval(async () => {
-        try {
-            // Only refresh if page is visible
-            if (document.hidden) return;
-
-            if (currentSection === 'dashboard') {
-                await loadDashboardData();
-            } else if (currentSection === 'execution') {
-                await loadExecutions();
-            } else if (currentSection === 'batches') {
-                await loadBatches();
-            }
-
-            await checkApiStatus();
-        } catch (error) {
-            console.debug('Auto-refresh error:', error);
-        }
-    }, refreshRates[currentSection] || refreshRates['default']);
-}
-
-// Global Error Handler
-function setupGlobalErrorHandler() {
-    window.addEventListener('error', (event) => {
-        console.error('Global error:', event.error);
-        notificationManager.show('An unexpected error occurred', 'error', {
-            actions: [
-                { label: 'Report', handler: `reportError('${event.error.message}')` },
-                { label: 'Reload', handler: 'location.reload()' }
-            ]
-        });
-    });
-
-    window.addEventListener('unhandledrejection', (event) => {
-        console.error('Unhandled promise rejection:', event.reason);
-        notificationManager.show('A background operation failed', 'warning');
-        event.preventDefault();
-    });
-}
-
-// Execution Status Polling
-function startExecutionStatusPolling(batchId) {
-    if (executionStatusPolling.has(batchId)) return;
-
-    const pollInterval = setInterval(async () => {
-        try {
-            const batchStatus = await ApiClient.get(`/execution/batch/${batchId}`);
-
-            if (batchStatus.status === 'COMPLETED' || batchStatus.status === 'FAILED') {
-                clearInterval(pollInterval);
-                executionStatusPolling.delete(batchId);
-
-                notificationManager.show(
-                    `Batch ${batchId} completed with status: ${batchStatus.status}`,
-                    batchStatus.status === 'COMPLETED' ? 'success' : 'error'
-                );
-
-                setTimeout(async () => {
-                    if (currentSection === 'execution' || currentSection === 'batches') {
-                        await loadExecutions();
-                        await loadBatches();
-                    }
-                    await loadDashboardData();
-                }, 2000);
-            }
-        } catch (error) {
-            console.error('Error polling execution status:', error);
-            clearInterval(pollInterval);
-            executionStatusPolling.delete(batchId);
-        }
-    }, 5000);
-
-    executionStatusPolling.set(batchId, pollInterval);
-}
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
-    }
-
-    executionStatusPolling.forEach((interval, batchId) => {
-        clearInterval(interval);
-    });
-});
-
-function reportError(message) {
-    console.error('Reported error:', message);
-    notificationManager.show('Error report sent to development team', 'info');
-}
-
-function reportIssue() {
-    notificationManager.show('Issue reporting feature will be implemented', 'info');
-}
-
+// Quick Action Functions
+function showQuickTestDialog() {
+    const testCaseId = prompt('Enter Test Case ID:');
     if (testCaseId) {
         executeTestCase(testCaseId);
     }
@@ -1465,14 +925,6 @@ function filterTestCases() {
         const env = cells[3]?.textContent?.toLowerCase() || '';
 
         const matchesSearch = !searchTerm || name.includes(searchTerm);
-window.handleLoadTrends = handleLoadTrends;
-window.handleLoadRegression = handleLoadRegression;
-window.handleHealthCheck = handleHealthCheck;
-window.handleFrameworkValidation = handleFrameworkValidation;
-window.handleLoadAllDemo = handleLoadAllDemo;
-window.handleLoadDemoData = handleLoadDemoData;
-window.handleCreateSampleTest = handleCreateSampleTest;
-window.handleGenerateReport = handleGenerateReport;
         const matchesSuite = !suiteFilter || suite.includes(suiteFilter.toLowerCase());
         const matchesEnv = !envFilter || env.includes(envFilter.toLowerCase());
         const matchesType = !typeFilter || type.includes(typeFilter.toLowerCase());

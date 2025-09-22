@@ -23,4 +23,17 @@ public interface TestScheduleRepository extends JpaRepository<TestSchedule, Long
 
     @Query("SELECT s FROM TestSchedule s WHERE s.isActive = true AND s.nextExecution BETWEEN :startTime AND :endTime")
     List<TestSchedule> findSchedulesBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+    // Add missing methods called by controllers
+    @Query("SELECT COUNT(s) FROM TestSchedule s WHERE s.isActive = true")
+    long countActiveSchedules();
+
+    @Query("SELECT s FROM TestSchedule s WHERE s.isActive = false")
+    List<TestSchedule> findByIsActiveFalse();
+
+    @Query("SELECT s FROM TestSchedule s ORDER BY s.createdAt DESC")
+    List<TestSchedule> findAllOrderByCreatedAtDesc();
+
+    @Query("SELECT s FROM TestSchedule s WHERE s.lastExecution IS NOT NULL ORDER BY s.lastExecution DESC")
+    List<TestSchedule> findByLastExecutionNotNullOrderByLastExecutionDesc();
 }

@@ -39,4 +39,20 @@ public interface TestExecutionRepository extends JpaRepository<TestExecution, Lo
 
     @Query("SELECT te FROM TestExecution te WHERE te.startTime BETWEEN :startTime AND :endTime")
     List<TestExecution> findByStartTimeBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+    // Add missing methods called by DashboardController
+    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = 'PASSED'")
+    long countByStatusPassed();
+
+    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = 'FAILED'")
+    long countByStatusFailed();
+
+    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = 'RUNNING'")
+    long countByStatusRunning();
+
+    @Query("SELECT te FROM TestExecution te WHERE te.startTime >= :date ORDER BY te.startTime DESC")
+    List<TestExecution> findByStartTimeAfter(@Param("date") LocalDateTime date);
+
+    @Query("SELECT te FROM TestExecution te ORDER BY te.startTime DESC")
+    List<TestExecution> findAllOrderByStartTimeDesc();
 }

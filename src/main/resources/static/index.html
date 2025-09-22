@@ -117,84 +117,84 @@
             <nav class="nav-menu mt-6" role="navigation" aria-label="Application sections">
                 <ul class="space-y-2" role="menubar">
                     <li role="none">
-                        <a href="#dashboard" class="nav-link active group" data-section="dashboard" role="menuitem" aria-current="page">
+                        <button type="button" class="nav-link active group w-full text-left" data-section="dashboard" role="menuitem" aria-current="page">
                             <div class="nav-icon-container">
                                 <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
                             </div>
                             <span>Dashboard</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#testcases" class="nav-link group" data-section="testcases" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="testcases" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-clipboard-list" aria-hidden="true"></i>
                             </div>
                             <span>Test Cases</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#execution" class="nav-link group" data-section="execution" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="execution" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-play-circle" aria-hidden="true"></i>
                             </div>
                             <span>Execution</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#batches" class="nav-link group" data-section="batches" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="batches" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-layer-group" aria-hidden="true"></i>
                             </div>
                             <span>Batch Management</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#schedules" class="nav-link group" data-section="schedules" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="schedules" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-clock" aria-hidden="true"></i>
                             </div>
                             <span>Schedules</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#reports" class="nav-link group" data-section="reports" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="reports" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-chart-bar" aria-hidden="true"></i>
                             </div>
                             <span>Reports</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#analytics" class="nav-link group" data-section="analytics" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="analytics" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-chart-line" aria-hidden="true"></i>
                             </div>
                             <span>Analytics</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#validation" class="nav-link group" data-section="validation" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="validation" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-shield-alt" aria-hidden="true"></i>
                             </div>
                             <span>Validation</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#demo" class="nav-link group" data-section="demo" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="demo" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-flask" aria-hidden="true"></i>
                             </div>
                             <span>Demo Data</span>
-                        </a>
+                        </button>
                     </li>
                     <li role="none">
-                        <a href="#docs" class="nav-link group" data-section="docs" role="menuitem">
+                        <button type="button" class="nav-link group w-full text-left" data-section="docs" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-book" aria-hidden="true"></i>
                             </div>
                             <span>API Docs</span>
-                        </a>
+                        </button>
                     </li>
                 </ul>
 
@@ -245,34 +245,34 @@
                     <div class="flex items-center space-x-4">
                         <div>
                             <h1 id="page-title" class="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                                Dashboard
+
                             </h1>
                             <p id="page-subtitle" class="text-gray-400 mt-1">Real-time monitoring and test execution</p>
                         </div>
-                        <nav id="breadcrumb" class="hidden md:flex items-center space-x-2 text-sm text-gray-400" aria-label="Breadcrumb">
-                            <i class="fas fa-home" aria-hidden="true"></i>
-                            <span>/</span>
-                            <span id="breadcrumb-current" class="text-cyan-400">Dashboard</span>
-                        </nav>
+<!--                        <nav id="breadcrumb" class="hidden md:flex items-center space-x-2 text-sm text-gray-400" aria-label="Breadcrumb">-->
+<!--                            <i class="fas fa-home" aria-hidden="true"></i>-->
+<!--                            <span></span>-->
+<!--                            <span id="breadcrumb-current" class="text-cyan-400">Dashboard</span>-->
+<!--                        </nav>-->
                     </div>
 
                     <!-- Enhanced Header Actions -->
                     <div class="flex items-center space-x-3">
-                        <button id="refresh-data-btn" class="btn btn-secondary btn-sm" data-tooltip="Refresh current view">
-                            <i class="fas fa-sync-alt mr-1" aria-hidden="true"></i>Refresh
-                        </button>
-                        <button id="fullscreen-btn" class="btn btn-secondary btn-sm" data-tooltip="Toggle fullscreen">
-                            <i class="fas fa-expand" aria-hidden="true"></i>
-                        </button>
-                        <div class="relative">
-                            <button id="notifications-btn" class="p-2 glass-effect rounded-lg hover:bg-white/20 transition-all duration-200 text-white relative" data-tooltip="View notifications">
-                                <i class="fas fa-bell" aria-hidden="true"></i>
-                                <span id="notification-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" style="display: none;" aria-label="Notification count">0</span>
-                            </button>
-                        </div>
-                        <button id="settings-btn" class="p-2 glass-effect rounded-lg hover:bg-white/20 transition-all duration-200 text-white" data-tooltip="Application settings">
-                            <i class="fas fa-cog" aria-hidden="true"></i>
-                        </button>
+<!--                        <button id="refresh-data-btn" class="btn btn-secondary btn-sm" data-tooltip="Refresh current view">-->
+<!--                            <i class="fas fa-sync-alt mr-1" aria-hidden="true"></i>Refresh-->
+<!--                        </button>-->
+<!--                        <button id="fullscreen-btn" class="btn btn-secondary btn-sm" data-tooltip="Toggle fullscreen">-->
+<!--                            <i class="fas fa-expand" aria-hidden="true"></i>-->
+<!--                        </button>-->
+<!--                        <div class="relative">-->
+<!--                            <button id="notifications-btn" class="p-2 glass-effect rounded-lg hover:bg-white/20 transition-all duration-200 text-white relative" data-tooltip="View notifications">-->
+<!--                                <i class="fas fa-bell" aria-hidden="true"></i>-->
+<!--                                <span id="notification-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" style="display: none;" aria-label="Notification count">0</span>-->
+<!--                            </button>-->
+<!--                        </div>-->
+<!--                        <button id="settings-btn" class="p-2 glass-effect rounded-lg hover:bg-white/20 transition-all duration-200 text-white" data-tooltip="Application settings">-->
+<!--                            <i class="fas fa-cog" aria-hidden="true"></i>-->
+<!--                        </button>-->
                     </div>
                 </div>
 
@@ -459,28 +459,41 @@
                 <!-- Enhanced Filters with Search -->
                 <div class="glass-effect border border-white/10 rounded-xl p-4 mb-6">
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <select id="testcase-suite-filter" class="input-field">
-                            <option value="">All Test Suites</option>
-                        </select>
-                        <select id="testcase-env-filter" class="input-field">
-                            <option value="">All Environments</option>
-                            <option value="dev">Development</option>
-                            <option value="staging">Staging</option>
-                            <option value="prod">Production</option>
-                        </select>
-                        <select id="testcase-type-filter" class="input-field">
-                            <option value="">All Types</option>
-                            <option value="WEB_UI">Web UI</option>
-                            <option value="API">API</option>
-                        </select>
-                        <select id="testcase-priority-filter" class="input-field">
-                            <option value="">All Priorities</option>
-                            <option value="HIGH">High</option>
-                            <option value="MEDIUM">Medium</option>
-                            <option value="LOW">Low</option>
-                        </select>
+                        <div>
+                            <label for="testcase-suite-filter" class="sr-only">Filter by test suite</label>
+                            <select id="testcase-suite-filter" class="input-field" aria-label="Filter by test suite">
+                                <option value="">All Test Suites</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="testcase-env-filter" class="sr-only">Filter by environment</label>
+                            <select id="testcase-env-filter" class="input-field" aria-label="Filter by environment">
+                                <option value="">All Environments</option>
+                                <option value="dev">Development</option>
+                                <option value="staging">Staging</option>
+                                <option value="prod">Production</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="testcase-type-filter" class="sr-only">Filter by test type</label>
+                            <select id="testcase-type-filter" class="input-field" aria-label="Filter by test type">
+                                <option value="">All Types</option>
+                                <option value="WEB_UI">Web UI</option>
+                                <option value="API">API</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="testcase-priority-filter" class="sr-only">Filter by priority</label>
+                            <select id="testcase-priority-filter" class="input-field" aria-label="Filter by priority">
+                                <option value="">All Priorities</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                        </div>
                         <div class="relative">
-                            <input type="text" id="testcase-search" placeholder="Search test cases..." class="input-field pr-10">
+                            <label for="testcase-search" class="sr-only">Search test cases</label>
+                            <input type="text" id="testcase-search" placeholder="Search test cases..." class="input-field pr-10" aria-label="Search test cases">
                             <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         </div>
                     </div>
@@ -501,7 +514,8 @@
                             <thead class="bg-white/5 border-b border-white/10">
                                 <tr>
                                     <th class="px-6 py-4 text-left">
-                                        <input type="checkbox" id="select-all-testcases" class="custom-checkbox">
+                                        <label for="select-all-testcases" class="sr-only">Select all test cases</label>
+                                        <input type="checkbox" id="select-all-testcases" class="custom-checkbox" aria-label="Select all test cases">
                                     </th>
                                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white" data-sort="name">
                                         Name <i class="fas fa-sort ml-1"></i>
@@ -759,14 +773,17 @@
                         <button id="refresh-batches-btn" class="btn btn-secondary">
                             <i class="fas fa-sync-alt mr-2"></i>Refresh
                         </button>
-                        <select id="batch-status-filter" class="input-field">
-                            <option value="">All Statuses</option>
-                            <option value="SCHEDULED">Scheduled</option>
-                            <option value="RUNNING">Running</option>
-                            <option value="COMPLETED">Completed</option>
-                            <option value="CANCELLED">Cancelled</option>
-                            <option value="FAILED">Failed</option>
-                        </select>
+                        <div>
+                            <label for="batch-status-filter" class="sr-only">Filter by batch status</label>
+                            <select id="batch-status-filter" class="input-field" aria-label="Filter by batch status">
+                                <option value="">All Statuses</option>
+                                <option value="SCHEDULED">Scheduled</option>
+                                <option value="RUNNING">Running</option>
+                                <option value="COMPLETED">Completed</option>
+                                <option value="CANCELLED">Cancelled</option>
+                                <option value="FAILED">Failed</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -1108,7 +1125,7 @@
                     </div>
                 </div>
             </section>
-        </div>
+        </main>
     </div>
 
     <!-- Enhanced Modals -->
@@ -1185,7 +1202,7 @@
                                 </select>
                             </div>
                             <div class="md:col-span-2">
-                                <label for="testcase-environment" class="block text-sm font-medium text-gray-400 mb-2">Environment *</label>
+                                <label class="block text-sm font-medium text-gray-400 mb-2">Environment *</label>
                                 <div class="grid grid-cols-3 gap-2">
                                     <label class="flex items-center p-3 border border-gray-600 rounded-lg cursor-pointer hover:border-cyan-400 transition-colors">
                                         <input type="radio" name="environment" value="dev" class="custom-radio mr-2" checked>
@@ -1386,6 +1403,7 @@
     <!-- Modular JavaScript Files with Optimized Loading -->
     <script src="js/core-api.js" async></script>
     <script src="js/ui-components.js" async></script>
+    <script src="js/execution-core.js" defer></script>
     <script src="js/data-management.js" defer></script>
     <script src="js/app-handlers.js" defer></script>
 
@@ -1406,8 +1424,8 @@
                 // Measure loading performance
                 setTimeout(() => {
                     const marks = performance.getEntriesByType('mark');
-                    const measures = performance.getEntriesByType('measure');
                     console.log('Performance Marks:', marks);
+                    // Note: measures can be used for more detailed performance analysis
                 }, 1000);
             }
         });
