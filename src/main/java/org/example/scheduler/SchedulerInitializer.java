@@ -3,6 +3,7 @@ package org.example.scheduler;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
@@ -25,7 +26,7 @@ public class SchedulerInitializer {
     private TestScheduler testScheduler;
 
     @EventListener(ContextRefreshedEvent.class)
-    public void initializeScheduler() {
+    public void initializeQuartzScheduler() {
         try {
             // Add ApplicationContext to scheduler context for Spring bean access
             quartzScheduler.getContext().put("applicationContext", applicationContext);
@@ -34,8 +35,7 @@ public class SchedulerInitializer {
                 quartzScheduler.start();
                 log.info("Quartz scheduler started successfully");
             }
-            // (Re)register active schedules
-            testScheduler.scheduleAllActiveOnStartup();
+
         } catch (SchedulerException e) {
             log.error("Failed to initialize Quartz scheduler", e);
             throw new RuntimeException("Scheduler initialization failed", e);

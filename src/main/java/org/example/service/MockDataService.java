@@ -149,17 +149,17 @@ public class MockDataService implements ApplicationRunner {
                                      int total, int passed, int failed, int skipped) {
         TestBatch batch = new TestBatch();
         batch.setBatchId(batchId);
-        batch.setBatchName(name);
+        batch.setName(name); // Changed from setBatchName
         batch.setStatus(status);
-        batch.setStartTime(startTime);
-        batch.setEndTime(endTime);
+        batch.setStartedAt(startTime); // Changed from setStartTime
+        batch.setCompletedAt(endTime); // Changed from setEndTime
         batch.setEnvironment(environment);
         batch.setTotalTests(total);
         batch.setPassedTests(passed);
         batch.setFailedTests(failed);
         batch.setSkippedTests(skipped);
-        batch.setParallelThreads(3);
-        batch.setCreatedBy("system");
+        // Remove setParallelThreads as it doesn't exist in TestBatch
+        batch.setCreatedBy("mock_service");
         return batch;
     }
 
@@ -180,7 +180,7 @@ public class MockDataService implements ApplicationRunner {
             execution.setActualResult("Test failed due to element interaction issue");
         }
 
-        execution.setStartTime(batch.getStartTime().plusMinutes(random.nextInt(60)));
+        execution.setStartTime(batch.getStartedAt().plusMinutes(random.nextInt(60)));
         execution.setEndTime(execution.getStartTime().plusSeconds(30 + random.nextInt(120)));
         execution.setExecutionDuration(java.time.Duration.between(execution.getStartTime(), execution.getEndTime()).toMillis());
         execution.setEnvironment(batch.getEnvironment());
@@ -193,14 +193,13 @@ public class MockDataService implements ApplicationRunner {
     private TestSchedule createSchedule(String name, String cronExpression, String testSuite,
                                        String environment, boolean isActive) {
         TestSchedule schedule = new TestSchedule();
-        schedule.setScheduleName(name);
+        schedule.setName(name); // Changed from setScheduleName
         schedule.setCronExpression(cronExpression);
-        schedule.setTestSuite(testSuite);
+        schedule.setTestType(testSuite); // Changed from setTestSuite to setTestType
         schedule.setEnvironment(environment);
         schedule.setIsActive(isActive);
-        schedule.setParallelThreads(3);
-        schedule.setNotificationEnabled(true);
-        schedule.setNotificationEmails("qa-team@company.com,devops@company.com");
+        // Remove methods that don't exist in the corrected TestSchedule model
+        schedule.setCreatedBy("mock_service");
         schedule.setNextExecution(calculateNextExecution(cronExpression));
         return schedule;
     }

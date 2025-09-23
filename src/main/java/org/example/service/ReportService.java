@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.model.TestExecution;
+import org.example.model.TestBatch;
 import org.example.reporting.ReportGenerator;
 import org.example.repository.TestExecutionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,15 +26,16 @@ public class ReportService {
     public String generateComprehensiveReport(List<Long> executionIds, String reportFormat, String reportType) throws IOException {
         List<TestExecution> executions = testExecutionRepository.findAllById(executionIds);
         
+        // Create a dummy TestBatch for report generation
+        TestBatch dummyBatch = createDummyBatch(executions, reportType);
+
         switch (reportFormat.toLowerCase()) {
             case "html":
-                return reportGenerator.generateHTMLReport(executions, reportType);
+                return reportGenerator.generateHTMLReport(dummyBatch, executions);
             case "csv":
-                return reportGenerator.generateCSVReport(executions, reportType);
+                return reportGenerator.generateCSVReport(dummyBatch, executions);
             case "xml":
-                return reportGenerator.generateXMLReport(executions, reportType);
-            case "allure":
-                return reportGenerator.generateAllureReport(executions, reportType);
+                return reportGenerator.generateXMLReport(dummyBatch, executions);
             default:
                 throw new IllegalArgumentException("Unsupported report format: " + reportFormat);
         }
@@ -47,29 +49,59 @@ public class ReportService {
         }
 
         return generateComprehensiveReport(
-            latestExecutions.stream().map(TestExecution::getId).toList(), 
-            reportFormat, 
-            "Latest"
+            latestExecutions.stream().map(TestExecution::getId).collect(java.util.stream.Collectors.toList()),
+            reportFormat,
+            "latest_executions"
         );
     }
 
-    public String generateFailedTestsReport(String reportFormat) throws IOException {
-        List<TestExecution> failedExecutions = testExecutionRepository.findByStatus(TestExecution.ExecutionStatus.FAILED);
-        
+    public String generateExecutionsByStatus(TestExecution.ExecutionStatus status, String reportFormat) throws IOException {
+        List<TestExecution> executions = testExecutionRepository.findByStatus(status);
+
         return generateComprehensiveReport(
-            failedExecutions.stream().map(TestExecution::getId).toList(), 
-            reportFormat, 
-            "FailedTests"
+            executions.stream().map(TestExecution::getId).collect(java.util.stream.Collectors.toList()),
+            reportFormat,
+            "executions_by_status_" + status.toString().toLowerCase()
         );
+    }
+
+    public String generateExecutionsByEnvironment(String environment, String reportFormat) throws IOException {
+        List<TestExecution> executions = testExecutionRepository.findByEnvironment(environment);
+
+        return generateComprehensiveReport(
+            executions.stream().map(TestExecution::getId).collect(java.util.stream.Collectors.toList()),
+            reportFormat,
+            "executions_by_environment_" + environment
+        );
+    }
+
+    // Add missing methods for ReportController
+    public String generateFailedTestsReport(String reportFormat) throws IOException {
+        return generateExecutionsByStatus(TestExecution.ExecutionStatus.FAILED, reportFormat);
     }
 
     public String generateEnvironmentReport(String environment, String reportFormat) throws IOException {
-        List<TestExecution> environmentExecutions = testExecutionRepository.findByEnvironment(environment);
-        
-        return generateComprehensiveReport(
-            environmentExecutions.stream().map(TestExecution::getId).toList(), 
-            reportFormat, 
-            "Environment_" + environment
-        );
+        return generateExecutionsByEnvironment(environment, reportFormat);
+    }
+
+    private TestBatch createDummyBatch(List<TestExecution> executions, String reportType) {
+        TestBatch batch = new TestBatch();
+        batch.setBatchId("REPORT_" + System.currentTimeMillis());
+        batch.setName("Generated Report: " + reportType);
+        batch.setDescription("Report generated from " + executions.size() + " executions");
+        batch.setStatus(TestBatch.BatchStatus.COMPLETED);
+        batch.setTotalTests(executions.size());
+
+        long passed = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.PASSED ? 1 : 0).sum();
+        long failed = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.FAILED ? 1 : 0).sum();
+        long skipped = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.SKIPPED ? 1 : 0).sum();
+
+        batch.setPassedTests((int) passed);
+        batch.setFailedTests((int) failed);
+        batch.setSkippedTests((int) skipped);
+        batch.setEnvironment(executions.isEmpty() ? "unknown" : executions.get(0).getEnvironment());
+        batch.setCreatedBy("report_service");
+
+        return batch;
     }
 }

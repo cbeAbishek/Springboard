@@ -2,41 +2,105 @@
 
 // Navigation and Section Management
 async function initializeNavigation() {
+    console.log('Initializing navigation system...');
+
     const navLinks = document.querySelectorAll('.nav-link');
+
+    if (navLinks.length === 0) {
+        console.error('No navigation links found!');
+        return;
+    }
 
     navLinks.forEach(link => {
         link.addEventListener('click', async function(e) {
             e.preventDefault();
             const section = this.getAttribute('data-section');
+            console.log(`Navigation clicked: ${section}`);
             await switchSection(section);
         });
     });
 
+    // Initialize mobile menu toggle
+    initializeMobileNavigation();
+
     // Set initial active section
+    console.log('Setting initial section to dashboard...');
     await switchSection('dashboard');
 }
 
+function initializeMobileNavigation() {
+    const mobileToggle = document.getElementById('mobile-menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+
+    if (mobileToggle && sidebar) {
+        mobileToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            const icon = mobileToggle.querySelector('i');
+            if (sidebar.classList.contains('open')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && !mobileToggle.contains(e.target)) {
+                sidebar.classList.remove('open');
+                const icon = mobileToggle.querySelector('i');
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        });
+    }
+}
+
 async function switchSection(sectionName) {
-    if (currentSection === sectionName) return;
+    if (currentSection === sectionName) {
+        console.log(`Already in section: ${sectionName}`);
+        return;
+    }
 
     try {
-        loadingManager.show(`Loading ${sectionName}...`);
+        console.log(`Switching to section: ${sectionName}`);
 
-        // Update navigation
+        // Show loading state
+        const loadingId = loadingManager.show(`Loading ${sectionName}...`);
+
+        // Update navigation active state
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
+            link.removeAttribute('aria-current');
         });
-        const targetLink = document.querySelector(`[data-section="${sectionName}"]`);
-        if (targetLink) targetLink.classList.add('active');
 
-        // Hide all content sections
-        document.querySelectorAll('.content-section').forEach(section => {
+        const targetLink = document.querySelector(`[data-section="${sectionName}"]`);
+        if (targetLink) {
+            targetLink.classList.add('active');
+            targetLink.setAttribute('aria-current', 'page');
+        }
+
+        // Hide all content sections with animation
+        const allSections = document.querySelectorAll('.content-section');
+        allSections.forEach(section => {
             section.classList.remove('active');
         });
 
+        // Small delay to allow fade out animation
+        await new Promise(resolve => setTimeout(resolve, 150));
+
         // Show target section
         const targetSection = document.getElementById(`${sectionName}-section`);
-        if (targetSection) targetSection.classList.add('active');
+        if (targetSection) {
+            targetSection.classList.add('active');
+            console.log(`Section ${sectionName} activated`);
+        } else {
+            console.error(`Section not found: ${sectionName}-section`);
+            notificationManager.show(`Section "${sectionName}" not found`, 'error');
+            loadingManager.hide(loadingId);
+            return;
+        }
 
         // Update page title and breadcrumb
         updatePageTitle(sectionName);
@@ -45,11 +109,29 @@ async function switchSection(sectionName) {
         // Load section-specific data
         await loadSectionData(sectionName);
 
+        // Update current section
         currentSection = sectionName;
+
+        // Close mobile menu if open
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar && sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            const mobileToggle = document.getElementById('mobile-menu-toggle');
+            if (mobileToggle) {
+                const icon = mobileToggle.querySelector('i');
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        }
+
+        // Hide loading
+        loadingManager.hide(loadingId);
+
+        console.log(`Successfully switched to section: ${sectionName}`);
+
     } catch (error) {
         console.error(`Error switching to section ${sectionName}:`, error);
         notificationManager.show(`Failed to load ${sectionName} section`, 'error');
-    } finally {
         loadingManager.hide();
     }
 }

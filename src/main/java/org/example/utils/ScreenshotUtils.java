@@ -3,6 +3,7 @@ package org.example.utils;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,51 +20,105 @@ import java.time.format.DateTimeFormatter;
 public class ScreenshotUtils {
 
     private static final Logger log = LoggerFactory.getLogger(ScreenshotUtils.class);
-    private static final String SCREENSHOT_DIR = "test-reports/screenshots/";
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
-    public String captureScreenshot(WebDriver driver, String executionId) {
+    @Value("${automation.framework.reporting.outputPath:test-reports/}")
+    private String reportOutputPath;
+
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+
+    /**
+     * Capture screenshot and return the file path
+     */
+    public String captureScreenshot(WebDriver driver, String testName) {
+        if (driver == null) {
+            log.warn("WebDriver is null, cannot capture screenshot");
+            return null;
+        }
+
         try {
-            // Create screenshots directory if it doesn't exist
-            Path screenshotPath = Paths.get(SCREENSHOT_DIR);
-            if (!Files.exists(screenshotPath)) {
-                Files.createDirectories(screenshotPath);
+            // Create screenshots directory
+            Path screenshotDir = Paths.get(reportOutputPath, "screenshots");
+            if (!Files.exists(screenshotDir)) {
+                Files.createDirectories(screenshotDir);
             }
 
-            // Generate filename
+            // Generate filename with timestamp
             String timestamp = LocalDateTime.now().format(DATE_FORMAT);
-            String filename = String.format("screenshot_%s_%s.png", executionId, timestamp);
-            String fullPath = SCREENSHOT_DIR + filename;
+            String filename = String.format("%s_%s.png", testName, timestamp);
+            Path screenshotPath = screenshotDir.resolve(filename);
 
             // Capture screenshot
             TakesScreenshot takesScreenshot = (TakesScreenshot) driver;
-            File sourceFile = takesScreenshot.getScreenshotAs(OutputType.FILE);
-            File destFile = new File(fullPath);
+            byte[] screenshotBytes = takesScreenshot.getScreenshotAs(OutputType.BYTES);
 
-            // Copy file
-            Files.copy(sourceFile.toPath(), destFile.toPath());
+            // Write to file
+            Files.write(screenshotPath, screenshotBytes);
 
-            log.info("Screenshot captured: {}", fullPath);
-            return fullPath;
+            String absolutePath = screenshotPath.toAbsolutePath().toString();
+            log.info("Screenshot captured: {}", absolutePath);
+            return absolutePath;
 
-        } catch (IOException e) {
-            log.error("Failed to capture screenshot: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to capture screenshot for test: {}", testName, e);
             return null;
         }
     }
 
-    public boolean deleteScreenshot(String screenshotPath) {
+    /**
+     * Capture failure screenshot
+     */
+    public String captureFailureScreenshot(WebDriver driver, String testName) {
+        return captureScreenshot(driver, testName + "_FAILURE");
+    }
+
+    /**
+     * Capture step screenshot
+     */
+    public String captureStepScreenshot(WebDriver driver, String testName, String stepDescription) {
+        String stepName = testName + "_" + stepDescription.replaceAll("[^a-zA-Z0-9]", "_");
+        return captureScreenshot(driver, stepName);
+    }
+
+    /**
+     * Get screenshots directory path
+     */
+    public String getScreenshotsDirectory() {
+        return Paths.get(reportOutputPath, "screenshots").toAbsolutePath().toString();
+    }
+
+    /**
+     * Clean up old screenshots
+     */
+    public void cleanupOldScreenshots(int daysOld) {
         try {
-            if (screenshotPath != null && !screenshotPath.isEmpty()) {
-                File file = new File(screenshotPath);
-                if (file.exists()) {
-                    return file.delete();
-                }
+            Path screenshotDir = Paths.get(reportOutputPath, "screenshots");
+            if (!Files.exists(screenshotDir)) {
+                return;
             }
-            return false;
-        } catch (Exception e) {
-            log.error("Failed to delete screenshot: {}", e.getMessage());
-            return false;
+
+            LocalDateTime cutoffDate = LocalDateTime.now().minusDays(daysOld);
+
+            Files.walk(screenshotDir)
+                .filter(Files::isRegularFile)
+                .filter(path -> {
+                    try {
+                        return Files.getLastModifiedTime(path).toInstant()
+                            .isBefore(cutoffDate.atZone(java.time.ZoneId.systemDefault()).toInstant());
+                    } catch (IOException e) {
+                        return false;
+                    }
+                })
+                .forEach(path -> {
+                    try {
+                        Files.delete(path);
+                        log.info("Deleted old screenshot: {}", path);
+                    } catch (IOException e) {
+                        log.warn("Failed to delete screenshot: {}", path, e);
+                    }
+                });
+
+        } catch (IOException e) {
+            log.error("Error cleaning up old screenshots", e);
         }
     }
 }

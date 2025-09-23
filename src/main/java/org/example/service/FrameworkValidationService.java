@@ -2,7 +2,6 @@ package org.example.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.dto.TestExecutionResultDTO;
 import org.example.repository.TestBatchRepository;
 import org.example.repository.TestExecutionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +17,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class FrameworkValidationService {
@@ -114,15 +114,20 @@ public class FrameworkValidationService {
             Path reportsDir = Paths.get("test-reports");
 
             if (Files.exists(reportsDir)) {
-                long reportCount = Files.list(reportsDir).count();
+                // List directory contents once to avoid multiple unclosed streams
+                List<Path> reportFiles;
+                try (var stream = Files.list(reportsDir)) {
+                    reportFiles = stream.collect(Collectors.toList());
+                }
+
+                long reportCount = reportFiles.size();
 
                 if (reportCount > 0) {
                     result.addSuccess("Report directory contains " + reportCount + " reports");
 
-                    // Check for different report types
-                    boolean hasHtml = Files.list(reportsDir).anyMatch(p -> p.toString().endsWith(".html"));
-                    boolean hasCsv = Files.list(reportsDir).anyMatch(p -> p.toString().endsWith(".csv"));
-                    boolean hasXml = Files.list(reportsDir).anyMatch(p -> p.toString().endsWith(".xml"));
+                    boolean hasHtml = reportFiles.stream().anyMatch(p -> p.toString().endsWith(".html"));
+                    boolean hasCsv = reportFiles.stream().anyMatch(p -> p.toString().endsWith(".csv"));
+                    boolean hasXml = reportFiles.stream().anyMatch(p -> p.toString().endsWith(".xml"));
 
                     if (hasHtml) result.addSuccess("HTML reports are being generated");
                     if (hasCsv) result.addSuccess("CSV reports are being generated");

@@ -59,6 +59,10 @@ public class TestCase {
     @Column(name = "created_by")
     private String createdBy;
 
+    // Add missing tags field
+    @Column(name = "tags")
+    private String tags;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -113,6 +117,9 @@ public class TestCase {
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
 
     public enum TestType {
         WEB_UI, UI, API, DATABASE, INTEGRATION

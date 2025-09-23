@@ -3,7 +3,6 @@ package org.example.repository;
 import org.example.model.TestSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -14,26 +13,23 @@ public interface TestScheduleRepository extends JpaRepository<TestSchedule, Long
 
     List<TestSchedule> findByIsActiveTrue();
 
+    List<TestSchedule> findByTestType(String testType);
+
     List<TestSchedule> findByEnvironment(String environment);
 
-    List<TestSchedule> findByTestSuite(String testSuite);
+    List<TestSchedule> findByCreatedBy(String createdBy);
 
-    @Query("SELECT s FROM TestSchedule s WHERE s.isActive = true AND s.nextExecution <= :currentTime")
-    List<TestSchedule> findDueSchedules(@Param("currentTime") LocalDateTime currentTime);
+    @Query("SELECT s FROM TestSchedule s WHERE s.nextExecution <= :currentTime AND s.isActive = true")
+    List<TestSchedule> findSchedulesDueForExecution(LocalDateTime currentTime);
 
-    @Query("SELECT s FROM TestSchedule s WHERE s.isActive = true AND s.nextExecution BETWEEN :startTime AND :endTime")
-    List<TestSchedule> findSchedulesBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+    @Query("SELECT s FROM TestSchedule s WHERE s.nextExecution <= :currentTime AND s.isActive = true")
+    List<TestSchedule> findDueSchedules(LocalDateTime currentTime);
 
-    // Add missing methods called by controllers
+    @Query("SELECT s FROM TestSchedule s WHERE s.lastExecution IS NULL AND s.isActive = true")
+    List<TestSchedule> findNeverExecutedSchedules();
+
     @Query("SELECT COUNT(s) FROM TestSchedule s WHERE s.isActive = true")
     long countActiveSchedules();
 
-    @Query("SELECT s FROM TestSchedule s WHERE s.isActive = false")
-    List<TestSchedule> findByIsActiveFalse();
-
-    @Query("SELECT s FROM TestSchedule s ORDER BY s.createdAt DESC")
-    List<TestSchedule> findAllOrderByCreatedAtDesc();
-
-    @Query("SELECT s FROM TestSchedule s WHERE s.lastExecution IS NOT NULL ORDER BY s.lastExecution DESC")
-    List<TestSchedule> findByLastExecutionNotNullOrderByLastExecutionDesc();
+    void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
 }

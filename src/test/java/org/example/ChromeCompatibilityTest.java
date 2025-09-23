@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.engine.WebUITestExecutor;
 import org.example.model.TestCase;
+import org.example.model.TestExecution;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,10 +34,13 @@ public class ChromeCompatibilityTest {
         testCase.setId(1L);
         testCase.setName("Chrome CDP Compatibility Test");
         testCase.setDescription("Test to verify WebDriver works with Chrome 140 without CDP issues");
+        testCase.setTestType(TestCase.TestType.UI);
+        testCase.setTestData("{\"url\": \"https://www.google.com\"}");
+        testCase.setExpectedResult("Page should load successfully");
 
-        // Execute test
+        // Execute test using correct method signature
         System.out.println("Initializing WebDriver...");
-        webUITestExecutor.execute(testData, testCase);
-        System.out.println("WebDriver initialized and executed successfully!");
+        TestExecution.ExecutionStatus result = webUITestExecutor.executeUITest(testCase, testData, "test");
+        System.out.println("WebDriver initialized and executed successfully! Result: " + result);
     }
 }

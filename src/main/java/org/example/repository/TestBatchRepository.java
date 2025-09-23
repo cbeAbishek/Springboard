@@ -3,50 +3,35 @@ package org.example.repository;
 import org.example.model.TestBatch;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface TestBatchRepository extends JpaRepository<TestBatch, Long> {
 
-    Optional<TestBatch> findByBatchId(String batchId);
+    List<TestBatch> findByStatus(TestBatch.BatchStatus status);
 
-    List<TestBatch> findByEnvironmentOrderByCreatedAtDesc(String environment);
+    List<TestBatch> findByEnvironment(String environment);
 
-    @Query("SELECT tb FROM TestBatch tb WHERE tb.scheduledTime BETWEEN :startDate AND :endDate ORDER BY tb.scheduledTime")
-    List<TestBatch> findByScheduledTimeBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+    List<TestBatch> findTop10ByOrderByCreatedAtDesc();
 
-    @Query("SELECT tb FROM TestBatch tb WHERE tb.status IN ('SCHEDULED', 'RUNNING') ORDER BY tb.scheduledTime")
-    List<TestBatch> findActiveBatches();
+    List<TestBatch> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
 
-    // Enhanced methods for recent batch loading
-    @Query("SELECT tb FROM TestBatch tb ORDER BY tb.createdAt DESC")
-    List<TestBatch> findAllOrderByCreatedAtDesc();
+    List<TestBatch> findByStatusOrderByCreatedAtDesc(TestBatch.BatchStatus status);
 
-    @Query("SELECT tb FROM TestBatch tb WHERE tb.createdAt >= :since ORDER BY tb.createdAt DESC")
-    List<TestBatch> findRecentBatches(@Param("since") LocalDateTime since);
+    @Query("SELECT b FROM TestBatch b ORDER BY b.createdAt DESC")
+    List<TestBatch> findTopRecentBatches(int limit);
 
-    // Add missing method for weekly report generation
-    @Query("SELECT tb FROM TestBatch tb WHERE tb.startTime BETWEEN :startTime AND :endTime ORDER BY tb.startTime DESC")
-    List<TestBatch> findByStartTimeBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+    @Query("SELECT b FROM TestBatch b WHERE b.status = 'RUNNING' ORDER BY b.createdAt ASC")
+    List<TestBatch> findRunningBatches();
 
-    @Query(value = "SELECT * FROM test_batches ORDER BY created_at DESC LIMIT :limit", nativeQuery = true)
-    List<TestBatch> findTopRecentBatches(@Param("limit") int limit);
+    @Query("SELECT COUNT(b) FROM TestBatch b WHERE b.status = :status")
+    long countByStatus(TestBatch.BatchStatus status);
 
-    @Query("SELECT tb FROM TestBatch tb WHERE tb.status = :status ORDER BY tb.createdAt DESC")
-    List<TestBatch> findByStatusOrderByCreatedAtDesc(@Param("status") TestBatch.BatchStatus status);
+    @Query("SELECT b FROM TestBatch b WHERE b.createdBy = :createdBy ORDER BY b.createdAt DESC")
+    List<TestBatch> findByCreatedByOrderByCreatedAtDesc(String createdBy);
 
-    // Add missing methods called by controllers
-    @Query("SELECT COUNT(tb) FROM TestBatch tb WHERE tb.status = 'COMPLETED'")
-    long countByStatusCompleted();
-
-    @Query("SELECT COUNT(tb) FROM TestBatch tb WHERE tb.status IN ('SCHEDULED', 'RUNNING')")
-    long countActiveBatches();
-
-    @Query("SELECT tb FROM TestBatch tb WHERE tb.createdAt >= :startDate ORDER BY tb.createdAt DESC LIMIT 10")
-    List<TestBatch> findRecentBatchesWithLimit(@Param("startDate") LocalDateTime startDate);
+    void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
 }

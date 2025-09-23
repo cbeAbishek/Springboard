@@ -21,7 +21,7 @@ public class BaseUITest {
 
     private boolean isHeadlessEnv() {
         // CI env variable or system property/headless hints
-        if (System.getenv("CI") != null) return true;
+        if (System.getenv() != null) return true;
         if ("true".equalsIgnoreCase(System.getenv("CI_HEADLESS"))) return true;
         if (Boolean.getBoolean("headless")) return true;
         return false;

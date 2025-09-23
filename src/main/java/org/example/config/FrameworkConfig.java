@@ -35,10 +35,10 @@ public class FrameworkConfig {
 
     @Data
     public static class Database {
-        private String url = "jdbc:h2:mem:testdb";
-        private String username = "sa";
-        private String password = "";
-        private String driverClassName = "org.h2.Driver";
+        private String url = "jdbc:mysql://localhost:3306/automation_framework";
+        private String username = "root";
+        private String password = "rooT@12345";
+        private String driverClassName = "com.mysql.cj.jdbc.Driver";
     }
 
     @Data

@@ -3,7 +3,6 @@ package org.example.repository;
 import org.example.model.TestExecution;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -12,47 +11,35 @@ import java.util.List;
 @Repository
 public interface TestExecutionRepository extends JpaRepository<TestExecution, Long> {
 
-    List<TestExecution> findByExecutionId(String executionId);
-
-    List<TestExecution> findByStatus(TestExecution.ExecutionStatus status);
-
-    List<TestExecution> findByEnvironmentOrderByStartTimeDesc(String environment);
-
-    List<TestExecution> findByEnvironment(String environment);
+    List<TestExecution> findByTestCaseIdOrderByStartTimeDesc(Long testCaseId);
 
     List<TestExecution> findTop10ByOrderByStartTimeDesc();
 
-    @Query("SELECT te FROM TestExecution te WHERE te.startTime BETWEEN :startDate AND :endDate ORDER BY te.startTime DESC")
-    List<TestExecution> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
-
-    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = :status AND te.startTime >= :fromDate")
-    Long countByStatusAndDateAfter(@Param("status") TestExecution.ExecutionStatus status, @Param("fromDate") LocalDateTime fromDate);
-
-    @Query("SELECT te FROM TestExecution te WHERE te.testCase.id = :testCaseId ORDER BY te.startTime DESC")
-    List<TestExecution> findByTestCaseIdOrderByStartTimeDesc(@Param("testCaseId") Long testCaseId);
-
-    @Query("SELECT te FROM TestExecution te WHERE te.testBatch.id = :testBatchId ORDER BY te.startTime DESC")
-    List<TestExecution> findByTestBatchId(@Param("testBatchId") Long testBatchId);
-
-    // Add missing methods for cleanup functionality
     List<TestExecution> findByStartTimeBefore(LocalDateTime cutoffDate);
 
-    @Query("SELECT te FROM TestExecution te WHERE te.startTime BETWEEN :startTime AND :endTime")
-    List<TestExecution> findByStartTimeBetween(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+    long countByStatus(TestExecution.ExecutionStatus status);
 
-    // Add missing methods called by DashboardController
-    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = 'PASSED'")
-    long countByStatusPassed();
+    List<TestExecution> findByStatus(TestExecution.ExecutionStatus status);
 
-    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = 'FAILED'")
-    long countByStatusFailed();
+    List<TestExecution> findByEnvironment(String environment);
 
-    @Query("SELECT COUNT(te) FROM TestExecution te WHERE te.status = 'RUNNING'")
-    long countByStatusRunning();
+    @Query("SELECT e FROM TestExecution e WHERE e.startTime >= :startTime AND e.startTime <= :endTime ORDER BY e.startTime DESC")
+    List<TestExecution> findByDateRange(LocalDateTime startTime, LocalDateTime endTime);
 
-    @Query("SELECT te FROM TestExecution te WHERE te.startTime >= :date ORDER BY te.startTime DESC")
-    List<TestExecution> findByStartTimeAfter(@Param("date") LocalDateTime date);
+    @Query("SELECT e FROM TestExecution e WHERE e.testBatch.id = :batchId ORDER BY e.startTime DESC")
+    List<TestExecution> findByBatchIdOrderByStartTimeDesc(Long batchId);
 
-    @Query("SELECT te FROM TestExecution te ORDER BY te.startTime DESC")
-    List<TestExecution> findAllOrderByStartTimeDesc();
+    @Query("SELECT e FROM TestExecution e WHERE e.environment = :environment ORDER BY e.startTime DESC")
+    List<TestExecution> findByEnvironmentOrderByStartTimeDesc(String environment);
+
+    @Query("SELECT e FROM TestExecution e WHERE e.status = :status AND e.startTime >= :startTime")
+    List<TestExecution> findByStatusAndStartTimeAfter(TestExecution.ExecutionStatus status, LocalDateTime startTime);
+
+    @Query("SELECT COUNT(e) FROM TestExecution e WHERE e.startTime >= :startTime AND e.status = 'PASSED'")
+    long countPassedExecutionsSince(LocalDateTime startTime);
+
+    @Query("SELECT COUNT(e) FROM TestExecution e WHERE e.startTime >= :startTime AND e.status = 'FAILED'")
+    long countFailedExecutionsSince(LocalDateTime startTime);
+
+    void deleteByStartTimeBefore(LocalDateTime cutoffDate);
 }

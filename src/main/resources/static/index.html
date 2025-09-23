@@ -181,14 +181,6 @@
                         </button>
                     </li>
                     <li role="none">
-                        <button type="button" class="nav-link group w-full text-left" data-section="demo" role="menuitem">
-                            <div class="nav-icon-container">
-                                <i class="fas fa-flask" aria-hidden="true"></i>
-                            </div>
-                            <span>Demo Data</span>
-                        </button>
-                    </li>
-                    <li role="none">
                         <button type="button" class="nav-link group w-full text-left" data-section="docs" role="menuitem">
                             <div class="nav-icon-container">
                                 <i class="fas fa-book" aria-hidden="true"></i>
@@ -1042,70 +1034,6 @@
                 </div>
             </section>
 
-            <!-- Demo Section -->
-            <section id="demo-section" class="content-section">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold text-white">Demo Data</h2>
-                        <p class="text-gray-400">Sample data for testing and demonstration</p>
-                    </div>
-                    <button id="load-all-demo-btn" class="btn btn-primary">
-                        <i class="fas fa-database mr-2"></i>Load All Demo Data
-                    </button>
-                </div>
-
-                <!-- Demo Actions -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                    <button id="demo-test-cases-btn" class="glass-effect border border-white/10 rounded-xl p-6 text-left hover:bg-white/10 transition-all duration-200">
-                        <div class="flex items-center mb-3">
-                            <i class="fas fa-clipboard-list text-2xl text-cyan-400 mr-3"></i>
-                            <h3 class="text-lg font-semibold text-white">Demo Test Cases</h3>
-                        </div>
-                        <p class="text-gray-400 text-sm">Load sample test cases with realistic data</p>
-                    </button>
-
-                    <button id="demo-executions-btn" class="glass-effect border border-white/10 rounded-xl p-6 text-left hover:bg-white/10 transition-all duration-200">
-                        <div class="flex items-center mb-3">
-                            <i class="fas fa-play text-2xl text-green-400 mr-3"></i>
-                            <h3 class="text-lg font-semibold text-white">Demo Executions</h3>
-                        </div>
-                        <p class="text-gray-400 text-sm">View sample execution results and timing data</p>
-                    </button>
-
-                    <button id="demo-batches-btn" class="glass-effect border border-white/10 rounded-xl p-6 text-left hover:bg-white/10 transition-all duration-200">
-                        <div class="flex items-center mb-3">
-                            <i class="fas fa-layer-group text-2xl text-blue-400 mr-3"></i>
-                            <h3 class="text-lg font-semibold text-white">Demo Batches</h3>
-                        </div>
-                        <p class="text-gray-400 text-sm">Sample batches with various statuses</p>
-                    </button>
-                </div>
-
-                <!-- Demo Content Display -->
-                <div class="glass-effect border border-white/10 rounded-xl p-6">
-                    <h3 class="text-lg font-semibold text-white mb-4">Demo Data Content</h3>
-                    <div id="demo-content-display" class="bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto">
-                        <p class="text-gray-400">Select a demo data type above to view sample content</p>
-                    </div>
-                </div>
-
-                <!-- Create Sample Test -->
-                <div class="glass-effect border border-white/10 rounded-xl p-6 mt-6">
-                    <h3 class="text-lg font-semibold text-white mb-4">Create Sample Test</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-400 mb-2">Test Data (JSON)</label>
-                            <textarea id="sample-test-data" rows="4" placeholder='{"name": "Sample Test", "type": "WEB_UI"}' class="input-field"></textarea>
-                        </div>
-                        <div class="flex items-end">
-                            <button id="create-sample-test-btn" class="btn btn-success w-full">
-                                <i class="fas fa-plus mr-2"></i>Create Sample Test
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <!-- API Documentation Section -->
             <section id="docs-section" class="content-section">
                 <div class="flex justify-between items-center mb-6">
@@ -1401,8 +1329,10 @@
     </script>
 
     <!-- Modular JavaScript Files with Optimized Loading -->
+    <script src="navigation.js"></script>
     <script src="js/core-api.js" async></script>
     <script src="js/ui-components.js" async></script>
+    <script src="js/analytics.js" defer></script>
     <script src="js/execution-core.js" defer></script>
     <script src="js/data-management.js" defer></script>
     <script src="js/app-handlers.js" defer></script>

@@ -1,330 +1,335 @@
 package org.example.controller;
 
 import org.example.model.TestSchedule;
-import org.example.repository.TestScheduleRepository;
 import org.example.scheduler.TestScheduler;
+import org.example.repository.TestScheduleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import lombok.Data;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
-import org.quartz.CronExpression;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.HashMap;
 
 @RestController
-@RequestMapping("/api/schedules")
+@RequestMapping("/api/schedule")
 @CrossOrigin(origins = "*")
 public class ScheduleController {
 
-    @Autowired
-    private TestScheduleRepository scheduleRepository;
+    private static final Logger log = LoggerFactory.getLogger(ScheduleController.class);
 
     @Autowired
     private TestScheduler testScheduler;
 
-    @GetMapping
-    public ResponseEntity<List<ScheduleDTO>> getAllSchedules() {
-        List<ScheduleDTO> schedules = scheduleRepository.findAll().stream()
-            .map(this::toDTO)
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(schedules);
+    @Autowired
+    private TestScheduleRepository scheduleRepository;
+
+    /**
+     * Schedule BlazeDemo tests
+     */
+    @PostMapping("/blazedemo")
+    public ResponseEntity<Map<String, Object>> scheduleBlazeDemo(@RequestBody ScheduleRequest request) {
+        try {
+            log.info("Scheduling BlazeDemo tests with cron: {} for environment: {}",
+                    request.getCronExpression(), request.getEnvironment());
+
+            TestSchedule schedule = testScheduler.scheduleBlazeDemo(
+                    request.getCronExpression(),
+                    request.getEnvironment(),
+                    request.isParallel()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", schedule.getId());
+            response.put("scheduleName", schedule.getName());
+            response.put("nextExecution", schedule.getNextExecution());
+            response.put("message", "BlazeDemo tests scheduled successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to schedule BlazeDemo tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
+    /**
+     * Schedule ReqRes API tests
+     */
+    @PostMapping("/reqres")
+    public ResponseEntity<Map<String, Object>> scheduleReqRes(@RequestBody ScheduleRequest request) {
+        try {
+            log.info("Scheduling ReqRes API tests with cron: {} for environment: {}",
+                    request.getCronExpression(), request.getEnvironment());
+
+            TestSchedule schedule = testScheduler.scheduleReqRes(
+                    request.getCronExpression(),
+                    request.getEnvironment(),
+                    request.isParallel()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", schedule.getId());
+            response.put("scheduleName", schedule.getName());
+            response.put("nextExecution", schedule.getNextExecution());
+            response.put("message", "ReqRes API tests scheduled successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to schedule ReqRes API tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Schedule regression tests
+     */
+    @PostMapping("/regression")
+    public ResponseEntity<Map<String, Object>> scheduleRegression(@RequestBody ScheduleRequest request) {
+        try {
+            log.info("Scheduling regression tests with cron: {} for environment: {}",
+                    request.getCronExpression(), request.getEnvironment());
+
+            TestSchedule schedule = testScheduler.scheduleRegression(
+                    request.getCronExpression(),
+                    request.getEnvironment()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", schedule.getId());
+            response.put("scheduleName", schedule.getName());
+            response.put("nextExecution", schedule.getNextExecution());
+            response.put("message", "Regression tests scheduled successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to schedule regression tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get all active schedules
+     */
     @GetMapping("/active")
-    public ResponseEntity<List<ScheduleDTO>> getActiveSchedules() {
-        List<ScheduleDTO> schedules = scheduleRepository.findByIsActiveTrue().stream()
-            .map(this::toDTO)
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(schedules);
-    }
+    public ResponseEntity<List<Map<String, Object>>> getActiveSchedules() {
+        try {
+            List<TestSchedule> schedules = testScheduler.getActiveSchedules();
+            List<Map<String, Object>> response = schedules.stream()
+                    .map(this::convertToMap)
+                    .collect(java.util.stream.Collectors.toList());
 
-    @PostMapping
-    public ResponseEntity<Map<String,Object>> createSchedule(@RequestBody ScheduleRequest request) {
-        // Manual validation to allow flexible request class reuse
-        if (isBlank(request.getScheduleName()) || isBlank(request.getCronExpression())) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", "scheduleName and cronExpression are required"
-            ));
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to get active schedules", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-        if (!CronExpression.isValidExpression(request.getCronExpression())) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", "Invalid cron expression: " + request.getCronExpression()
-            ));
+    }
+
+    /**
+     * Get schedule by ID
+     */
+    @GetMapping("/{scheduleId}")
+    public ResponseEntity<Map<String, Object>> getSchedule(@PathVariable Long scheduleId) {
+        try {
+            return scheduleRepository.findById(scheduleId)
+                    .map(schedule -> {
+                        Map<String, Object> response = convertToMap(schedule);
+                        response.put("status", testScheduler.getScheduleStatus(scheduleId));
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+
+        } catch (Exception e) {
+            log.error("Failed to get schedule", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-        TestSchedule schedule = new TestSchedule();
-        schedule.setScheduleName(request.getScheduleName());
-        schedule.setCronExpression(request.getCronExpression());
-        schedule.setTestSuite(request.getTestSuite());
-        schedule.setEnvironment(request.getEnvironment());
-        schedule.setParallelThreads(request.getParallelThreads() != null ? request.getParallelThreads() : 1);
-        schedule.setIsActive(request.getEnabled() == null ? true : request.getEnabled());
-        TestSchedule savedSchedule = scheduleRepository.save(schedule);
-        testScheduler.scheduleTest(savedSchedule);
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "schedule", toDTO(savedSchedule)
-        ));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Map<String,Object>> updateSchedule(@PathVariable Long id, @RequestBody ScheduleRequest request) {
-        Optional<TestSchedule> opt = scheduleRepository.findById(id);
-        if (opt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of(
-                "success", false,
-                "message", "Schedule not found"
-            ));
+    /**
+     * Pause a schedule
+     */
+    @PostMapping("/{scheduleId}/pause")
+    public ResponseEntity<Map<String, Object>> pauseSchedule(@PathVariable Long scheduleId) {
+        try {
+            testScheduler.pauseSchedule(scheduleId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", scheduleId);
+            response.put("message", "Schedule paused successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to pause schedule", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
-        TestSchedule schedule = opt.get();
+    }
 
-        boolean hasName = !isBlank(request.getScheduleName());
-        boolean hasCron = !isBlank(request.getCronExpression());
-        boolean hasAnyConfigField = hasName || hasCron || request.getTestSuite() != null || request.getEnvironment() != null || request.getParallelThreads() != null;
-        boolean enabledPresent = request.getEnabled() != null;
+    /**
+     * Resume a schedule
+     */
+    @PostMapping("/{scheduleId}/resume")
+    public ResponseEntity<Map<String, Object>> resumeSchedule(@PathVariable Long scheduleId) {
+        try {
+            testScheduler.resumeSchedule(scheduleId);
 
-        // If legacy toggle call (only enabled passed) allow partial update without validation
-        if (enabledPresent && !hasAnyConfigField) {
-            schedule.setIsActive(request.getEnabled());
-            TestSchedule saved = scheduleRepository.save(schedule);
-            if (request.getEnabled()) {
-                testScheduler.scheduleTest(saved);
-            } else {
-                testScheduler.unscheduleTest(saved.getId());
-            }
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "schedule", toDTO(saved),
-                "message", "Schedule " + (request.getEnabled() ? "enabled" : "disabled")
-            ));
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", scheduleId);
+            response.put("message", "Schedule resumed successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to resume schedule", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
+    }
 
-        // If any of name/cron provided, validate both must be non-blank
-        if (hasName ^ hasCron) { // XOR -> only one provided
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", "Both scheduleName and cronExpression must be provided together when updating schedule definition"
-            ));
+    /**
+     * Execute schedule immediately
+     */
+    @PostMapping("/{scheduleId}/execute")
+    public ResponseEntity<Map<String, Object>> executeNow(@PathVariable Long scheduleId) {
+        try {
+            testScheduler.executeNow(scheduleId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", scheduleId);
+            response.put("message", "Schedule executed immediately");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to execute schedule immediately", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
-        if (hasName && hasCron) {
-            if (!CronExpression.isValidExpression(request.getCronExpression())) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Invalid cron expression: " + request.getCronExpression()
-                ));
-            }
-            schedule.setScheduleName(request.getScheduleName());
-            schedule.setCronExpression(request.getCronExpression());
+    }
+
+    /**
+     * Delete a schedule
+     */
+    @DeleteMapping("/{scheduleId}")
+    public ResponseEntity<Map<String, Object>> deleteSchedule(@PathVariable Long scheduleId) {
+        try {
+            // First unschedule the job
+            testScheduler.unscheduleTest(scheduleId);
+
+            // Then delete from database
+            scheduleRepository.deleteById(scheduleId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("scheduleId", scheduleId);
+            response.put("message", "Schedule deleted successfully");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to delete schedule", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
-        if (request.getTestSuite() != null) schedule.setTestSuite(request.getTestSuite());
-        if (request.getEnvironment() != null) schedule.setEnvironment(request.getEnvironment());
-        if (request.getParallelThreads() != null) schedule.setParallelThreads(request.getParallelThreads());
-        if (enabledPresent) schedule.setIsActive(request.getEnabled());
+    }
 
-        TestSchedule updated = scheduleRepository.save(schedule);
-        if (enabledPresent && !request.getEnabled()) {
-            testScheduler.unscheduleTest(updated.getId());
-        } else {
-            // Reschedule if definition changed (name/cron) or still active
-            if (hasName && hasCron || Boolean.TRUE.equals(updated.getIsActive())) {
-                try { testScheduler.rescheduleTest(updated); } catch (Exception ignore) { /* fallback if not active */ }
-            }
+    /**
+     * Update a schedule
+     */
+    @PutMapping("/{scheduleId}")
+    public ResponseEntity<Map<String, Object>> updateSchedule(
+            @PathVariable Long scheduleId,
+            @RequestBody TestSchedule updatedSchedule) {
+
+        try {
+            return scheduleRepository.findById(scheduleId)
+                    .map(existingSchedule -> {
+                        // Update fields
+                        existingSchedule.setName(updatedSchedule.getName());
+                        existingSchedule.setDescription(updatedSchedule.getDescription());
+                        existingSchedule.setCronExpression(updatedSchedule.getCronExpression());
+                        existingSchedule.setEnvironment(updatedSchedule.getEnvironment());
+                        existingSchedule.setIsActive(updatedSchedule.getIsActive());
+                        existingSchedule.setParallelExecution(updatedSchedule.getParallelExecution());
+                        existingSchedule.setMaxRetries(updatedSchedule.getMaxRetries());
+                        existingSchedule.setTimeoutMinutes(updatedSchedule.getTimeoutMinutes());
+                        existingSchedule.setUpdatedAt(LocalDateTime.now());
+
+                        // Save to database
+                        TestSchedule savedSchedule = scheduleRepository.save(existingSchedule);
+
+                        // Update scheduler
+                        testScheduler.updateSchedule(savedSchedule);
+
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("success", true);
+                        response.put("scheduleId", savedSchedule.getId());
+                        response.put("message", "Schedule updated successfully");
+
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+
+        } catch (Exception e) {
+            log.error("Failed to update schedule", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "schedule", toDTO(updated)
-        ));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSchedule(@PathVariable Long id) {
-        Optional<TestSchedule> schedule = scheduleRepository.findById(id);
-        if (schedule.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // Unschedule the job
-        testScheduler.unscheduleTest(id);
-
-        TestSchedule s = schedule.get();
-        s.setIsActive(false);
-        scheduleRepository.save(s);
-
-        return ResponseEntity.noContent().build();
+    /**
+     * Convert TestSchedule to Map for JSON response
+     */
+    private Map<String, Object> convertToMap(TestSchedule schedule) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", schedule.getId());
+        map.put("name", schedule.getName());
+        map.put("description", schedule.getDescription());
+        map.put("cronExpression", schedule.getCronExpression());
+        map.put("testType", schedule.getTestType());
+        map.put("environment", schedule.getEnvironment());
+        map.put("isActive", schedule.getIsActive());
+        map.put("parallelExecution", schedule.getParallelExecution());
+        map.put("maxRetries", schedule.getMaxRetries());
+        map.put("timeoutMinutes", schedule.getTimeoutMinutes());
+        map.put("createdAt", schedule.getCreatedAt());
+        map.put("updatedAt", schedule.getUpdatedAt());
+        map.put("lastExecution", schedule.getLastExecution());
+        map.put("nextExecution", schedule.getNextExecution());
+        map.put("createdBy", schedule.getCreatedBy());
+        return map;
     }
 
-    @PostMapping("/{id}/activate")
-    public ResponseEntity<TestSchedule> activateSchedule(@PathVariable Long id) {
-        Optional<TestSchedule> optionalSchedule = scheduleRepository.findById(id);
-        if (optionalSchedule.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        TestSchedule schedule = optionalSchedule.get();
-        schedule.setIsActive(true);
-        TestSchedule updatedSchedule = scheduleRepository.save(schedule);
-
-        testScheduler.scheduleTest(updatedSchedule);
-
-        return ResponseEntity.ok(updatedSchedule);
-    }
-
-    @PostMapping("/{id}/deactivate")
-    public ResponseEntity<TestSchedule> deactivateSchedule(@PathVariable Long id) {
-        Optional<TestSchedule> optionalSchedule = scheduleRepository.findById(id);
-        if (optionalSchedule.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        TestSchedule schedule = optionalSchedule.get();
-        schedule.setIsActive(false);
-        TestSchedule updatedSchedule = scheduleRepository.save(schedule);
-
-        testScheduler.unscheduleTest(id);
-
-        return ResponseEntity.ok(updatedSchedule);
-    }
-
-    @GetMapping("/{id}/preview")
-    public ResponseEntity<?> previewNextExecutions(@PathVariable Long id, @RequestParam(defaultValue = "5") int count) {
-        return scheduleRepository.findById(id)
-            .map(s -> ResponseEntity.ok(testScheduler.previewNextExecutions(s.getCronExpression(), Math.min(Math.max(count,1),20))))
-            .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    @PostMapping("/{id}/trigger")
-    public ResponseEntity<?> triggerNow(@PathVariable Long id) {
-        if (scheduleRepository.existsById(id)) {
-            testScheduler.triggerNow(id);
-            return ResponseEntity.ok(Map.of("status","TRIGGERED","scheduleId", id));
-        }
-        return ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("/next")
-    public ResponseEntity<?> listUpcoming() {
-        List<Map<String,Object>> data = scheduleRepository.findByIsActiveTrue().stream()
-            .map(s -> Map.<String,Object>of(
-                "id", s.getId(),
-                "name", s.getScheduleName(),
-                "cron", s.getCronExpression(),
-                "nextExecution", s.getNextExecution(),
-                "lastExecution", s.getLastExecution(),
-                "testSuite", s.getTestSuite(),
-                "environment", s.getEnvironment()
-            )).collect(Collectors.toList());
-        return ResponseEntity.ok(data);
-    }
-
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<?> updateScheduleStatus(@PathVariable Long id, @RequestBody Map<String,Object> body) {
-        return scheduleRepository.findById(id).map(schedule -> {
-            Object enabledObj = body.get("enabled");
-            if (enabledObj == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Missing 'enabled' field"
-                ));
-            }
-            boolean enable = Boolean.parseBoolean(enabledObj.toString());
-            schedule.setIsActive(enable);
-            TestSchedule saved = scheduleRepository.save(schedule);
-            if (enable) {
-                testScheduler.scheduleTest(saved);
-            } else {
-                testScheduler.unscheduleTest(saved.getId());
-            }
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "schedule", toDTO(saved)
-            ));
-        }).orElse(ResponseEntity.status(404).body(Map.of(
-            "success", false,
-            "message", "Schedule not found"
-        )));
-    }
-
-    @PostMapping("/{id}/execute")
-    public ResponseEntity<?> executeNow(@PathVariable Long id) {
-        if (!scheduleRepository.existsById(id)) {
-            return ResponseEntity.status(404).body(Map.of(
-                "success", false,
-                "message", "Schedule not found"
-            ));
-        }
-        testScheduler.triggerNow(id);
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Schedule triggered",
-            "scheduleId", id
-        ));
-    }
-
-    private ScheduleDTO toDTO(TestSchedule s) {
-        ScheduleDTO dto = new ScheduleDTO();
-        dto.setId(s.getId());
-        dto.setScheduleName(s.getScheduleName());
-        dto.setCronExpression(s.getCronExpression());
-        dto.setTestSuite(s.getTestSuite());
-        dto.setEnvironment(s.getEnvironment());
-        dto.setEnabled(Boolean.TRUE.equals(s.getIsActive()));
-        dto.setParallelThreads(s.getParallelThreads());
-        dto.setNextExecutionTime(s.getNextExecution());
-        dto.setLastExecutionTime(s.getLastExecution());
-        return dto;
-    }
-
-    @Data
-    public static class ScheduleDTO {
-        private Long id;
-        private String scheduleName;
-        private String cronExpression;
-        private String testSuite;
-        private String environment;
-        private boolean enabled;
-        private Integer parallelThreads;
-        private LocalDateTime nextExecutionTime;
-        private LocalDateTime lastExecutionTime;
-    }
-
-    private boolean isBlank(String s) { return s == null || s.isEmpty() || s.isBlank(); }
-
-    @Data
+    // Request DTO
     public static class ScheduleRequest {
-        private String scheduleName;
         private String cronExpression;
-        private String testSuite;
-        private String environment;
-        private Integer parallelThreads;
-        private Boolean enabled;
+        private String environment = "dev";
+        private boolean parallel = false;
 
         // Getters and setters
-        public String getScheduleName() { return scheduleName; }
-        public void setScheduleName(String scheduleName) { this.scheduleName = scheduleName; }
-
         public String getCronExpression() { return cronExpression; }
         public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
-
-        public String getTestSuite() { return testSuite; }
-        public void setTestSuite(String testSuite) { this.testSuite = testSuite; }
-
         public String getEnvironment() { return environment; }
         public void setEnvironment(String environment) { this.environment = environment; }
-
-        public Integer getParallelThreads() { return parallelThreads; }
-        public void setParallelThreads(Integer parallelThreads) { this.parallelThreads = parallelThreads; }
-
-        public Boolean getEnabled() { return enabled; }
-        public void setEnabled(Boolean enabled) { this.enabled = enabled; }
+        public boolean isParallel() { return parallel; }
+        public void setParallel(boolean parallel) { this.parallel = parallel; }
     }
 }

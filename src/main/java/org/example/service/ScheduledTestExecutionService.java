@@ -1,6 +1,5 @@
 package org.example.service;
 
-import org.example.dto.TestExecutionResultDTO;
 import org.example.model.TestSchedule;
 import org.example.repository.TestScheduleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class ScheduledTestExecutionService {
@@ -24,127 +22,101 @@ public class ScheduledTestExecutionService {
     @Autowired
     private TestExecutionService executionService;
 
-    @Autowired
-    private NotificationService notificationService;
-
     /**
-     * Check for scheduled tests every minute
+     * Check for due schedules every minute
      */
-    @Scheduled(fixedRate = 60000) // Run every 60 seconds
-    public void checkScheduledTests() {
+    @Scheduled(fixedRate = 60000) // Every minute
+    public void checkDueSchedules() {
         try {
             LocalDateTime now = LocalDateTime.now();
             List<TestSchedule> dueSchedules = scheduleRepository.findDueSchedules(now);
 
-            log.info("Found {} scheduled tests due for execution", dueSchedules.size());
+            log.info("Found {} schedules due for execution", dueSchedules.size());
 
             for (TestSchedule schedule : dueSchedules) {
-                if (schedule.getIsActive()) {
+                try {
                     executeScheduledTest(schedule);
+                } catch (Exception e) {
+                    log.error("Failed to execute scheduled test: {}", schedule.getName(), e);
                 }
             }
+
         } catch (Exception e) {
-            log.error("Error checking scheduled tests", e);
+            log.error("Error checking due schedules", e);
         }
     }
 
     /**
-     * Daily cleanup of old execution records
+     * Execute a scheduled test
      */
-    @Scheduled(cron = "0 0 2 * * ?") // Run at 2 AM daily
-    public void dailyCleanup() {
-        try {
-            log.info("Starting daily cleanup of old execution records");
-
-            // Clean up executions older than 30 days
-            LocalDateTime cutoffDate = LocalDateTime.now().minusDays(30);
-            executionService.cleanupOldExecutions(cutoffDate);
-
-            log.info("Daily cleanup completed");
-        } catch (Exception e) {
-            log.error("Error during daily cleanup", e);
-        }
-    }
-
-    /**
-     * Weekly report generation
-     */
-    @Scheduled(cron = "0 0 8 * * MON") // Run at 8 AM every Monday
-    public void weeklyReportGeneration() {
-        try {
-            log.info("Starting weekly report generation");
-
-            LocalDateTime weekStart = LocalDateTime.now().minusWeeks(1);
-            LocalDateTime weekEnd = LocalDateTime.now();
-
-            // Generate summary report for the week
-            CompletableFuture.runAsync(() -> {
-                try {
-                    executionService.generateWeeklySummaryReport(weekStart, weekEnd);
-                    log.info("Weekly report generation completed");
-                } catch (Exception e) {
-                    log.error("Error generating weekly report", e);
-                }
-            });
-
-        } catch (Exception e) {
-            log.error("Error starting weekly report generation", e);
-        }
-    }
-
     private void executeScheduledTest(TestSchedule schedule) {
-        try {
-            log.info("Executing scheduled test: {}", schedule.getName());
+        log.info("Executing scheduled test: {}", schedule.getName());
 
-            // Update next execution time
+        try {
+            // Update last execution time
             schedule.setLastExecution(LocalDateTime.now());
-            schedule.setNextExecution(calculateNextExecution(schedule));
             scheduleRepository.save(schedule);
 
-            // Execute tests asynchronously
-            CompletableFuture.runAsync(() -> {
-                try {
-                    executionService.executeScheduledTests(schedule);
-                    log.info("Scheduled test execution completed for: {}", schedule.getName());
-                    if (schedule.getNotificationEnabled()) {
-                        // Create a simple result DTO for notification
-                        TestExecutionResultDTO result = new TestExecutionResultDTO();
-                        result.setStatus("COMPLETED");
-                        notificationService.sendSuccessNotification(schedule, result);
-                    }
-                } catch (Exception e) {
-                    log.error("Scheduled test execution failed for: " + schedule.getName(), e);
-                    if (schedule.getNotificationEnabled()) {
-                        notificationService.sendFailureNotification(schedule, e.getMessage());
-                    }
-                }
-            });
+            // Execute based on test type
+            switch (schedule.getTestType()) {
+                case "BlazeDemo":
+                    executionService.executeBlazeDemo(schedule.getEnvironment(), schedule.getParallelExecution());
+                    break;
+                case "ReqRes":
+                    executionService.executeReqRes(schedule.getEnvironment(), schedule.getParallelExecution());
+                    break;
+                case "Regression":
+                    executionService.executeRegressionTests(schedule.getEnvironment(), schedule.getParallelExecution());
+                    break;
+                default:
+                    log.warn("Unknown test type: {}", schedule.getTestType());
+                    break;
+            }
+
+            log.info("Successfully executed scheduled test: {}", schedule.getName());
 
         } catch (Exception e) {
-            log.error("Error executing scheduled test: " + schedule.getName(), e);
+            log.error("Failed to execute scheduled test: {}", schedule.getName(), e);
         }
     }
 
-    private LocalDateTime calculateNextExecution(TestSchedule schedule) {
-        // This is a simplified implementation
-        // In a real scenario, you'd use a proper cron expression parser
+    /**
+     * Generate weekly summary - scheduled to run every Sunday at midnight
+     */
+    @Scheduled(cron = "0 0 0 * * SUN")
+    public void generateWeeklySummary() {
         try {
-            String cronExpression = schedule.getCronExpression();
+            LocalDateTime endDate = LocalDateTime.now();
+            LocalDateTime startDate = endDate.minusWeeks(1);
 
-            // For demo purposes, assume simple patterns
-            if (cronExpression.contains("0 0 * * * ?")) { // Daily
-                return schedule.getLastExecution().plusDays(1);
-            } else if (cronExpression.contains("0 0 * * * MON")) { // Weekly
-                return schedule.getLastExecution().plusWeeks(1);
-            } else if (cronExpression.contains("0 0 1 * * ?")) { // Monthly
-                return schedule.getLastExecution().plusMonths(1);
-            } else {
-                // Default to 1 hour from now
-                return LocalDateTime.now().plusHours(1);
-            }
+            log.info("Generating weekly summary report from {} to {}", startDate, endDate);
+
+            // Get execution statistics for the week
+            java.util.Map<String, Object> stats = executionService.getExecutionStatistics();
+
+            log.info("Weekly summary - Total executions: {}, Pass rate: {}%",
+                    stats.get("totalExecutions"), stats.get("passRate"));
+
         } catch (Exception e) {
-            log.error("Error calculating next execution time for schedule: " + schedule.getName(), e);
-            return LocalDateTime.now().plusHours(1);
+            log.error("Failed to generate weekly summary", e);
+        }
+    }
+
+    /**
+     * Cleanup old executions - scheduled to run daily at 2 AM
+     */
+    @Scheduled(cron = "0 0 2 * * *")
+    public void cleanupOldExecutions() {
+        try {
+            log.info("Starting cleanup of old executions");
+
+            // Keep executions for 30 days
+            executionService.cleanupOldExecutions(30);
+
+            log.info("Completed cleanup of old executions");
+
+        } catch (Exception e) {
+            log.error("Failed to cleanup old executions", e);
         }
     }
 }

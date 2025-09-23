@@ -769,45 +769,19 @@ async function handleFrameworkValidation() {
     }
 }
 
-// Demo Data Handlers
+// Demo Data Handlers - REMOVED: No corresponding API endpoints
+// The following demo data functionality has been removed because
+// the endpoints /demo/sample-data and /demo/{type} are not available
+// in the current API specification.
+
 async function handleLoadAllDemo() {
-    try {
-        loadingManager.show('Loading all demo data...');
-        const data = await ApiClient.get('/demo/sample-data');
-
-        const container = document.getElementById('demo-content-display');
-        if (container) {
-            container.innerHTML = `<pre class="text-gray-300 text-xs overflow-auto">${JSON.stringify(data, null, 2)}</pre>`;
-        }
-
-        notificationManager.show('Demo data loaded successfully', 'success');
-
-    } catch (error) {
-        console.error('Error loading demo data:', error);
-        notificationManager.show(`❌ Failed to load demo data: ${error.message}`, 'error');
-    } finally {
-        loadingManager.hide();
-    }
+    notificationManager.show('Demo data functionality is not available', 'warning');
+    console.warn('Demo data endpoints not available in current API specification');
 }
 
 async function handleLoadDemoData(type) {
-    try {
-        loadingManager.show(`Loading demo ${type}...`);
-        const data = await ApiClient.get(`/demo/${type}`);
-
-        const container = document.getElementById('demo-content-display');
-        if (container) {
-            container.innerHTML = `<pre class="text-gray-300 text-xs overflow-auto">${JSON.stringify(data, null, 2)}</pre>`;
-        }
-
-        notificationManager.show(`Demo ${type} loaded successfully`, 'success');
-
-    } catch (error) {
-        console.error(`Error loading demo ${type}:`, error);
-        notificationManager.show(`❌ Failed to load demo ${type}: ${error.message}`, 'error');
-    } finally {
-        loadingManager.hide();
-    }
+    notificationManager.show(`Demo ${type} functionality is not available`, 'warning');
+    console.warn(`Demo ${type} endpoint not available in current API specification`);
 }
 
 async function handleCreateSampleTest() {

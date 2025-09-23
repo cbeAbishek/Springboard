@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/analytics")
@@ -17,20 +18,22 @@ public class AnalyticsController {
     private AnalyticsService analyticsService;
 
     @GetMapping("/trends")
-    public ResponseEntity<AnalyticsService.TestTrendAnalysis> getTrendAnalysis(
+    public ResponseEntity<Map<String, Object>> getTrendAnalysis(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
 
-        AnalyticsService.TestTrendAnalysis analysis = analyticsService.generateTrendAnalysis(fromDate, toDate);
+        Map<String, Object> analysis = analyticsService.getExecutionTrends(fromDate, toDate);
         return ResponseEntity.ok(analysis);
     }
 
     @GetMapping("/regression/{environment}")
-    public ResponseEntity<AnalyticsService.RegressionMetrics> getRegressionMetrics(
+    public ResponseEntity<Map<String, Object>> getRegressionMetrics(
             @PathVariable String environment,
             @RequestParam(defaultValue = "30") int days) {
 
-        AnalyticsService.RegressionMetrics metrics = analyticsService.calculateRegressionMetrics(environment, days);
+        LocalDateTime endDate = LocalDateTime.now();
+        LocalDateTime startDate = endDate.minusDays(days);
+        Map<String, Object> metrics = analyticsService.getPerformanceMetrics(startDate, endDate);
         return ResponseEntity.ok(metrics);
     }
 }

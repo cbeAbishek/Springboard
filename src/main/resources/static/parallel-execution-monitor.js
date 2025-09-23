@@ -57,8 +57,8 @@ class ParallelExecutionMonitor {
 
     async fetchActiveBatches() {
         try {
-            // Try to fetch running batches first
-            const runningBatches = await ApiClient.get('/execution/batches?status=RUNNING');
+            // Use the correct endpoint path for batches by status
+            const runningBatches = await ApiClient.get('/execution/batches/status/RUNNING');
 
             // If no running batches, try to get all recent batches and filter
             if (!runningBatches || runningBatches.length === 0) {

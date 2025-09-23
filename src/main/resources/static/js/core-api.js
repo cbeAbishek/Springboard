@@ -213,7 +213,7 @@ class ConnectionManager {
     startHealthCheck() {
         setInterval(async () => {
             try {
-                await fetch('/api/validation/health', { method: 'HEAD', cache: 'no-store' });
+                await fetch(`${API_BASE_URL}/validation/health`, { method: 'HEAD', cache: 'no-store' });
                 if (!this.isOnline) {
                     this.isOnline = true;
                     this.notifyListeners('online');
@@ -294,7 +294,7 @@ class LoadingManager {
             this.overlay = document.getElementById('loading-overlay');
         }
 
-        if (this.overlay) {
+        if this.overlay) {
             const textElement = this.overlay.querySelector('.loading-text');
             if (textElement) {
                 textElement.textContent = message;

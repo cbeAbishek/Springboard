@@ -216,13 +216,13 @@ public class DataInitializationService implements CommandLineRunner {
     private TestSchedule createSchedule(String name, String cronExpression, String testSuite,
                                       String environment, int parallelThreads, boolean isActive) {
         TestSchedule schedule = new TestSchedule();
-        schedule.setScheduleName(name);
+        schedule.setName(name); // Changed from setScheduleName
         schedule.setCronExpression(cronExpression);
-        schedule.setTestSuite(testSuite);
+        schedule.setTestType(testSuite); // Changed from setTestSuite to setTestType
         schedule.setEnvironment(environment);
-        schedule.setParallelThreads(parallelThreads);
+        // Remove setParallelThreads and setNotificationEnabled as they don't exist in corrected TestSchedule
         schedule.setIsActive(isActive);
-        schedule.setNotificationEnabled(false);
+        schedule.setCreatedBy("data_initialization");
         return schedule;
     }
 }

@@ -2,17 +2,18 @@ package org.example.engine;
 
 import org.example.model.TestCase;
 import org.example.model.TestExecution;
-import org.example.model.TestStep;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,10 +30,12 @@ public class TestExecutionEngine {
     private APITestExecutor apiExecutor;
 
     @Autowired
-    private DatabaseTestExecutor databaseExecutor;
+    private ObjectMapper objectMapper;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private ApplicationContext applicationContext;
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     /**
      * Execute a single test case
@@ -45,187 +48,126 @@ public class TestExecutionEngine {
         execution.setEnvironment(environment);
         execution.setStatus(TestExecution.ExecutionStatus.RUNNING);
         execution.setStartTime(LocalDateTime.now());
+        execution.setExecutionId(UUID.randomUUID().toString());
 
         try {
             // Parse test data
             Map<String, Object> testData = parseTestData(testCase.getTestData());
             
             // Execute based on test type
-            BaseTestExecutor.TestExecutionResult result = executeByType(testCase.getTestType(), testData, testCase);
+            TestExecution.ExecutionStatus result = executeByType(testCase, testData, environment);
+            execution.setStatus(result);
 
-            // Update execution with results
-            execution.setStatus(result.isSuccess() ? 
-                TestExecution.ExecutionStatus.PASSED : TestExecution.ExecutionStatus.FAILED);
-            execution.setErrorMessage(result.getErrorMessage());
-            execution.setExecutionLogs(result.getExecutionLogs());
-            execution.setScreenshotPaths(String.join(",", result.getScreenshotPaths()));
-            execution.setRequestResponseData(result.getRequestResponseData());
-            
+            if (result == TestExecution.ExecutionStatus.PASSED) {
+                execution.setActualResult("Test completed successfully");
+            }
+
         } catch (Exception e) {
             log.error("Error executing test case: {}", testCase.getName(), e);
             execution.setStatus(TestExecution.ExecutionStatus.FAILED);
-            execution.setErrorMessage("Execution failed: " + e.getMessage());
+            execution.setErrorMessage(e.getMessage());
+            execution.setStackTrace(getStackTrace(e));
         } finally {
             execution.setEndTime(LocalDateTime.now());
-            execution.calculateDuration();
+            if (execution.getStartTime() != null && execution.getEndTime() != null) {
+                execution.setExecutionDuration(
+                    java.time.Duration.between(execution.getStartTime(), execution.getEndTime()).toMillis()
+                );
+            }
         }
 
+        log.info("Completed execution of test case: {} with status: {}",
+                testCase.getName(), execution.getStatus());
         return execution;
     }
 
     /**
      * Execute multiple test cases in parallel
      */
-    public List<CompletableFuture<TestExecution>> executeTestsInParallel(
-            List<TestCase> testCases, String environment, int maxParallelThreads) {
-        
-        log.info("Starting parallel execution of {} test cases with {} threads", 
-                testCases.size(), maxParallelThreads);
+    public List<TestExecution> executeTestsParallel(List<TestCase> testCases, String environment, int maxThreads) {
+        log.info("Starting parallel execution of {} test cases with {} threads", testCases.size(), maxThreads);
 
-        ExecutorService executor = Executors.newFixedThreadPool(maxParallelThreads);
-        List<CompletableFuture<TestExecution>> futures = new ArrayList<>();
+        ExecutorService parallelExecutor = Executors.newFixedThreadPool(maxThreads);
 
-        for (TestCase testCase : testCases) {
-            CompletableFuture<TestExecution> future = CompletableFuture.supplyAsync(() -> 
-                executeTest(testCase, environment), executor);
-            futures.add(future);
+        try {
+            List<Future<TestExecution>> futures = testCases.stream()
+                .map(testCase -> parallelExecutor.submit(() -> executeTest(testCase, environment)))
+                .collect(Collectors.toList());
+
+            List<TestExecution> results = new ArrayList<>();
+            for (Future<TestExecution> future : futures) {
+                try {
+                    results.add(future.get());
+                } catch (Exception e) {
+                    log.error("Error getting parallel execution result", e);
+                }
+            }
+
+            return results;
+        } finally {
+            parallelExecutor.shutdown();
         }
-
-        return futures;
     }
 
     /**
-     * Execute test with step-by-step execution for debugging
+     * Execute test cases sequentially (individual execution)
      */
-    public TestExecution executeTestWithSteps(TestCase testCase, String environment, boolean debugMode) {
-        log.info("Starting step-by-step execution of test case: {}", testCase.getName());
-        
-        TestExecution execution = new TestExecution();
-        execution.setTestCase(testCase);
-        execution.setEnvironment(environment);
-        execution.setStatus(TestExecution.ExecutionStatus.RUNNING);
-        execution.setStartTime(LocalDateTime.now());
+    public List<TestExecution> executeTestsSequential(List<TestCase> testCases, String environment) {
+        log.info("Starting sequential execution of {} test cases", testCases.size());
 
-        List<String> stepLogs = new ArrayList<>();
-        List<String> screenshots = new ArrayList<>();
-
-        try {
-            // Parse test steps from test data
-            List<TestStep> testSteps = parseTestSteps(testCase.getTestData());
-            
-            for (int i = 0; i < testSteps.size(); i++) {
-                TestStep step = testSteps.get(i);
-                
-                if (debugMode) {
-                    stepLogs.add(String.format("Step %d: %s", i + 1, step.getDescription()));
-                }
-
-                BaseTestExecutor.TestExecutionResult stepResult = executeTestStep(step, testCase.getTestType());
-
-                if (!stepResult.isSuccess()) {
-                    execution.setStatus(TestExecution.ExecutionStatus.FAILED);
-                    execution.setErrorMessage(String.format("Step %d failed: %s", i + 1, stepResult.getErrorMessage()));
-                    
-                    // Capture screenshot for failed UI steps
-                    if (testCase.getTestType() == TestCase.TestType.WEB_UI && stepResult.getScreenshotPaths() != null) {
-                        screenshots.addAll(stepResult.getScreenshotPaths());
-                    }
-                    break;
-                }
-
-                stepLogs.add(String.format("Step %d completed successfully", i + 1));
-            }
-
-            if (execution.getStatus() == TestExecution.ExecutionStatus.RUNNING) {
-                execution.setStatus(TestExecution.ExecutionStatus.PASSED);
-            }
-
-        } catch (Exception e) {
-            log.error("Error in step-by-step execution: {}", e.getMessage(), e);
-            execution.setStatus(TestExecution.ExecutionStatus.FAILED);
-            execution.setErrorMessage("Step execution failed: " + e.getMessage());
-        } finally {
-            execution.setEndTime(LocalDateTime.now());
-            execution.calculateDuration();
-            execution.setExecutionLogs(String.join("\n", stepLogs));
-            execution.setScreenshotPaths(String.join(",", screenshots));
+        List<TestExecution> results = new ArrayList<>();
+        for (TestCase testCase : testCases) {
+            TestExecution result = executeTest(testCase, environment);
+            results.add(result);
         }
 
-        return execution;
+        return results;
     }
 
-    private BaseTestExecutor.TestExecutionResult executeByType(TestCase.TestType testType, Map<String, Object> testData, TestCase testCase) {
-        return switch (testType) {
-            case WEB_UI, UI -> webUIExecutor.execute(testData, testCase);
-            case API -> apiExecutor.execute(testData, testCase);
-            case DATABASE -> databaseExecutor.execute(testData, testCase);
-            case INTEGRATION -> executeIntegrationTest(testData, testCase);
-            default -> throw new UnsupportedOperationException("Test type not supported: " + testType);
-        };
-    }
-
-    private BaseTestExecutor.TestExecutionResult executeIntegrationTest(Map<String, Object> testData, TestCase testCase) {
-        // Implementation for integration tests that might involve multiple systems
-        BaseTestExecutor.TestExecutionResult result = new BaseTestExecutor.TestExecutionResult();
-        result.setSuccess(true);
-        result.setExecutionLogs("Integration test executed successfully");
-        return result;
-    }
-
-    private BaseTestExecutor.TestExecutionResult executeTestStep(TestStep step, TestCase.TestType testType) {
-        Map<String, Object> stepData = step.getStepData();
-        
-        // Create a temporary test case for the step
-        TestCase stepTestCase = new TestCase();
-        stepTestCase.setTestType(testType);
-        
-        return executeByType(testType, stepData, stepTestCase);
+    private TestExecution.ExecutionStatus executeByType(TestCase testCase, Map<String, Object> testData, String environment) {
+        try {
+            switch (testCase.getTestType()) {
+                case UI:
+                    return webUIExecutor.executeUITest(testCase, testData, environment);
+                case API:
+                    return apiExecutor.executeAPITest(testCase, testData, environment);
+                case INTEGRATION:
+                    // For integration tests, execute both UI and API components
+                    TestExecution.ExecutionStatus apiResult = apiExecutor.executeAPITest(testCase, testData, environment);
+                    if (apiResult == TestExecution.ExecutionStatus.PASSED) {
+                        return webUIExecutor.executeUITest(testCase, testData, environment);
+                    }
+                    return apiResult;
+                default:
+                    log.warn("Unsupported test type: {}", testCase.getTestType());
+                    return TestExecution.ExecutionStatus.SKIPPED;
+            }
+        } catch (Exception e) {
+            log.error("Error executing test by type", e);
+            return TestExecution.ExecutionStatus.FAILED;
+        }
     }
 
     private Map<String, Object> parseTestData(String testDataJson) {
         try {
-            return objectMapper.readValue(testDataJson, new TypeReference<>() {});
+            if (testDataJson == null || testDataJson.trim().isEmpty()) {
+                return new HashMap<>();
+            }
+            return objectMapper.readValue(testDataJson, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
-            log.warn("Failed to parse test data JSON, using empty map: {}", e.getMessage());
+            log.warn("Failed to parse test data JSON: {}", testDataJson, e);
             return new HashMap<>();
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private List<TestStep> parseTestSteps(String testDataJson) {
-        try {
-            Map<String, Object> testData = parseTestData(testDataJson);
-            
-            // Check if test data contains steps
-            if (testData.containsKey("steps")) {
-                List<Map<String, Object>> stepsData = (List<Map<String, Object>>) testData.get("steps");
-                List<TestStep> steps = new ArrayList<>();
-                
-                for (int i = 0; i < stepsData.size(); i++) {
-                    Map<String, Object> stepData = stepsData.get(i);
-                    TestStep step = new TestStep();
-                    step.setStepNumber(i + 1);
-                    step.setDescription(stepData.getOrDefault("description", "Step " + (i + 1)).toString());
-                    step.setStepData(stepData);
-                    steps.add(step);
-                }
-                
-                return steps;
-            } else {
-                // Create a single step from the entire test data
-                TestStep singleStep = new TestStep();
-                singleStep.setStepNumber(1);
-                singleStep.setDescription("Execute test");
-                singleStep.setStepData(testData);
-                return Collections.singletonList(singleStep);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse test steps, using single step: {}", e.getMessage());
-            TestStep singleStep = new TestStep();
-            singleStep.setStepNumber(1);
-            singleStep.setDescription("Execute test");
-            singleStep.setStepData(new HashMap<>());
-            return Collections.singletonList(singleStep);
-        }
+    private String getStackTrace(Exception e) {
+        java.io.StringWriter sw = new java.io.StringWriter();
+        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+        e.printStackTrace(pw);
+        return sw.toString();
+    }
+
+    public void shutdown() {
+        executorService.shutdown();
     }
 }

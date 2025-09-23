@@ -1,351 +1,463 @@
 package org.example.reporting;
 
+import org.example.model.TestBatch;
+import org.example.model.TestCase;
 import org.example.model.TestExecution;
-import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileWriter;
-import java.io.IOException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+
+import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
-@Service
+@Component
 public class ReportGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(ReportGenerator.class);
 
-    private static final String REPORT_DIRECTORY = "test-reports/";
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+    @Value("${automation.framework.reporting.outputPath:test-reports/}")
+    private String reportOutputPath;
 
-    public String generateHTMLReport(List<TestExecution> executions, String reportType) throws IOException {
-        String reportName = String.format("%s_TestReport_%s.html", 
-                reportType, 
-                new Date().toInstant().toString().replaceAll("[:\\.]", "-"));
-        
-        String reportPath = REPORT_DIRECTORY + reportName;
-        ensureDirectoryExists(REPORT_DIRECTORY);
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
-        StringBuilder html = new StringBuilder();
-        html.append(getHTMLHeader(reportType));
-        html.append(generateExecutionSummary(executions));
-        html.append(generateDetailedResults(executions));
-        html.append(generateFailureAnalysis(executions));
-        html.append(getHTMLFooter());
+    /**
+     * Generate comprehensive HTML report
+     */
+    public String generateHTMLReport(TestBatch batch, List<TestExecution> executions) {
+        try {
+            Path reportDir = Paths.get(reportOutputPath);
+            Files.createDirectories(reportDir);
 
-        try (FileWriter writer = new FileWriter(reportPath)) {
-            writer.write(html.toString());
+            String timestamp = LocalDateTime.now().format(dateFormatter);
+            String fileName = String.format("TestReport_%s_%s.html", batch.getBatchId(), timestamp);
+            Path reportPath = reportDir.resolve(fileName);
+
+            StringBuilder html = new StringBuilder();
+
+            // HTML Header
+            html.append("<!DOCTYPE html>\n<html>\n<head>\n")
+                .append("<meta charset='UTF-8'>\n")
+                .append("<title>Test Execution Report - ").append(batch.getName()).append("</title>\n")
+                .append("<style>\n")
+                .append(getReportCSS())
+                .append("</style>\n")
+                .append("</head>\n<body>\n");
+
+            // Report Header
+            html.append("<div class='header'>\n")
+                .append("<h1>Test Execution Report</h1>\n")
+                .append("<h2>").append(batch.getName()).append("</h2>\n")
+                .append("<div class='batch-info'>\n")
+                .append("<p><strong>Batch ID:</strong> ").append(batch.getBatchId()).append("</p>\n")
+                .append("<p><strong>Environment:</strong> ").append(batch.getEnvironment()).append("</p>\n")
+                .append("<p><strong>Execution Time:</strong> ").append(batch.getCreatedAt()).append("</p>\n")
+                .append("<p><strong>Status:</strong> <span class='status-").append(batch.getStatus().toString().toLowerCase()).append("'>")
+                .append(batch.getStatus()).append("</span></p>\n")
+                .append("</div>\n</div>\n");
+
+            // Summary Statistics
+            html.append(generateSummarySection(batch, executions));
+
+            // Test Results Table
+            html.append(generateTestResultsTable(executions));
+
+            // Screenshots Section
+            html.append(generateScreenshotsSection(executions));
+
+            // API Test Results Section
+            html.append(generateAPIResultsSection(executions));
+
+            // Footer
+            html.append("</div>\n</body>\n</html>");
+
+            Files.write(reportPath, html.toString().getBytes());
+
+            String absolutePath = reportPath.toAbsolutePath().toString();
+            log.info("HTML report generated: {}", absolutePath);
+            return absolutePath;
+
+        } catch (Exception e) {
+            log.error("Failed to generate HTML report", e);
+            return null;
         }
-
-        log.info("HTML report generated: {}", reportPath);
-        return reportPath;
     }
 
-    public String generateCSVReport(List<TestExecution> executions, String reportType) throws IOException {
-        String reportName = String.format("%s_TestReport_%s.csv", 
-                reportType, 
-                new Date().toInstant().toString().replaceAll("[:\\.]", "-"));
-        
-        String reportPath = REPORT_DIRECTORY + reportName;
-        ensureDirectoryExists(REPORT_DIRECTORY);
+    /**
+     * Generate CSV report
+     */
+    public String generateCSVReport(TestBatch batch, List<TestExecution> executions) {
+        try {
+            Path reportDir = Paths.get(reportOutputPath);
+            Files.createDirectories(reportDir);
 
-        StringBuilder csv = new StringBuilder();
-        csv.append("Test Name,Test Type,Status,Duration (ms),Environment,Start Time,End Time,Error Message\n");
+            String timestamp = LocalDateTime.now().format(dateFormatter);
+            String fileName = String.format("TestReport_%s_%s.csv", batch.getBatchId(), timestamp);
+            Path reportPath = reportDir.resolve(fileName);
 
-        for (TestExecution execution : executions) {
-            csv.append(String.format("\"%s\",\"%s\",\"%s\",%d,\"%s\",\"%s\",\"%s\",\"%s\"\n",
-                    execution.getTestCase().getName(),
-                    execution.getTestCase().getTestType(),
-                    execution.getStatus(),
-                    execution.getExecutionDuration() != null ? execution.getExecutionDuration() : 0,
-                    execution.getEnvironment(),
-                    execution.getStartTime() != null ? execution.getStartTime().format(DATE_FORMATTER) : "",
-                    execution.getEndTime() != null ? execution.getEndTime().format(DATE_FORMATTER) : "",
-                    execution.getErrorMessage() != null ? execution.getErrorMessage().replace("\"", "\"\"") : ""));
-        }
+            try (FileWriter writer = new FileWriter(reportPath.toFile());
+                 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
 
-        try (FileWriter writer = new FileWriter(reportPath)) {
-            writer.write(csv.toString());
-        }
+                // CSV Headers
+                csvPrinter.printRecord("Test Case ID", "Test Name", "Test Type", "Status",
+                                     "Start Time", "End Time", "Duration (ms)", "Environment",
+                                     "Error Message", "Screenshot Path");
 
-        log.info("CSV report generated: {}", reportPath);
-        return reportPath;
-    }
-
-    public String generateXMLReport(List<TestExecution> executions, String reportType) throws IOException {
-        String reportName = String.format("%s_TestReport_%s.xml", 
-                reportType, 
-                new Date().toInstant().toString().replaceAll("[:\\.]", "-"));
-        
-        String reportPath = REPORT_DIRECTORY + reportName;
-        ensureDirectoryExists(REPORT_DIRECTORY);
-
-        StringBuilder xml = new StringBuilder();
-        xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-        xml.append("<testsuites>\n");
-        
-        Map<String, List<TestExecution>> groupedByType = executions.stream()
-                .collect(Collectors.groupingBy(e -> e.getTestCase().getTestType().toString()));
-
-        for (Map.Entry<String, List<TestExecution>> entry : groupedByType.entrySet()) {
-            xml.append(generateTestSuiteXML(entry.getKey(), entry.getValue()));
-        }
-
-        xml.append("</testsuites>\n");
-
-        try (FileWriter writer = new FileWriter(reportPath)) {
-            writer.write(xml.toString());
-        }
-
-        log.info("XML report generated: {}", reportPath);
-        return reportPath;
-    }
-
-    public String generateAllureReport(List<TestExecution> executions, String reportType) throws IOException {
-        // For now, generate a simplified Allure-compatible JSON
-        String reportName = String.format("%s_AllureResults_%s.json", 
-                reportType, 
-                new Date().toInstant().toString().replaceAll("[:\\.]", "-"));
-        
-        String reportPath = REPORT_DIRECTORY + reportName;
-        ensureDirectoryExists(REPORT_DIRECTORY);
-
-        StringBuilder json = new StringBuilder();
-        json.append("[\n");
-
-        for (int i = 0; i < executions.size(); i++) {
-            TestExecution execution = executions.get(i);
-            json.append(generateAllureTestCase(execution));
-            if (i < executions.size() - 1) {
-                json.append(",");
+                // CSV Data
+                for (TestExecution execution : executions) {
+                    csvPrinter.printRecord(
+                        execution.getTestCase().getId(),
+                        execution.getTestCase().getName(),
+                        execution.getTestCase().getTestType(),
+                        execution.getStatus(),
+                        execution.getStartTime(),
+                        execution.getEndTime(),
+                        execution.getExecutionDuration(),
+                        execution.getEnvironment(),
+                        execution.getErrorMessage() != null ? execution.getErrorMessage().substring(0, Math.min(200, execution.getErrorMessage().length())) : "",
+                        execution.getScreenshotPath()
+                    );
+                }
             }
-            json.append("\n");
+
+            String absolutePath = reportPath.toAbsolutePath().toString();
+            log.info("CSV report generated: {}", absolutePath);
+            return absolutePath;
+
+        } catch (Exception e) {
+            log.error("Failed to generate CSV report", e);
+            return null;
         }
+    }
 
-        json.append("]\n");
+    /**
+     * Generate XML report (JUnit format)
+     */
+    public String generateXMLReport(TestBatch batch, List<TestExecution> executions) {
+        try {
+            Path reportDir = Paths.get(reportOutputPath);
+            Files.createDirectories(reportDir);
 
-        try (FileWriter writer = new FileWriter(reportPath)) {
-            writer.write(json.toString());
+            String timestamp = LocalDateTime.now().format(dateFormatter);
+            String fileName = String.format("TestReport_%s_%s.xml", batch.getBatchId(), timestamp);
+            Path reportPath = reportDir.resolve(fileName);
+
+            StringBuilder xml = new StringBuilder();
+
+            // XML Header
+            xml.append("<?xml version='1.0' encoding='UTF-8'?>\n");
+            xml.append("<testsuite name='").append(batch.getName()).append("' ");
+            xml.append("tests='").append(executions.size()).append("' ");
+            xml.append("failures='").append(batch.getFailedTests()).append("' ");
+            xml.append("skipped='").append(batch.getSkippedTests()).append("' ");
+            xml.append("time='").append(calculateTotalDuration(executions)).append("'>\n");
+
+            // Test Cases
+            for (TestExecution execution : executions) {
+                xml.append("  <testcase classname='").append(execution.getTestCase().getTestType()).append("' ");
+                xml.append("name='").append(escapeXml(execution.getTestCase().getName())).append("' ");
+                xml.append("time='").append(execution.getExecutionDuration() != null ? execution.getExecutionDuration() / 1000.0 : 0).append("'");
+
+                if (execution.getStatus() == TestExecution.ExecutionStatus.FAILED) {
+                    xml.append(">\n");
+                    xml.append("    <failure message='").append(escapeXml(execution.getErrorMessage())).append("'>");
+                    xml.append(escapeXml(execution.getStackTrace()));
+                    xml.append("</failure>\n");
+                    xml.append("  </testcase>\n");
+                } else if (execution.getStatus() == TestExecution.ExecutionStatus.SKIPPED) {
+                    xml.append(">\n");
+                    xml.append("    <skipped/>\n");
+                    xml.append("  </testcase>\n");
+                } else {
+                    xml.append("/>\n");
+                }
+            }
+
+            xml.append("</testsuite>\n");
+
+            Files.write(reportPath, xml.toString().getBytes());
+
+            String absolutePath = reportPath.toAbsolutePath().toString();
+            log.info("XML report generated: {}", absolutePath);
+            return absolutePath;
+
+        } catch (Exception e) {
+            log.error("Failed to generate XML report", e);
+            return null;
         }
-
-        log.info("Allure JSON report generated: {}", reportPath);
-        return reportPath;
     }
 
-    private String getHTMLHeader(String reportType) {
-        return String.format("""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>%s Test Report</title>
-                <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-                    .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                    h1 { color: #333; text-align: center; margin-bottom: 30px; border-bottom: 3px solid #007acc; padding-bottom: 10px; }
-                    h2 { color: #444; border-left: 4px solid #007acc; padding-left: 15px; margin-top: 30px; }
-                    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
-                    .summary-card { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
-                    .summary-card h3 { margin: 0 0 10px 0; font-size: 2.5em; }
-                    .summary-card p { margin: 0; opacity: 0.9; }
-                    table { width: 100%%; border-collapse: collapse; margin: 20px 0; background: white; }
-                    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-                    th { background-color: #f8f9fa; font-weight: 600; }
-                    tr:hover { background-color: #f5f5f5; }
-                    .status-passed { color: #28a745; font-weight: bold; }
-                    .status-failed { color: #dc3545; font-weight: bold; }
-                    .status-running { color: #ffc107; font-weight: bold; }
-                    .error-details { background: #f8f9fa; border-left: 4px solid #dc3545; padding: 15px; margin: 10px 0; border-radius: 4px; }
-                    .logs { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
-                    .screenshot-link { color: #007acc; text-decoration: none; }
-                    .screenshot-link:hover { text-decoration: underline; }
-                    .footer { text-align: center; margin-top: 40px; color: #666; border-top: 1px solid #eee; padding-top: 20px; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>%s Test Execution Report</h1>
-                    <p style="text-align: center; color: #666; margin-bottom: 30px;">Generated on: %s</p>
-            """, reportType, reportType, new Date().toString());
-    }
-
-    private String generateExecutionSummary(List<TestExecution> executions) {
-        long total = executions.size();
-        long passed = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.PASSED ? 1 : 0).sum();
-        long failed = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.FAILED ? 1 : 0).sum();
-        long running = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.RUNNING ? 1 : 0).sum();
-        
-        double passRate = total > 0 ? (double) passed / total * 100 : 0;
-
-        return String.format("""
-            <h2>Execution Summary</h2>
-            <div class="summary">
-                <div class="summary-card">
-                    <h3>%d</h3>
-                    <p>Total Tests</p>
-                </div>
-                <div class="summary-card">
-                    <h3>%d</h3>
-                    <p>Passed</p>
-                </div>
-                <div class="summary-card">
-                    <h3>%d</h3>
-                    <p>Failed</p>
-                </div>
-                <div class="summary-card">
-                    <h3>%.1f%%</h3>
-                    <p>Pass Rate</p>
-                </div>
-            </div>
-            """, total, passed, failed, passRate);
-    }
-
-    private String generateDetailedResults(List<TestExecution> executions) {
+    /**
+     * Generate summary section for HTML report
+     */
+    private String generateSummarySection(TestBatch batch, List<TestExecution> executions) {
         StringBuilder html = new StringBuilder();
-        html.append("<h2>Detailed Test Results</h2>");
-        html.append("<table>");
-        html.append("<tr><th>Test Name</th><th>Type</th><th>Status</th><th>Duration</th><th>Environment</th><th>Start Time</th><th>Details</th></tr>");
+
+        html.append("<div class='summary'>\n")
+            .append("<h3>Test Summary</h3>\n")
+            .append("<div class='summary-cards'>\n");
+
+        // Total Tests Card
+        html.append("<div class='card'>\n")
+            .append("<h4>Total Tests</h4>\n")
+            .append("<p class='number'>").append(executions.size()).append("</p>\n")
+            .append("</div>\n");
+
+        // Passed Tests Card
+        long passedCount = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.PASSED ? 1 : 0).sum();
+        html.append("<div class='card passed'>\n")
+            .append("<h4>Passed</h4>\n")
+            .append("<p class='number'>").append(passedCount).append("</p>\n")
+            .append("</div>\n");
+
+        // Failed Tests Card
+        long failedCount = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.FAILED ? 1 : 0).sum();
+        html.append("<div class='card failed'>\n")
+            .append("<h4>Failed</h4>\n")
+            .append("<p class='number'>").append(failedCount).append("</p>\n")
+            .append("</div>\n");
+
+        // Skipped Tests Card
+        long skippedCount = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.SKIPPED ? 1 : 0).sum();
+        html.append("<div class='card skipped'>\n")
+            .append("<h4>Skipped</h4>\n")
+            .append("<p class='number'>").append(skippedCount).append("</p>\n")
+            .append("</div>\n");
+
+        // Pass Rate Card
+        double passRate = executions.size() > 0 ? (double) passedCount / executions.size() * 100 : 0;
+        html.append("<div class='card'>\n")
+            .append("<h4>Pass Rate</h4>\n")
+            .append("<p class='number'>").append(String.format("%.1f%%", passRate)).append("</p>\n")
+            .append("</div>\n");
+
+        html.append("</div>\n</div>\n");
+
+        return html.toString();
+    }
+
+    /**
+     * Generate test results table
+     */
+    private String generateTestResultsTable(List<TestExecution> executions) {
+        StringBuilder html = new StringBuilder();
+
+        html.append("<div class='test-results'>\n")
+            .append("<h3>Test Results</h3>\n")
+            .append("<table class='results-table'>\n")
+            .append("<thead>\n")
+            .append("<tr>\n")
+            .append("<th>Test Case</th>\n")
+            .append("<th>Type</th>\n")
+            .append("<th>Status</th>\n")
+            .append("<th>Duration</th>\n")
+            .append("<th>Start Time</th>\n")
+            .append("<th>Screenshot</th>\n")
+            .append("<th>Error</th>\n")
+            .append("</tr>\n")
+            .append("</thead>\n")
+            .append("<tbody>\n");
 
         for (TestExecution execution : executions) {
-            String statusClass = "status-" + execution.getStatus().toString().toLowerCase();
-            html.append(String.format("""
-                <tr>
-                    <td>%s</td>
-                    <td>%s</td>
-                    <td class="%s">%s</td>
-                    <td>%d ms</td>
-                    <td>%s</td>
-                    <td>%s</td>
-                    <td>
-                        %s
-                        %s
-                        %s
-                    </td>
-                </tr>
-                """,
-                execution.getTestCase().getName(),
-                execution.getTestCase().getTestType(),
-                statusClass,
-                execution.getStatus(),
-                execution.getExecutionDuration() != null ? execution.getExecutionDuration() : 0,
-                execution.getEnvironment(),
-                execution.getStartTime() != null ? execution.getStartTime().format(DATE_FORMATTER) : "N/A",
-                execution.getErrorMessage() != null ? "<div class='error-details'>Error: " + execution.getErrorMessage() + "</div>" : "",
-                execution.getExecutionLogs() != null ? "<div class='logs'>" + execution.getExecutionLogs() + "</div>" : "",
-                execution.getScreenshotPaths() != null && !execution.getScreenshotPaths().isEmpty() ? 
-                    "<div>Screenshots: " + String.join(", ", execution.getScreenshotPaths()) + "</div>" : ""));
+            html.append("<tr class='").append(execution.getStatus().toString().toLowerCase()).append("'>\n")
+                .append("<td>").append(execution.getTestCase().getName()).append("</td>\n")
+                .append("<td>").append(execution.getTestCase().getTestType()).append("</td>\n")
+                .append("<td><span class='status-").append(execution.getStatus().toString().toLowerCase()).append("'>")
+                .append(execution.getStatus()).append("</span></td>\n")
+                .append("<td>").append(formatDuration(execution.getExecutionDuration())).append("</td>\n")
+                .append("<td>").append(execution.getStartTime()).append("</td>\n");
+
+            // Screenshot link
+            if (execution.getScreenshotPath() != null) {
+                String screenshotName = Paths.get(execution.getScreenshotPath()).getFileName().toString();
+                html.append("<td><a href='screenshots/").append(screenshotName).append("' target='_blank'>View</a></td>\n");
+            } else {
+                html.append("<td>-</td>\n");
+            }
+
+            // Error message
+            if (execution.getErrorMessage() != null) {
+                String shortError = execution.getErrorMessage().length() > 100 ?
+                    execution.getErrorMessage().substring(0, 100) + "..." : execution.getErrorMessage();
+                html.append("<td title='").append(escapeHtml(execution.getErrorMessage())).append("'>")
+                    .append(escapeHtml(shortError)).append("</td>\n");
+            } else {
+                html.append("<td>-</td>\n");
+            }
+
+            html.append("</tr>\n");
         }
 
-        html.append("</table>");
+        html.append("</tbody>\n</table>\n</div>\n");
+
         return html.toString();
     }
 
-    private String generateFailureAnalysis(List<TestExecution> executions) {
-        List<TestExecution> failures = executions.stream()
-                .filter(e -> e.getStatus() == TestExecution.ExecutionStatus.FAILED)
-                .collect(Collectors.toList());
-
-        if (failures.isEmpty()) {
-            return "<h2>Failure Analysis</h2><p>No failures detected! All tests passed successfully.</p>";
-        }
-
+    /**
+     * Generate screenshots section
+     */
+    private String generateScreenshotsSection(List<TestExecution> executions) {
         StringBuilder html = new StringBuilder();
-        html.append("<h2>Failure Analysis</h2>");
-        
-        Map<String, Long> errorCounts = failures.stream()
-                .collect(Collectors.groupingBy(
-                    e -> e.getErrorMessage() != null ? e.getErrorMessage() : "Unknown Error",
-                    Collectors.counting()));
 
-        html.append("<h3>Error Distribution</h3>");
-        html.append("<ul>");
-        for (Map.Entry<String, Long> entry : errorCounts.entrySet()) {
-            html.append(String.format("<li><strong>%s</strong>: %d occurrences</li>", entry.getKey(), entry.getValue()));
+        List<TestExecution> executionsWithScreenshots = executions.stream()
+            .filter(e -> e.getScreenshotPath() != null)
+            .collect(java.util.stream.Collectors.toList());
+
+        if (!executionsWithScreenshots.isEmpty()) {
+            html.append("<div class='screenshots'>\n")
+                .append("<h3>Screenshots</h3>\n")
+                .append("<div class='screenshot-gallery'>\n");
+
+            for (TestExecution execution : executionsWithScreenshots) {
+                String screenshotName = Paths.get(execution.getScreenshotPath()).getFileName().toString();
+                html.append("<div class='screenshot-item'>\n")
+                    .append("<h5>").append(execution.getTestCase().getName()).append("</h5>\n")
+                    .append("<a href='screenshots/").append(screenshotName).append("' target='_blank'>\n")
+                    .append("<img src='screenshots/").append(screenshotName).append("' alt='Screenshot' class='screenshot-thumb'>\n")
+                    .append("</a>\n")
+                    .append("<p>Status: ").append(execution.getStatus()).append("</p>\n")
+                    .append("</div>\n");
+            }
+
+            html.append("</div>\n</div>\n");
         }
-        html.append("</ul>");
 
         return html.toString();
     }
 
-    private String getHTMLFooter() {
+    /**
+     * Generate API results section
+     */
+    private String generateAPIResultsSection(List<TestExecution> executions) {
+        StringBuilder html = new StringBuilder();
+
+        List<TestExecution> apiExecutions = executions.stream()
+            .filter(e -> e.getTestCase().getTestType() == TestCase.TestType.API ||
+                        e.getTestCase().getName().contains("ReqRes"))
+            .collect(java.util.stream.Collectors.toList());
+
+        if (!apiExecutions.isEmpty()) {
+            html.append("<div class='api-results'>\n")
+                .append("<h3>API Test Results</h3>\n")
+                .append("<table class='api-table'>\n")
+                .append("<thead>\n")
+                .append("<tr>\n")
+                .append("<th>API Test</th>\n")
+                .append("<th>Method</th>\n")
+                .append("<th>Status</th>\n")
+                .append("<th>Response Time</th>\n")
+                .append("<th>Result</th>\n")
+                .append("</tr>\n")
+                .append("</thead>\n")
+                .append("<tbody>\n");
+
+            for (TestExecution execution : apiExecutions) {
+                // Parse test data to extract API info
+                String method = "GET";
+                String responseTime = formatDuration(execution.getExecutionDuration());
+
+                try {
+                    Map<String, Object> testData = objectMapper.readValue(execution.getTestCase().getTestData(), Map.class);
+                    method = (String) testData.getOrDefault("method", "GET");
+                } catch (Exception e) {
+                    // Use default
+                }
+
+                html.append("<tr class='").append(execution.getStatus().toString().toLowerCase()).append("'>\n")
+                    .append("<td>").append(execution.getTestCase().getName()).append("</td>\n")
+                    .append("<td>").append(method).append("</td>\n")
+                    .append("<td><span class='status-").append(execution.getStatus().toString().toLowerCase()).append("'>")
+                    .append(execution.getStatus()).append("</span></td>\n")
+                    .append("<td>").append(responseTime).append("</td>\n")
+                    .append("<td>").append(execution.getActualResult() != null ? execution.getActualResult() : "-").append("</td>\n")
+                    .append("</tr>\n");
+            }
+
+            html.append("</tbody>\n</table>\n</div>\n");
+        }
+
+        return html.toString();
+    }
+
+    /**
+     * Get CSS for HTML report
+     */
+    private String getReportCSS() {
         return """
-            <div class="footer">
-                <p>Generated by Springboard Test Automation Framework</p>
-            </div>
-            </div>
-            </body>
-            </html>
+            body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+            .header { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .header h1 { color: #333; margin: 0; }
+            .header h2 { color: #666; margin: 10px 0; }
+            .batch-info p { margin: 5px 0; }
+            .summary { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .summary-cards { display: flex; gap: 20px; flex-wrap: wrap; }
+            .card { flex: 1; min-width: 150px; padding: 20px; border-radius: 8px; text-align: center; background: #f8f9fa; }
+            .card.passed { background: #d4edda; }
+            .card.failed { background: #f8d7da; }
+            .card.skipped { background: #ffeaa7; }
+            .card h4 { margin: 0 0 10px 0; color: #333; }
+            .card .number { font-size: 2em; font-weight: bold; margin: 0; }
+            .test-results { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .results-table { width: 100%; border-collapse: collapse; }
+            .results-table th, .results-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+            .results-table th { background-color: #f8f9fa; font-weight: bold; }
+            .results-table tr.passed { background-color: #f8fff8; }
+            .results-table tr.failed { background-color: #fff8f8; }
+            .results-table tr.skipped { background-color: #fffef8; }
+            .status-passed { color: #28a745; font-weight: bold; }
+            .status-failed { color: #dc3545; font-weight: bold; }
+            .status-skipped { color: #ffc107; font-weight: bold; }
+            .status-running { color: #007bff; font-weight: bold; }
+            .screenshots { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .screenshot-gallery { display: flex; gap: 20px; flex-wrap: wrap; }
+            .screenshot-item { text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 8px; }
+            .screenshot-thumb { max-width: 200px; max-height: 150px; border: 1px solid #ccc; }
+            .api-results { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .api-table { width: 100%; border-collapse: collapse; }
+            .api-table th, .api-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+            .api-table th { background-color: #f8f9fa; font-weight: bold; }
+            a { color: #007bff; text-decoration: none; }
+            a:hover { text-decoration: underline; }
             """;
     }
 
-    private String generateTestSuiteXML(String testType, List<TestExecution> executions) {
-        StringBuilder xml = new StringBuilder();
-        long failures = executions.stream().mapToLong(e -> e.getStatus() == TestExecution.ExecutionStatus.FAILED ? 1 : 0).sum();
-        
-        xml.append(String.format("  <testsuite name=\"%s\" tests=\"%d\" failures=\"%d\" time=\"%.3f\">\n",
-                testType, executions.size(), failures, 
-                executions.stream().mapToLong(e -> e.getExecutionDuration() != null ? e.getExecutionDuration() : 0).sum() / 1000.0));
-
-        for (TestExecution execution : executions) {
-            xml.append(String.format("    <testcase name=\"%s\" classname=\"%s\" time=\"%.3f\"",
-                    execution.getTestCase().getName(),
-                    testType,
-                    (execution.getExecutionDuration() != null ? execution.getExecutionDuration() : 0) / 1000.0));
-
-            if (execution.getStatus() == TestExecution.ExecutionStatus.FAILED) {
-                xml.append(">\n");
-                xml.append(String.format("      <failure message=\"%s\">%s</failure>\n",
-                        execution.getErrorMessage() != null ? execution.getErrorMessage() : "Test failed",
-                        execution.getExecutionLogs() != null ? execution.getExecutionLogs() : ""));
-                xml.append("    </testcase>\n");
-            } else {
-                xml.append(" />\n");
-            }
-        }
-
-        xml.append("  </testsuite>\n");
-        return xml.toString();
+    // Utility methods
+    private String formatDuration(Long duration) {
+        if (duration == null) return "-";
+        if (duration < 1000) return duration + "ms";
+        return String.format("%.2fs", duration / 1000.0);
     }
 
-    private String generateAllureTestCase(TestExecution execution) {
-        return String.format("""
-            {
-                "uuid": "%s",
-                "name": "%s",
-                "fullName": "%s",
-                "status": "%s",
-                "start": %d,
-                "stop": %d,
-                "labels": [
-                    {"name": "suite", "value": "%s"},
-                    {"name": "testClass", "value": "%s"}
-                ],
-                "statusDetails": {
-                    "message": "%s",
-                    "trace": "%s"
-                }
-            }""",
-            UUID.randomUUID().toString(),
-            execution.getTestCase().getName(),
-            execution.getTestCase().getName(),
-            execution.getStatus().toString().toLowerCase(),
-            execution.getStartTime() != null ? execution.getStartTime().toEpochSecond(java.time.ZoneOffset.UTC) * 1000 : 0,
-            execution.getEndTime() != null ? execution.getEndTime().toEpochSecond(java.time.ZoneOffset.UTC) * 1000 : 0,
-            execution.getTestCase().getTestType().toString(),
-            execution.getTestCase().getTestType().toString(),
-            execution.getErrorMessage() != null ? execution.getErrorMessage().replace("\"", "\\\"") : "",
-            execution.getExecutionLogs() != null ? execution.getExecutionLogs().replace("\"", "\\\"") : "");
+    private long calculateTotalDuration(List<TestExecution> executions) {
+        return executions.stream()
+            .mapToLong(e -> e.getExecutionDuration() != null ? e.getExecutionDuration() : 0)
+            .sum();
     }
 
-    private void ensureDirectoryExists(String directory) {
-        try {
-            Files.createDirectories(Paths.get(directory));
-        } catch (IOException e) {
-            log.error("Failed to create directory: " + directory, e);
-        }
+    private String escapeXml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                  .replace("<", "&lt;")
+                  .replace(">", "&gt;")
+                  .replace("\"", "&quot;")
+                  .replace("'", "&apos;");
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                  .replace("<", "&lt;")
+                  .replace(">", "&gt;")
+                  .replace("\"", "&quot;");
     }
 }

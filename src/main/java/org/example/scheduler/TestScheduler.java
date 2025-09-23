@@ -5,19 +5,17 @@ import org.example.service.TestExecutionService;
 import org.example.repository.TestScheduleRepository;
 import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
-import org.quartz.CronExpression;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 
 @Component
 public class TestScheduler {
@@ -25,6 +23,7 @@ public class TestScheduler {
     private static final Logger log = LoggerFactory.getLogger(TestScheduler.class);
 
     @Autowired
+    @Qualifier("scheduler")
     private Scheduler quartzScheduler;
 
     @Autowired
@@ -33,178 +32,329 @@ public class TestScheduler {
     @Autowired
     private TestExecutionService testExecutionService;
 
+    /**
+     * Initialize scheduler and load existing schedules
+     */
+    @PostConstruct
+    public void initializeScheduler() {
+        try {
+            log.info("Initializing test scheduler...");
+
+            // Load and schedule all active test schedules from database
+            List<TestSchedule> activeSchedules = testScheduleRepository.findByIsActiveTrue();
+
+            for (TestSchedule schedule : activeSchedules) {
+                try {
+                    scheduleTest(schedule);
+                    log.info("Loaded scheduled test: {}", schedule.getName());
+                } catch (Exception e) {
+                    log.error("Failed to load scheduled test: {}", schedule.getName(), e);
+                }
+            }
+
+            log.info("Test scheduler initialized with {} active schedules", activeSchedules.size());
+
+        } catch (Exception e) {
+            log.error("Failed to initialize test scheduler", e);
+        }
+    }
+
+    /**
+     * Schedule a test execution
+     */
     public void scheduleTest(TestSchedule testSchedule) {
         try {
-            // Ensure entity is persisted to have an ID
+            // Ensure entity is persisted
             if (testSchedule.getId() == null) {
                 testSchedule = testScheduleRepository.save(testSchedule);
             }
+
             // Validate cron expression
             if (!CronExpression.isValidExpression(testSchedule.getCronExpression())) {
                 throw new IllegalArgumentException("Invalid cron expression: " + testSchedule.getCronExpression());
             }
+
             JobKey jobKey = new JobKey("testJob_" + testSchedule.getId(), "testGroup");
+
+            // Remove existing job if present
             if (quartzScheduler.checkExists(jobKey)) {
-                quartzScheduler.deleteJob(jobKey); // replace existing
+                quartzScheduler.deleteJob(jobKey);
+                log.info("Removed existing scheduled job: {}", jobKey);
             }
+
+            // Create job detail
             JobDetail jobDetail = JobBuilder.newJob(ScheduledTestJob.class)
                     .withIdentity(jobKey)
                     .usingJobData("scheduleId", testSchedule.getId())
-                    .usingJobData("testSuite", nullSafe(testSchedule.getTestSuite()))
-                    .usingJobData("environment", nullSafe(testSchedule.getEnvironment()))
-                    .usingJobData("parallelThreads", defaultInt(testSchedule.getParallelThreads(), 1))
                     .build();
-            TriggerKey triggerKey = new TriggerKey("testTrigger_" + testSchedule.getId(), "testGroup");
+
+            // Create trigger
             Trigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity(triggerKey)
+                    .withIdentity("testTrigger_" + testSchedule.getId(), "testGroup")
                     .withSchedule(CronScheduleBuilder.cronSchedule(testSchedule.getCronExpression()))
                     .build();
+
+            // Schedule the job
             quartzScheduler.scheduleJob(jobDetail, trigger);
+
+            // Update next execution time
             Date nextFireTime = trigger.getNextFireTime();
             if (nextFireTime != null) {
-                testSchedule.setNextExecution(LocalDateTime.ofInstant(nextFireTime.toInstant(), ZoneId.systemDefault()));
+                testSchedule.setNextExecution(nextFireTime.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
+                testScheduleRepository.save(testSchedule);
             }
-            testScheduleRepository.save(testSchedule);
-            log.info("Scheduled test: {} (id={}) cron={} nextFire={} ",
-                    testSchedule.getScheduleName(), testSchedule.getId(), testSchedule.getCronExpression(), testSchedule.getNextExecution());
+
+            log.info("Successfully scheduled test: {} with cron: {}", testSchedule.getName(), testSchedule.getCronExpression());
+
         } catch (SchedulerException e) {
-            log.error("Failed to schedule test: {}", testSchedule.getScheduleName(), e);
-            throw new RuntimeException("Scheduling failed", e);
+            log.error("Failed to schedule test: {}", testSchedule.getName(), e);
+            throw new RuntimeException("Failed to schedule test", e);
         }
     }
 
-    public void scheduleAllActiveOnStartup() {
-        List<TestSchedule> active = testScheduleRepository.findByIsActiveTrue();
-        for (TestSchedule s : active) {
-            try {
-                scheduleTest(s);
-            } catch (Exception ex) {
-                log.error("Failed to (re)schedule active schedule id={} name={}", s.getId(), s.getScheduleName(), ex);
-            }
-        }
-        log.info("(Re)scheduled {} active schedules on startup", active.size());
-    }
-
-    public List<LocalDateTime> previewNextExecutions(String cronExpression, int count) {
-        if (!CronExpression.isValidExpression(cronExpression)) {
-            throw new IllegalArgumentException("Invalid cron expression");
-        }
-        try {
-            CronExpression cron = new CronExpression(cronExpression);
-            List<LocalDateTime> times = new ArrayList<>();
-            Date next = new Date();
-            for (int i = 0; i < count; i++) {
-                next = cron.getNextValidTimeAfter(next);
-                if (next == null) break;
-                times.add(LocalDateTime.ofInstant(next.toInstant(), ZoneId.systemDefault()));
-            }
-            return times;
-        } catch (ParseException e) {
-            throw new IllegalArgumentException("Unable to parse cron", e);
-        }
-    }
-
-    public void triggerNow(Long scheduleId) {
-        try {
-            JobKey jobKey = new JobKey("testJob_" + scheduleId, "testGroup");
-            if (!quartzScheduler.checkExists(jobKey)) {
-                TestSchedule s = testScheduleRepository.findById(scheduleId)
-                        .orElseThrow(() -> new RuntimeException("Schedule not found " + scheduleId));
-                scheduleTest(s); // auto create if missing
-            }
-            quartzScheduler.triggerJob(jobKey);
-            log.info("Manually triggered schedule id={}", scheduleId);
-        } catch (SchedulerException e) {
-            throw new RuntimeException("Failed to trigger schedule " + scheduleId, e);
-        }
-    }
-
-    private String nullSafe(String v) { return v == null ? "" : v; }
-    private int defaultInt(Integer v, int d) { return v == null ? d : v; }
-
+    /**
+     * Unschedule a test
+     */
     public void unscheduleTest(Long scheduleId) {
         try {
             JobKey jobKey = new JobKey("testJob_" + scheduleId, "testGroup");
-            TriggerKey triggerKey = new TriggerKey("testTrigger_" + scheduleId, "testGroup");
+
             if (quartzScheduler.checkExists(jobKey)) {
-                quartzScheduler.pauseTrigger(triggerKey);
-                quartzScheduler.unscheduleJob(triggerKey);
                 quartzScheduler.deleteJob(jobKey);
+                log.info("Unscheduled test job: {}", jobKey);
             }
-            log.info("Unscheduled test with ID: {}", scheduleId);
+
         } catch (SchedulerException e) {
-            log.error("Failed to unschedule test with ID: {}", scheduleId, e);
+            log.error("Failed to unschedule test: {}", scheduleId, e);
+            throw new RuntimeException("Failed to unschedule test", e);
         }
     }
 
-    public void rescheduleTest(TestSchedule testSchedule) {
-        unscheduleTest(testSchedule.getId());
-        scheduleTest(testSchedule);
+    /**
+     * Update existing schedule
+     */
+    public void updateSchedule(TestSchedule testSchedule) {
+        try {
+            // First unschedule the existing job
+            unscheduleTest(testSchedule.getId());
+
+            // Then schedule with new parameters
+            if (testSchedule.getIsActive()) {
+                scheduleTest(testSchedule);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to update schedule: {}", testSchedule.getName(), e);
+            throw new RuntimeException("Failed to update schedule", e);
+        }
     }
 
+    /**
+     * Schedule BlazeDemo tests
+     */
+    public TestSchedule scheduleBlazeDemo(String cronExpression, String environment, boolean parallel) {
+        TestSchedule schedule = new TestSchedule();
+        schedule.setName("BlazeDemo_Scheduled_" + System.currentTimeMillis());
+        schedule.setDescription("Scheduled BlazeDemo UI tests");
+        schedule.setCronExpression(cronExpression);
+        schedule.setTestType("BlazeDemo");
+        schedule.setEnvironment(environment);
+        schedule.setParallelExecution(parallel);
+        schedule.setMaxRetries(1);
+        schedule.setTimeoutMinutes(60);
+        schedule.setIsActive(true);
+        schedule.setCreatedAt(LocalDateTime.now());
+        schedule.setCreatedBy("system");
+
+        schedule = testScheduleRepository.save(schedule);
+        scheduleTest(schedule);
+
+        return schedule;
+    }
+
+    /**
+     * Schedule ReqRes API tests
+     */
+    public TestSchedule scheduleReqRes(String cronExpression, String environment, boolean parallel) {
+        TestSchedule schedule = new TestSchedule();
+        schedule.setName("ReqRes_Scheduled_" + System.currentTimeMillis());
+        schedule.setDescription("Scheduled ReqRes API integration tests");
+        schedule.setCronExpression(cronExpression);
+        schedule.setTestType("ReqRes");
+        schedule.setEnvironment(environment);
+        schedule.setParallelExecution(parallel);
+        schedule.setMaxRetries(2);
+        schedule.setTimeoutMinutes(30);
+        schedule.setIsActive(true);
+        schedule.setCreatedAt(LocalDateTime.now());
+        schedule.setCreatedBy("system");
+
+        schedule = testScheduleRepository.save(schedule);
+        scheduleTest(schedule);
+
+        return schedule;
+    }
+
+    /**
+     * Schedule regression tests
+     */
+    public TestSchedule scheduleRegression(String cronExpression, String environment) {
+        TestSchedule schedule = new TestSchedule();
+        schedule.setName("Regression_Scheduled_" + System.currentTimeMillis());
+        schedule.setDescription("Scheduled regression test suite");
+        schedule.setCronExpression(cronExpression);
+        schedule.setTestType("Regression");
+        schedule.setEnvironment(environment);
+        schedule.setParallelExecution(true);
+        schedule.setMaxRetries(1);
+        schedule.setTimeoutMinutes(120);
+        schedule.setIsActive(true);
+        schedule.setCreatedAt(LocalDateTime.now());
+        schedule.setCreatedBy("system");
+
+        schedule = testScheduleRepository.save(schedule);
+        scheduleTest(schedule);
+
+        return schedule;
+    }
+
+    /**
+     * Get all active schedules
+     */
     public List<TestSchedule> getActiveSchedules() {
         return testScheduleRepository.findByIsActiveTrue();
     }
 
+    /**
+     * Pause a schedule
+     */
+    public void pauseSchedule(Long scheduleId) {
+        try {
+            JobKey jobKey = new JobKey("testJob_" + scheduleId, "testGroup");
+            quartzScheduler.pauseJob(jobKey);
+            log.info("Paused scheduled job: {}", jobKey);
+
+        } catch (SchedulerException e) {
+            log.error("Failed to pause schedule: {}", scheduleId, e);
+            throw new RuntimeException("Failed to pause schedule", e);
+        }
+    }
+
+    /**
+     * Resume a schedule
+     */
+    public void resumeSchedule(Long scheduleId) {
+        try {
+            JobKey jobKey = new JobKey("testJob_" + scheduleId, "testGroup");
+            quartzScheduler.resumeJob(jobKey);
+            log.info("Resumed scheduled job: {}", jobKey);
+
+        } catch (SchedulerException e) {
+            log.error("Failed to resume schedule: {}", scheduleId, e);
+            throw new RuntimeException("Failed to resume schedule", e);
+        }
+    }
+
+    /**
+     * Get schedule status
+     */
+    public String getScheduleStatus(Long scheduleId) {
+        try {
+            JobKey jobKey = new JobKey("testJob_" + scheduleId, "testGroup");
+
+            if (!quartzScheduler.checkExists(jobKey)) {
+                return "NOT_SCHEDULED";
+            }
+
+            List<Trigger> triggers = (List<Trigger>) quartzScheduler.getTriggersOfJob(jobKey);
+            if (triggers.isEmpty()) {
+                return "NO_TRIGGERS";
+            }
+
+            Trigger.TriggerState state = quartzScheduler.getTriggerState(triggers.get(0).getKey());
+            return state.name();
+
+        } catch (SchedulerException e) {
+            log.error("Failed to get schedule status: {}", scheduleId, e);
+            return "ERROR";
+        }
+    }
+
+    /**
+     * Execute scheduled test immediately
+     */
+    public void executeNow(Long scheduleId) {
+        try {
+            JobKey jobKey = new JobKey("testJob_" + scheduleId, "testGroup");
+            quartzScheduler.triggerJob(jobKey);
+            log.info("Triggered immediate execution of job: {}", jobKey);
+
+        } catch (SchedulerException e) {
+            log.error("Failed to execute schedule immediately: {}", scheduleId, e);
+            throw new RuntimeException("Failed to execute schedule", e);
+        }
+    }
+
+    /**
+     * Scheduled job implementation
+     */
     @DisallowConcurrentExecution
     public static class ScheduledTestJob implements Job {
 
-        private static final Logger log = LoggerFactory.getLogger(ScheduledTestJob.class);
+        private static final Logger jobLog = LoggerFactory.getLogger(ScheduledTestJob.class);
 
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
-            JobDataMap dataMap = context.getJobDetail().getJobDataMap();
-
-            Long scheduleId = dataMap.getLong("scheduleId");
-            String testSuite = dataMap.getString("testSuite");
-            String environment = dataMap.getString("environment");
-            Integer parallelThreads = dataMap.getInt("parallelThreads");
-
             try {
-                log.info("Executing scheduled test: {} for environment: {}", testSuite, environment);
+                Long scheduleId = context.getJobDetail().getJobDataMap().getLong("scheduleId");
 
-                // Get Spring ApplicationContext from Quartz context
-                ApplicationContext applicationContext = (ApplicationContext) context.getScheduler().getContext().get("applicationContext");
+                // Get Spring context and services
+                ApplicationContext appContext = (ApplicationContext) context.getScheduler().getContext().get("applicationContext");
+                TestScheduleRepository scheduleRepository = appContext.getBean(TestScheduleRepository.class);
+                TestExecutionService executionService = appContext.getBean(TestExecutionService.class);
 
-                if (applicationContext == null) {
-                    throw new JobExecutionException("ApplicationContext not found in scheduler context");
+                // Get schedule details
+                TestSchedule schedule = scheduleRepository.findById(scheduleId)
+                        .orElseThrow(() -> new JobExecutionException("Schedule not found: " + scheduleId));
+
+                if (!schedule.getIsActive()) {
+                    jobLog.info("Schedule {} is inactive, skipping execution", scheduleId);
+                    return;
                 }
 
-                // Get Spring beans
-                TestExecutionService testExecutionService = applicationContext.getBean(TestExecutionService.class);
-                TestScheduleRepository testScheduleRepository = applicationContext.getBean(TestScheduleRepository.class);
-
-                // Get the TestSchedule object
-                TestSchedule schedule = testScheduleRepository.findById(scheduleId)
-                    .orElseThrow(() -> new JobExecutionException("Schedule not found: " + scheduleId));
+                jobLog.info("Executing scheduled test: {}", schedule.getName());
 
                 // Update last execution time
                 schedule.setLastExecution(LocalDateTime.now());
-                // Recompute next execution after this run
+                scheduleRepository.save(schedule);
+
+                // Execute tests based on type
                 try {
-                    Trigger trigger = context.getTrigger();
-                    Date nf = trigger.getNextFireTime();
-                    if (nf != null) {
-                        schedule.setNextExecution(LocalDateTime.ofInstant(nf.toInstant(), ZoneId.systemDefault()));
+                    switch (schedule.getTestType()) {
+                        case "BlazeDemo":
+                            executionService.executeBlazeDemo(schedule.getEnvironment(), schedule.getParallelExecution());
+                            break;
+                        case "ReqRes":
+                            executionService.executeReqRes(schedule.getEnvironment(), schedule.getParallelExecution());
+                            break;
+                        case "Regression":
+                            executionService.executeRegressionTests(schedule.getEnvironment(), schedule.getParallelExecution());
+                            break;
+                        default:
+                            jobLog.warn("Unknown test type: {}", schedule.getTestType());
+                            break;
                     }
-                } catch (Exception ignore) { }
-                testScheduleRepository.save(schedule);
 
-                // Execute the scheduled tests using the proper service method
-                CompletableFuture.runAsync(() -> {
-                    try {
-                        testExecutionService.executeScheduledTests(schedule);
-                        log.info("Scheduled test execution completed for schedule ID: {}", scheduleId);
-                    } catch (Exception e) {
-                        log.error("Scheduled test execution failed for schedule ID: {}", scheduleId, e);
-                    }
-                });
+                    jobLog.info("Successfully completed scheduled test: {}", schedule.getName());
 
-                log.info("Scheduled test execution initiated successfully for schedule ID: {}", scheduleId);
+                } catch (Exception e) {
+                    jobLog.error("Failed to execute scheduled test: {}", schedule.getName(), e);
+                    throw new JobExecutionException("Test execution failed", e);
+                }
 
             } catch (Exception e) {
-                log.error("Scheduled test execution failed for schedule ID: {}", scheduleId, e);
-                throw new JobExecutionException("Scheduled test execution failed", e);
+                jobLog.error("Scheduled job execution failed", e);
+                throw new JobExecutionException(e);
             }
         }
     }

@@ -42,8 +42,8 @@ public class DashboardController {
 
         // Execution Metrics
         long totalExecutions = testExecutionRepository.count();
-        long passedExecutions = testExecutionRepository.findByStatus(
-            org.example.model.TestExecution.ExecutionStatus.PASSED).size();
+        long passedExecutions = testExecutionRepository.countByStatus(
+            org.example.model.TestExecution.ExecutionStatus.PASSED);
 
         // Schedule Metrics
         long totalSchedules = testScheduleRepository.count();
@@ -85,7 +85,7 @@ public class DashboardController {
         Map<String, Object> activity = new HashMap<>();
 
         // Get recent batches
-        var recentBatches = testBatchRepository.findTopRecentBatches(5);
+        var recentBatches = testBatchRepository.findTop10ByOrderByCreatedAtDesc();
 
         // Get recent executions
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);

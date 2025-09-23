@@ -7,315 +7,351 @@ import org.example.repository.TestBatchRepository;
 import org.example.repository.TestExecutionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/execution")
 @CrossOrigin(origins = "*")
 public class TestExecutionController {
 
+    private static final Logger log = LoggerFactory.getLogger(TestExecutionController.class);
+
     @Autowired
     private TestExecutionService testExecutionService;
 
-    @Autowired
-    private TestBatchRepository testBatchRepository;
+    /**
+     * Execute single test case
+     */
+    @PostMapping("/single/{testCaseId}")
+    public ResponseEntity<Map<String, Object>> executeSingleTest(
+            @PathVariable Long testCaseId,
+            @RequestParam(defaultValue = "dev") String environment) {
 
-    @Autowired
-    private TestExecutionRepository testExecutionRepository;
-
-    @PostMapping("/batch")
-    public ResponseEntity<BatchResponse> executeBatch(@RequestBody BatchRequest request) {
         try {
-            // Create and save the batch first to get a persistent ID
-            TestBatch batch = new TestBatch();
-            batch.setBatchId(java.util.UUID.randomUUID().toString());
-            batch.setBatchName("Batch_" + request.getTestSuite() + "_" + java.time.LocalDateTime.now());
-            batch.setStatus(TestBatch.BatchStatus.SCHEDULED);
-            batch.setEnvironment(request.getEnvironment());
-            batch.setParallelThreads(request.getParallelThreads());
-            batch = testBatchRepository.save(batch);
+            log.info("Executing single test case: {} in environment: {}", testCaseId, environment);
 
-            // Asynchronously execute the batch
-            testExecutionService.executeBatch(
-                    batch,
-                    request.getTestSuite(),
-                    request.getEnvironment(),
-                    request.getParallelThreads()
-            );
+            TestExecution result = testExecutionService.executeSingleTest(testCaseId, environment);
 
-            // Respond with the actual batch ID
-            BatchResponse response = new BatchResponse();
-            response.setBatchId(batch.getBatchId());
-            response.setStatus("STARTED");
-            response.setMessage("Batch execution started successfully with " + request.getParallelThreads() + " parallel threads");
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("executionId", result.getId());
+            response.put("status", result.getStatus());
+            response.put("testCase", result.getTestCase().getName());
+            response.put("duration", result.getExecutionDuration());
+            response.put("screenshotPath", result.getScreenshotPath());
+            response.put("message", "Test executed successfully");
 
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
-            BatchResponse errorResponse = new BatchResponse();
-            errorResponse.setMessage("Failed to start batch execution: " + e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
+            log.error("Failed to execute single test", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 
-    @PostMapping("/single/{testCaseId}")
-    public ResponseEntity<TestExecution> executeSingleTest(
-            @PathVariable Long testCaseId,
-            @RequestParam String environment) {
+    /**
+     * Execute multiple test cases sequentially
+     */
+    @PostMapping("/sequential")
+    public ResponseEntity<Map<String, Object>> executeSequential(@RequestBody ExecutionRequest request) {
         try {
-            TestExecution execution = testExecutionService.executeSingleTest(testCaseId, environment);
-            return ResponseEntity.ok(execution);
+            log.info("Executing {} test cases sequentially in environment: {}",
+                    request.getTestCaseIds().size(), request.getEnvironment());
+
+            List<TestExecution> results = testExecutionService.executeTestsSequential(
+                    request.getTestCaseIds(), request.getEnvironment());
+
+            Map<String, Object> response = createExecutionResponse(results, "Sequential execution completed");
+            return ResponseEntity.ok(response);
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            log.error("Failed to execute sequential tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 
-    @GetMapping("/batch/{batchId}")
-    public ResponseEntity<TestBatch> getBatchStatus(@PathVariable String batchId) {
-        return testBatchRepository.findByBatchId(batchId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/batch/{batchId}/executions")
-    public ResponseEntity<List<TestExecution>> getBatchExecutions(@PathVariable String batchId) {
-        return testBatchRepository.findByBatchId(batchId)
-                .map(batch -> ResponseEntity.ok(batch.getTestExecutions()))
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/batches")
-    public ResponseEntity<List<TestBatch>> getAllBatches() {
-        List<TestBatch> batches = testBatchRepository.findAllOrderByCreatedAtDesc();
-        return ResponseEntity.ok(batches);
-    }
-
-    @GetMapping("/batches/recent")
-    public ResponseEntity<List<TestBatch>> getRecentBatches(
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(defaultValue = "24") int hours) {
+    /**
+     * Execute multiple test cases in parallel
+     */
+    @PostMapping("/parallel")
+    public ResponseEntity<Map<String, Object>> executeParallel(@RequestBody ExecutionRequest request) {
         try {
-            LocalDateTime since = LocalDateTime.now().minusHours(hours);
-            List<TestBatch> recentBatches;
+            log.info("Executing {} test cases in parallel with {} threads in environment: {}",
+                    request.getTestCaseIds().size(), request.getMaxThreads(), request.getEnvironment());
 
-            if (limit > 0 && limit <= 100) {
-                recentBatches = testBatchRepository.findTopRecentBatches(limit);
-            } else {
-                recentBatches = testBatchRepository.findRecentBatches(since);
-            }
+            CompletableFuture<List<TestExecution>> futureResults = testExecutionService.executeTestsParallel(
+                    request.getTestCaseIds(), request.getEnvironment(), request.getMaxThreads());
 
-            return ResponseEntity.ok(recentBatches);
+            List<TestExecution> results = futureResults.get();
+
+            Map<String, Object> response = createExecutionResponse(results, "Parallel execution completed");
+            return ResponseEntity.ok(response);
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            log.error("Failed to execute parallel tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 
-    @GetMapping("/batches/status/{status}")
-    public ResponseEntity<List<TestBatch>> getBatchesByStatus(@PathVariable String status) {
+    /**
+     * Execute BlazeDemo UI tests
+     */
+    @PostMapping("/blazedemo")
+    public ResponseEntity<Map<String, Object>> executeBlazeDemo(
+            @RequestParam(defaultValue = "dev") String environment,
+            @RequestParam(defaultValue = "false") boolean parallel) {
+
         try {
-            TestBatch.BatchStatus batchStatus = TestBatch.BatchStatus.valueOf(status.toUpperCase());
-            List<TestBatch> batches = testBatchRepository.findByStatusOrderByCreatedAtDesc(batchStatus);
-            return ResponseEntity.ok(batches);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
+            log.info("Executing BlazeDemo tests in environment: {} (parallel: {})", environment, parallel);
 
-    @GetMapping("/batches/active")
-    public ResponseEntity<List<TestBatch>> getActiveBatches() {
-        List<TestBatch> activeBatches = testBatchRepository.findActiveBatches();
-        return ResponseEntity.ok(activeBatches);
-    }
+            List<TestExecution> results = testExecutionService.executeBlazeDemo(environment, parallel);
 
-    @GetMapping("/executions")
-    public ResponseEntity<List<TestExecution>> getAllExecutions() {
-        List<TestExecution> executions = testExecutionRepository.findAll();
-        return ResponseEntity.ok(executions);
-    }
+            Map<String, Object> response = createExecutionResponse(results, "BlazeDemo tests completed");
+            response.put("testSuite", "BlazeDemo");
 
-    // New endpoints for parallel execution monitoring
-    @GetMapping("/batch/{batchId}/progress")
-    public ResponseEntity<BatchProgressResponse> getBatchProgress(@PathVariable String batchId) {
-        return testBatchRepository.findByBatchId(batchId)
-                .map(batch -> {
-                    BatchProgressResponse response = new BatchProgressResponse();
-                    response.setBatchId(batch.getBatchId());
-                    response.setStatus(batch.getStatus().toString());
-                    response.setTotalTests(batch.getTotalTests());
-                    response.setPassedTests(batch.getPassedTests());
-                    response.setFailedTests(batch.getFailedTests());
-                    response.setSkippedTests(batch.getSkippedTests());
-                    response.setParallelThreads(batch.getParallelThreads());
+            return ResponseEntity.ok(response);
 
-                    int completedTests = batch.getPassedTests() + batch.getFailedTests() + batch.getSkippedTests();
-                    response.setCompletedTests(completedTests);
-
-                    if (batch.getTotalTests() > 0) {
-                        response.setProgressPercentage((completedTests * 100.0) / batch.getTotalTests());
-                    }
-
-                    if (batch.getStartTime() != null) {
-                        response.setStartTime(batch.getStartTime());
-                        if (batch.getEndTime() != null) {
-                            response.setEndTime(batch.getEndTime());
-                            response.setDuration(java.time.Duration.between(batch.getStartTime(), batch.getEndTime()).toMillis());
-                        } else {
-                            response.setDuration(java.time.Duration.between(batch.getStartTime(), LocalDateTime.now()).toMillis());
-                        }
-                    }
-
-                    return ResponseEntity.ok(response);
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping("/batch/{batchId}/cancel")
-    public ResponseEntity<BatchResponse> cancelBatch(@PathVariable String batchId) {
-        try {
-            boolean cancelled = testExecutionService.cancelBatchExecution(batchId);
-            BatchResponse response = new BatchResponse();
-            response.setBatchId(batchId);
-
-            if (cancelled) {
-                response.setStatus("CANCELLED");
-                response.setMessage("Batch execution cancelled successfully");
-                return ResponseEntity.ok(response);
-            } else {
-                response.setStatus("ERROR");
-                response.setMessage("Failed to cancel batch - batch may have already completed");
-                return ResponseEntity.badRequest().body(response);
-            }
         } catch (Exception e) {
-            BatchResponse errorResponse = new BatchResponse();
-            errorResponse.setBatchId(batchId);
-            errorResponse.setStatus("ERROR");
-            errorResponse.setMessage("Error cancelling batch: " + e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
+            log.error("Failed to execute BlazeDemo tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 
-    @GetMapping("/parallel/status")
-    public ResponseEntity<ParallelExecutionStatus> getParallelExecutionStatus() {
-        ParallelExecutionStatus status = new ParallelExecutionStatus();
-        // Set default values since we don't have global status tracking
-        status.setActiveThreads(0);
-        status.setMaxThreads(10);
-        status.setQueuedTasks(0);
-        status.setActiveBatches(new java.util.ArrayList<>());
-        status.setTotalExecutedTests(0L);
-        return ResponseEntity.ok(status);
+    /**
+     * Execute ReqRes API integration tests
+     */
+    @PostMapping("/reqres")
+    public ResponseEntity<Map<String, Object>> executeReqRes(
+            @RequestParam(defaultValue = "dev") String environment,
+            @RequestParam(defaultValue = "false") boolean parallel) {
+
+        try {
+            log.info("Executing ReqRes tests in environment: {} (parallel: {})", environment, parallel);
+
+            List<TestExecution> results = testExecutionService.executeReqRes(environment, parallel);
+
+            Map<String, Object> response = createExecutionResponse(results, "ReqRes API tests completed");
+            response.put("testSuite", "ReqRes");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to execute ReqRes tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
-    @Data
-    public static class BatchRequest {
-        private String testSuite;
-        private String environment;
-        private int parallelThreads = 1;
+    /**
+     * Execute regression tests
+     */
+    @PostMapping("/regression")
+    public ResponseEntity<Map<String, Object>> executeRegression(
+            @RequestParam(defaultValue = "dev") String environment,
+            @RequestParam(defaultValue = "true") boolean parallel) {
 
-        public String getTestSuite() { return testSuite; }
-        public void setTestSuite(String testSuite) { this.testSuite = testSuite; }
+        try {
+            log.info("Executing regression tests in environment: {} (parallel: {})", environment, parallel);
 
+            List<TestExecution> results = testExecutionService.executeRegressionTests(environment, parallel);
+
+            Map<String, Object> response = createExecutionResponse(results, "Regression tests completed");
+            response.put("testSuite", "Regression");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to execute regression tests", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Execute test batch with comprehensive reporting
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<Map<String, Object>> executeBatch(@RequestBody BatchRequest request) {
+        try {
+            log.info("Executing test batch: {} with {} test cases", request.getBatchName(),
+                    request.getTestCaseIds().size());
+
+            TestBatch batch = testExecutionService.executeTestBatch(
+                    request.getBatchName(),
+                    request.getTestCaseIds(),
+                    request.getEnvironment(),
+                    request.isParallel(),
+                    request.getMaxThreads()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("batchId", batch.getBatchId());
+            response.put("status", batch.getStatus());
+            response.put("totalTests", batch.getTotalTests());
+            response.put("passedTests", batch.getPassedTests());
+            response.put("failedTests", batch.getFailedTests());
+            response.put("skippedTests", batch.getSkippedTests());
+            response.put("message", "Batch execution completed");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to execute batch", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get execution status
+     */
+    @GetMapping("/status/{executionId}")
+    public ResponseEntity<Map<String, Object>> getExecutionStatus(@PathVariable Long executionId) {
+        try {
+            return testExecutionService.findById(executionId)
+                    .map(execution -> {
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("executionId", execution.getId());
+                        response.put("status", execution.getStatus());
+                        response.put("testCase", execution.getTestCase().getName());
+                        response.put("startTime", execution.getStartTime());
+                        response.put("endTime", execution.getEndTime());
+                        response.put("duration", execution.getExecutionDuration());
+                        response.put("errorMessage", execution.getErrorMessage());
+                        response.put("screenshotPath", execution.getScreenshotPath());
+                        return ResponseEntity.ok(response);
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+
+        } catch (Exception e) {
+            log.error("Failed to get execution status", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get execution statistics
+     */
+    @GetMapping("/statistics")
+    public ResponseEntity<Map<String, Object>> getStatistics() {
+        try {
+            Map<String, Object> stats = testExecutionService.getExecutionStatistics();
+            return ResponseEntity.ok(stats);
+
+        } catch (Exception e) {
+            log.error("Failed to get statistics", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get recent executions
+     */
+    @GetMapping("/recent")
+    public ResponseEntity<List<Map<String, Object>>> getRecentExecutions(
+            @RequestParam(defaultValue = "10") int limit) {
+
+        try {
+            List<TestExecution> executions = testExecutionService.getRecentExecutions(limit);
+            List<Map<String, Object>> response = executions.stream()
+                    .map(this::convertToMap)
+                    .collect(java.util.stream.Collectors.toList());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to get recent executions", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Helper method to create execution response
+     */
+    private Map<String, Object> createExecutionResponse(List<TestExecution> results, String message) {
+        Map<String, Object> response = new HashMap<>();
+
+        long passed = results.stream().mapToLong(r -> r.getStatus() == TestExecution.ExecutionStatus.PASSED ? 1 : 0).sum();
+        long failed = results.stream().mapToLong(r -> r.getStatus() == TestExecution.ExecutionStatus.FAILED ? 1 : 0).sum();
+        long skipped = results.stream().mapToLong(r -> r.getStatus() == TestExecution.ExecutionStatus.SKIPPED ? 1 : 0).sum();
+
+        response.put("success", true);
+        response.put("totalTests", results.size());
+        response.put("passedTests", passed);
+        response.put("failedTests", failed);
+        response.put("skippedTests", skipped);
+        response.put("passRate", results.size() > 0 ? (double) passed / results.size() * 100 : 0);
+        response.put("executions", results.stream().map(this::convertToMap).collect(java.util.stream.Collectors.toList()));
+        response.put("message", message);
+
+        return response;
+    }
+
+    /**
+     * Convert execution to map
+     */
+    private Map<String, Object> convertToMap(TestExecution execution) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", execution.getId());
+        map.put("testCaseName", execution.getTestCase().getName());
+        map.put("testType", execution.getTestCase().getTestType());
+        map.put("status", execution.getStatus());
+        map.put("startTime", execution.getStartTime());
+        map.put("endTime", execution.getEndTime());
+        map.put("duration", execution.getExecutionDuration());
+        map.put("environment", execution.getEnvironment());
+        map.put("screenshotPath", execution.getScreenshotPath());
+        map.put("errorMessage", execution.getErrorMessage());
+        return map;
+    }
+
+    // Request DTOs
+    public static class ExecutionRequest {
+        private List<Long> testCaseIds;
+        private String environment = "dev";
+        private int maxThreads = 4;
+
+        // Getters and setters
+        public List<Long> getTestCaseIds() { return testCaseIds; }
+        public void setTestCaseIds(List<Long> testCaseIds) { this.testCaseIds = testCaseIds; }
         public String getEnvironment() { return environment; }
         public void setEnvironment(String environment) { this.environment = environment; }
-
-        public int getParallelThreads() { return parallelThreads; }
-        public void setParallelThreads(int parallelThreads) { this.parallelThreads = parallelThreads; }
-    }
-
-    @Data
-    public static class BatchResponse {
-        private String batchId;
-        private String status;
-        private String message;
-
-        public String getBatchId() { return batchId; }
-        public void setBatchId(String batchId) { this.batchId = batchId; }
-
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-
-        public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
-    }
-
-    @Data
-    public static class BatchProgressResponse {
-        private String batchId;
-        private String status;
-        private int totalTests;
-        private int completedTests;
-        private int passedTests;
-        private int failedTests;
-        private int skippedTests;
-        private int parallelThreads;
-        private double progressPercentage;
-        private LocalDateTime startTime;
-        private LocalDateTime endTime;
-        private long duration;
-
-        // Getters and setters
-        public String getBatchId() { return batchId; }
-        public void setBatchId(String batchId) { this.batchId = batchId; }
-
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-
-        public int getTotalTests() { return totalTests; }
-        public void setTotalTests(int totalTests) { this.totalTests = totalTests; }
-
-        public int getCompletedTests() { return completedTests; }
-        public void setCompletedTests(int completedTests) { this.completedTests = completedTests; }
-
-        public int getPassedTests() { return passedTests; }
-        public void setPassedTests(int passedTests) { this.passedTests = passedTests; }
-
-        public int getFailedTests() { return failedTests; }
-        public void setFailedTests(int failedTests) { this.failedTests = failedTests; }
-
-        public int getSkippedTests() { return skippedTests; }
-        public void setSkippedTests(int skippedTests) { this.skippedTests = skippedTests; }
-
-        public int getParallelThreads() { return parallelThreads; }
-        public void setParallelThreads(int parallelThreads) { this.parallelThreads = parallelThreads; }
-
-        public double getProgressPercentage() { return progressPercentage; }
-        public void setProgressPercentage(double progressPercentage) { this.progressPercentage = progressPercentage; }
-
-        public LocalDateTime getStartTime() { return startTime; }
-        public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
-
-        public LocalDateTime getEndTime() { return endTime; }
-        public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
-
-        public long getDuration() { return duration; }
-        public void setDuration(long duration) { this.duration = duration; }
-    }
-
-    @Data
-    public static class ParallelExecutionStatus {
-        private int activeThreads;
-        private int maxThreads;
-        private int queuedTasks;
-        private List<String> activeBatches;
-        private long totalExecutedTests;
-
-        // Getters and setters
-        public int getActiveThreads() { return activeThreads; }
-        public void setActiveThreads(int activeThreads) { this.activeThreads = activeThreads; }
-
         public int getMaxThreads() { return maxThreads; }
         public void setMaxThreads(int maxThreads) { this.maxThreads = maxThreads; }
+    }
 
-        public int getQueuedTasks() { return queuedTasks; }
-        public void setQueuedTasks(int queuedTasks) { this.queuedTasks = queuedTasks; }
+    public static class BatchRequest {
+        private String batchName;
+        private List<Long> testCaseIds;
+        private String environment = "dev";
+        private boolean parallel = false;
+        private int maxThreads = 4;
 
-        public List<String> getActiveBatches() { return activeBatches; }
-        public void setActiveBatches(List<String> activeBatches) { this.activeBatches = activeBatches; }
-
-        public long getTotalExecutedTests() { return totalExecutedTests; }
-        public void setTotalExecutedTests(long totalExecutedTests) { this.totalExecutedTests = totalExecutedTests; }
+        // Getters and setters
+        public String getBatchName() { return batchName; }
+        public void setBatchName(String batchName) { this.batchName = batchName; }
+        public List<Long> getTestCaseIds() { return testCaseIds; }
+        public void setTestCaseIds(List<Long> testCaseIds) { this.testCaseIds = testCaseIds; }
+        public String getEnvironment() { return environment; }
+        public void setEnvironment(String environment) { this.environment = environment; }
+        public boolean isParallel() { return parallel; }
+        public void setParallel(boolean parallel) { this.parallel = parallel; }
+        public int getMaxThreads() { return maxThreads; }
+        public void setMaxThreads(int maxThreads) { this.maxThreads = maxThreads; }
     }
 }
