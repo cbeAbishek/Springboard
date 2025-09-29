@@ -1,0 +1,6 @@
+{
+  "testName": "testGetAllUsers",
+  "timestamp": "20250925_155924",
+  "request": "GET /users",
+  "response": "[\n  {\n    \"id\": 1,\n    \"name\": \"Leanne Graham\",\n    \"username\": \"Bret\",\n    \"email\": \"Sincere@april.biz\",\n    \"address\": {\n      \"street\": \"Kulas Light\",\n      \"suite\": \"Apt. 556\",\n      \"city\": \"Gwenborough\",\n      \"zipcode\": \"92998-3874\",\n      \"geo\": {"
+}
