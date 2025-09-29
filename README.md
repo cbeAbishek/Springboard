@@ -1,190 +1,167 @@
-# Springboard Test Automation Framework
+# 🧪 AutomationFramework
 
-A comprehensive Spring Boot-based test automation framework that supports UI testing with Selenium WebDriver, API testing, parallel execution, comprehensive reporting, and scheduled test runs with performance monitoring.
+A robust and scalable Java-based automation testing framework designed for **parallel execution** of **UI** and **API** test suites.  
+It integrates powerful tools like **Selenium WebDriver**, **REST Assured**, and **TestNG**, while enabling **traceability**, **artifact storage**, and **report generation** — all in one place.
 
-## Features
+---
 
-- **Multi-layer Testing**: Support for UI, API, and database testing
-- **Parallel Test Execution**: Configurable parallel execution of tests using TestNG
-- **Comprehensive Reporting**: HTML, CSV, XML report generation with screenshots
-- **Test Scheduling**: Cron-based test scheduling with email notifications
-- **Real-time Monitoring**: Dashboard for test execution metrics
-- **Data-driven Testing**: Externalized test data in JSON format
-- **CI/CD Integration**: Ready configurations for continuous integration
+## 🚀 Features
 
-## Technology Stack
+- ⚡ **Parallel Execution** – Run multiple UI & API tests simultaneously to reduce execution time.
+- 🗄️ **Database Integration** – Store execution logs, test data, and results directly in **MySQL**.
+- 📊 **Comprehensive Reporting** – Automatically generate **HTML**, **CSV**, **Excel**, and **JUnit** reports.
+- 📁 **Artifact Storage** – Save screenshots, logs, and API request/response payloads for every test run.
+- ⏱️ **Scheduling Support** – Schedule tests with the built-in `ParallelTestScheduler`.
+- 🧩 **Traceability Support** – Track tests with **US ID** and **Test Case ID** mapping.
+- 🧪 **End-to-End Testing** – Includes **10 UI tests** for [BlazeDemo](https://blazedemo.com/) and **10 API tests** using [ReqRes](https://reqres.in/) / [JSONPlaceholder](https://jsonplaceholder.typicode.com/).
+- 🛠️ **Tech Stack** – Java, Selenium, REST Assured, TestNG, MySQL.
 
-- **Java 17+**: Core programming language
-- **Spring Boot 3.x**: Application framework with dependency injection
-- **Selenium WebDriver**: Browser automation for UI testing
-- **TestNG**: Test execution and parallel test orchestration
-- **RESTAssured**: API testing library
-- **H2/PostgreSQL**: Database storage for test results
-- **Logback**: Logging framework
-- **Maven**: Build and dependency management
+---
 
-## Getting Started
+## 📁 Project Structure
 
-### Prerequisites
-
-- Java 17+ installed
-- Maven 3.6+ installed
-- Chrome/Firefox browser installed
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/springboard.git
-   cd springboard
-   ```
-
-2. Build the project:
-   ```bash
-   mvn clean install
-   ```
-
-3. Run the application:
-   ```bash
-   ./run_springboard.sh
-   ```
-   
-   Or using Maven:
-   ```bash
-   mvn spring-boot:run
-   ```
-
-### Verify WebDriver Installation
-
-```bash
-./verify_webdriver.sh
-```
-
-## Project Structure
-
-```
-springboard/
+AutomationFramework/
+├── artifacts/ # Stores execution artifacts
+│ ├── api/ # API request & response data
+│ ├── reports/ # HTML, CSV, Excel, JUnit reports
+│ └── screenshots/ # Captured screenshots
+├── config/
+│ └── db.properties # Database configuration
+├── drivers/ # WebDriver executables (if needed)
 ├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── org/example/
-│   │   │       ├── controller/      # REST API controllers
-│   │   │       ├── engine/          # Test execution engines
-│   │   │       ├── model/           # Data models
-│   │   │       ├── repository/      # Database repositories
-│   │   │       ├── service/         # Business logic services
-│   │   │       └── tests/           # Test implementations
-│   │   └── resources/
-│   │       ├── static/              # Frontend assets
-│   │       ├── db/migration/        # Database migrations
-│   │       ├── application.properties
-│   │       └── logback-spring.xml
-│   └── test/
-│       ├── java/
-│       │   └── org/example/         # Unit tests
-│       └── resources/
-│           ├── test-data.json       # Test data
-│           └── testng.xml           # TestNG configuration
-```
+│ └── main/java/
+│ └── org/automation/
+│ ├── listeners/ # TestNG listeners for reporting & execution events
+│ ├── reports/ # Report generators (HTML, CSV, Excel)
+│ ├── scheduler/ # Parallel execution scheduler
+│ ├── ui/ # UI test classes and utilities
+│ └── utils/ # Utility classes (DB, Excel, Reports, Screenshots)
+└── test/
+└── java/org/automation/
+├── api/ # API test classes and base classes
+├── config/ # Config managers
+└── drivers/ # WebDriver factory setup
 
-## Usage
 
-### Running Tests
+---
 
-Run all tests:
-```bash
-mvn test
-```
+## 🧪 Test Types
 
-Run specific test suite:
-```bash
-mvn test -Dsuite=APITests
-```
+### 🌐 UI Tests
+- Built with **Selenium WebDriver**
+- Includes 10 comprehensive tests for the BlazeDemo flight booking site.
+- Supports screenshot capture, artifact logging, and reporting.
 
-Run tests with specific browser:
-```bash
-mvn test -Dbrowser=firefox
-```
+### 🔗 API Tests
+- Built with **REST Assured**
+- Includes 10 API tests using **ReqRes** / **JSONPlaceholder**
+- Request/Response data is stored as artifacts.
 
-### Creating New Tests
+---
 
-1. **API Tests**: Create a new class in `org.example.tests.api` extending `BaseAPITest`
-2. **UI Tests**: Create a new class in `org.example.tests.ui` extending `BaseUITest`
+## ⚙️ Technologies Used
 
-Example API Test:
-```java
-@Test(groups = {"api", "smoke"})
-public void testGetUserAPI() {
-    given()
-        .when()
-        .get("/api/users/2")
-        .then()
-        .statusCode(200)
-        .body("data.id", equalTo(2));
-}
-```
+- **Language:** Java
+- **Test Framework:** TestNG
+- **UI Testing:** Selenium WebDriver
+- **API Testing:** REST Assured
+- **Database:** MySQL
+- **Build Tool:** Maven
+- **Reports:** HTML, CSV, Excel, JUnit
 
-Example UI Test:
-```java
-@Test(groups = {"ui", "functional"})
-public void testLoginForm() {
-    driver.get("https://your-application.com/login");
-    driver.findElement(By.id("username")).sendKeys("testuser");
-    driver.findElement(By.id("password")).sendKeys("password");
-    driver.findElement(By.id("loginButton")).click();
-    
-    String pageTitle = driver.getTitle();
-    Assert.assertTrue(pageTitle.contains("Dashboard"));
-}
-```
+---
 
-### Test Data Management
+## 📦 Setup & Installation
 
-Update the test data file at `src/test/resources/test-data.json` to add or modify test data.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/AutomationFramework.git
+   cd AutomationFramework
 
-## Configuration
 
-### Application Properties
+2. Configure Database:
 
-Key application settings in `src/main/resources/application.properties`:
+   * Update config/db.properties with your MySQL credentials.
 
-```properties
-# Database Configuration
-spring.datasource.url=jdbc:h2:file:./testdb
-spring.datasource.driverClassName=org.h2.Driver
+   * Make sure the database automation_tests exists.
 
-# Server Configuration
-server.port=8080
+3. Build the project:
 
-# Test Framework Configuration
-automation.framework.webDriver.defaultBrowser=chrome
-automation.framework.webDriver.headless=false
-automation.framework.webDriver.implicitWait=10
-automation.framework.reporting.outputPath=test-reports/
-```
+    mvn clean install
 
-### TestNG Configuration
 
-Customize test execution in `src/test/resources/testng.xml`:
-- Configure parallel execution
-- Group tests by category
-- Set browser parameters
+4. Run Tests:
 
-## Reporting
+  * All tests:
 
-Reports are generated in the `test-reports/` directory in multiple formats:
-- HTML reports with screenshots
-- CSV reports for data analysis
-- XML reports for CI/CD integration
+     mvn test
 
-## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-feature`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push the branch (`git push origin feature/new-feature`)
-5. Create a Pull Request
+  * Only UI tests:
 
-## License
+    mvn -DsuiteFile=testng-ui.xml test
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+
+* Only API tests:
+
+   mvn -DsuiteFile=testng-api.xml test
+
+
+📊 Reports & Artifacts
+
+After execution, reports and artifacts are generated in the artifacts/ directory:
+
+Artifact Type	Location
+HTML Reports	artifacts/reports/html/
+CSV Reports	artifacts/reports/csv/
+Excel Reports	artifacts/reports/excel/
+JUnit Reports	target/surefire-reports/
+Screenshots	artifacts/screenshots/
+API Logs	artifacts/api/
+
+
+🧠 Advanced Features
+
+   * Database Result Storage: All test results are inserted into MySQL for further analytics and dashboards.
+
+   * Traceability: Each test case links to a US ID and TC ID for tracking user stories.
+
+   * Parallel Execution: Configurable thread count in testng.xml for high-speed parallel testing.
+
+   * Scheduler: Use ParallelTestScheduler to trigger scheduled or automated test runs.
+
+
+🛣️ Roadmap / Future Enhancements
+
+   * 📈 Integration with CI/CD (Jenkins, GitHub Actions)
+
+   * 📬 Email notifications for test reports
+
+   * 📊 Dashboard for result visualization
+
+   * 🧪 Support for cross-browser testing
+
+
+🤝 Contributing
+
+Contributions are welcome! Please fork this repository, create a feature branch, and submit a pull request.
+
+
+📜 License
+
+This project is licensed under the MIT License.
+Feel free to use and modify it for your automation needs.
+
+
+✨ Author
+
+AutomationFramework – Designed for scalable, traceable, and fully automated testing pipelines.
+
+
+License
+
+MIT License © 2025 [Chandrakant Kumar]
+
+Contact
+
+For questions or support, contact: [chandrakant2522006@gmail.com]

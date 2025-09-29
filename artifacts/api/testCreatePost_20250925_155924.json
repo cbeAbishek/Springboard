@@ -1,0 +1,6 @@
+{
+  "testName": "testCreatePost",
+  "timestamp": "20250925_155924",
+  "request": "{ \"title\":\"foo\", \"body\":\"bar\", \"userId\":1 }",
+  "response": "{\n  \"title\": \"foo\",\n  \"body\": \"bar\",\n  \"userId\": 1,\n  \"id\": 101\n}"
+}
