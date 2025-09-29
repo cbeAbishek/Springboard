@@ -142,26 +142,6 @@ API Logs	artifacts/api/
    * 🧪 Support for cross-browser testing
 
 
-🤝 Contributing
-
-Contributions are welcome! Please fork this repository, create a feature branch, and submit a pull request.
-
-
-📜 License
-
-This project is licensed under the MIT License.
-Feel free to use and modify it for your automation needs.
-
-
 ✨ Author
 
 AutomationFramework – Designed for scalable, traceable, and fully automated testing pipelines.
-
-
-License
-
-MIT License © 2025 [Chandrakant Kumar]
-
-Contact
-
-For questions or support, contact: [chandrakant2522006@gmail.com]
