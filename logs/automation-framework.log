@@ -925,3 +925,16 @@ org.thymeleaf.exceptions.TemplateProcessingException: Only variable expressions 
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.19.jar:10.1.19]
 	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
 
+2025-10-02T23:33:30.291+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.automation.TestDashboardApplication    : Starting TestDashboardApplication using Java 21.0.8 with PID 27358 (/home/abishek/IdeaProjects/Springboard/target/classes started by abishek in /home/abishek/IdeaProjects/Springboard)
+2025-10-02T23:33:30.294+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.automation.TestDashboardApplication    : No active profile set, falling back to 1 default profile: "default"
+2025-10-02T23:33:31.759+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2025-10-02T23:33:31.760+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.19]
+2025-10-02T23:33:31.857+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2025-10-02T23:33:32.039+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-10-02T23:33:32.110+05:30  INFO 27358 --- [TestAutomationFramework] [main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2025-10-02T23:33:32.175+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-10-02T23:33:32.612+05:30  WARN 27358 --- [TestAutomationFramework] [main] org.hibernate.orm.deprecation            : HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-10-02T23:33:33.448+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-10-02T23:33:33.868+05:30  WARN 27358 --- [TestAutomationFramework] [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-10-02T23:33:34.263+05:30  INFO 27358 --- [TestAutomationFramework] [main] o.automation.TestDashboardApplication    : Started TestDashboardApplication in 4.418 seconds (process running for 4.795)
+2025-10-02T23:33:36.457+05:30  INFO 27358 --- [TestAutomationFramework] [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'

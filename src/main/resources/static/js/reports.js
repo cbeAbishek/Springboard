@@ -31,6 +31,37 @@ function initializeReports() {
 
     // Auto-refresh reports every 5 minutes
     setInterval(refreshReports, 300000);
+
+    // Add event handlers for data attribute buttons
+    $(document).on('click', '.share-report-btn', function() {
+        const reportName = $(this).data('report');
+        shareReport(reportName);
+    });
+
+    $(document).on('click', '.delete-report-btn', function() {
+        const reportName = $(this).data('report');
+        deleteReport(reportName);
+    });
+
+    $(document).on('click', '.view-xml-report-btn', function() {
+        const reportName = $(this).data('report');
+        viewXmlReport(reportName);
+    });
+
+    $(document).on('click', '.convert-to-html-btn', function() {
+        const reportName = $(this).data('report');
+        convertToHtml(reportName);
+    });
+
+    $(document).on('click', '.view-json-report-btn', function() {
+        const reportName = $(this).data('report');
+        viewJsonReport(`/artifacts/api/${reportName}`);
+    });
+
+    $(document).on('click', '.format-json-btn', function() {
+        const reportName = $(this).data('report');
+        formatJson(reportName);
+    });
 }
 
 function initializeReportCharts() {

@@ -175,8 +175,7 @@
                                         <td th:text="${execution.duration} + 'ms'">5000ms</td>
                                         <td th:text="${execution.timestamp}">2024-01-01 12:00:00</td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary"
-                                                    th:onclick="'viewReport(' + ${execution.id} + ')'">
+                                            <button class="btn btn-sm btn-outline-primary view-report-btn" th:data-execution-id="${execution.id}">
                                                 View Report
                                             </button>
                                         </td>

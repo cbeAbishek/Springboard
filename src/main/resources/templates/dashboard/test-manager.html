@@ -217,12 +217,12 @@
                                             <div class="text-muted small">UI Automation Test</div>
                                         </div>
                                         <div>
-                                            <button class="btn btn-sm btn-outline-primary me-1"
-                                                    th:onclick="'runSingleTest(\'ui\', \'' + ${test} + '\')'">
+                                            <button class="btn btn-sm btn-outline-primary me-1 run-single-test-btn"
+                                                    th:data-test-type="ui" th:data-test="${test}">
                                                 <i class="fas fa-play"></i> Run
                                             </button>
-                                            <button class="btn btn-sm btn-outline-info"
-                                                    th:onclick="'viewTestDetails(\'ui\', \'' + ${test} + '\')'">
+                                            <button class="btn btn-sm btn-outline-info view-test-details-btn"
+                                                    th:data-test-type="ui" th:data-test="${test}">
                                                 <i class="fas fa-info"></i> Info
                                             </button>
                                         </div>
@@ -256,12 +256,12 @@
                                             <div class="text-muted small">API Integration Test</div>
                                         </div>
                                         <div>
-                                            <button class="btn btn-sm btn-outline-primary me-1"
-                                                    th:onclick="'runSingleTest(\'api\', \'' + ${test} + '\')'">
+                                            <button class="btn btn-sm btn-outline-primary me-1 run-single-test-btn"
+                                                    th:data-test-type="api" th:data-test="${test}">
                                                 <i class="fas fa-play"></i> Run
                                             </button>
-                                            <button class="btn btn-sm btn-outline-info"
-                                                    th:onclick="'viewTestDetails(\'api\', \'' + ${test} + '\')'">
+                                            <button class="btn btn-sm btn-outline-info view-test-details-btn"
+                                                    th:data-test-type="api" th:data-test="${test}">
                                                 <i class="fas fa-info"></i> Info
                                             </button>
                                         </div>

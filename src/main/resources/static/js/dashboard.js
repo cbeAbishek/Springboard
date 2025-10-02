@@ -8,6 +8,12 @@ $(document).ready(function() {
 
     // Initialize tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Add event handler for view report buttons with data attributes
+    $(document).on('click', '.view-report-btn', function() {
+        const executionId = $(this).data('execution-id');
+        viewReport(executionId);
+    });
 });
 
 function initializeCharts() {
