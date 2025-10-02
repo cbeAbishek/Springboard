@@ -311,3 +311,47 @@ For questions, issues, or contributions:
 **Last Updated**: October 2, 2024  
 **Version**: 1.0.0  
 **Maintainer**: Automation Team
+=======
+* Only API tests:
+
+   mvn -DsuiteFile=testng-api.xml test
+
+
+📊 Reports & Artifacts
+
+After execution, reports and artifacts are generated in the artifacts/ directory:
+
+Artifact Type	Location
+HTML Reports	artifacts/reports/html/
+CSV Reports	artifacts/reports/csv/
+Excel Reports	artifacts/reports/excel/
+JUnit Reports	target/surefire-reports/
+Screenshots	artifacts/screenshots/
+API Logs	artifacts/api/
+
+
+🧠 Advanced Features
+
+   * Database Result Storage: All test results are inserted into MySQL for further analytics and dashboards.
+
+   * Traceability: Each test case links to a US ID and TC ID for tracking user stories.
+
+   * Parallel Execution: Configurable thread count in testng.xml for high-speed parallel testing.
+
+   * Scheduler: Use ParallelTestScheduler to trigger scheduled or automated test runs.
+
+
+🛣️ Roadmap / Future Enhancements
+
+   * 📈 Integration with CI/CD (Jenkins, GitHub Actions)
+
+   * 📬 Email notifications for test reports
+
+   * 📊 Dashboard for result visualization
+
+   * 🧪 Support for cross-browser testing
+
+
+✨ Author
+
+AutomationFramework – Designed for scalable, traceable, and fully automated testing pipelines.
