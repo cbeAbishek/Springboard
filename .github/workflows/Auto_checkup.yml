@@ -34,7 +34,6 @@ on:
 env:
   MAVEN_OPTS: -Xmx2048m
   JAVA_VERSION: '21'
-  NODE_VERSION: '18'
 
 jobs:
   setup:
@@ -99,11 +98,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+    
 
       - name: Setup Chrome
         if: matrix.browser == 'chrome'
