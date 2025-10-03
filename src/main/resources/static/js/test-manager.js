@@ -75,6 +75,19 @@ function initializeFormHandlers() {
 
         scheduleTest(scheduleData);
     });
+
+    // Add event handlers for data attribute buttons
+    $(document).on('click', '.run-single-test-btn', function() {
+        const testType = $(this).data('test-type');
+        const testName = $(this).data('test');
+        runSingleTest(testType, testName);
+    });
+
+    $(document).on('click', '.view-test-details-btn', function() {
+        const testType = $(this).data('test-type');
+        const testName = $(this).data('test');
+        viewTestDetails(testType, testName);
+    });
 }
 
 function quickRunTest(suite) {

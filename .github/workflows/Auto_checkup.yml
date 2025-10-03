@@ -34,6 +34,9 @@ on:
 env:
   MAVEN_OPTS: -Xmx2048m
   JAVA_VERSION: '21'
+  DB_DATABASE: test_automation
+  DB_USER: testuser
+  DB_PASSWORD: Test@1234
 
 jobs:
   setup:
@@ -82,6 +85,23 @@ jobs:
     needs: setup
     if: contains(fromJson(needs.setup.outputs.test-suites), 'ui')
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ${{ env.DB_DATABASE }}
+          MYSQL_USER: ${{ env.DB_USER }}
+          MYSQL_PASSWORD: ${{ env.DB_PASSWORD }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     strategy:
       matrix:
         browser: [chrome, firefox]
@@ -98,7 +118,16 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-    
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h"127.0.0.1" -P3306 -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }} --silent; then
+              echo "MySQL is ready!"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
 
       - name: Setup Chrome
         if: matrix.browser == 'chrome'
@@ -130,6 +159,11 @@ jobs:
           BROWSER: ${{ matrix.browser }}
           HEADLESS: true
           SCREENSHOT_ON_FAILURE: true
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/${{ env.DB_DATABASE }}
+          SPRING_DATASOURCE_DRIVER: com.mysql.cj.jdbc.Driver
+          SPRING_DATASOURCE_USERNAME: ${{ env.DB_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.DB_PASSWORD }}
+          SPRING_JPA_DIALECT: org.hibernate.dialect.MySQLDialect
 
       - name: Generate UI Test Reports
         if: always()
@@ -162,6 +196,22 @@ jobs:
     if: contains(fromJson(needs.setup.outputs.test-suites), 'api')
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ${{ env.DB_DATABASE }}
+          MYSQL_USER: ${{ env.DB_USER }}
+          MYSQL_PASSWORD: ${{ env.DB_PASSWORD }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -172,6 +222,17 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: maven
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h"127.0.0.1" -P3306 -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }} --silent; then
+              echo "MySQL is ready!"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
 
       - name: Configure Git User
         run: |
@@ -184,6 +245,12 @@ jobs:
             -Dparallel=methods -DthreadCount=5 \
             -Dtestng.dtd.http=true \
             -Dmaven.test.failure.ignore=true
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/${{ env.DB_DATABASE }}
+          SPRING_DATASOURCE_DRIVER: com.mysql.cj.jdbc.Driver
+          SPRING_DATASOURCE_USERNAME: ${{ env.DB_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.DB_PASSWORD }}
+          SPRING_JPA_DIALECT: org.hibernate.dialect.MySQLDialect
 
       - name: Generate API Test Reports
         if: always()
@@ -289,5 +356,12 @@ jobs:
         if: needs.ui-tests.result == 'failure' || needs.api-tests.result == 'failure'
         run: |
           echo "Tests failed! Check the artifacts for detailed reports."
+          echo "UI Tests: ${{ needs.ui-tests.result }}"
+          echo "API Tests: ${{ needs.api-tests.result }}"
+
+      - name: Notify on Success
+        if: needs.ui-tests.result == 'success' && needs.api-tests.result == 'success'
+        run: |
+          echo "All tests passed successfully!"
           echo "UI Tests: ${{ needs.ui-tests.result }}"
           echo "API Tests: ${{ needs.api-tests.result }}"
