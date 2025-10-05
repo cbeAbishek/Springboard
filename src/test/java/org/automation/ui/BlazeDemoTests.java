@@ -2,13 +2,19 @@ package org.automation.ui;
 
 import org.automation.listeners.TestSuiteListener;
 import org.openqa.selenium.By;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 import org.testng.Reporter;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
+import java.time.Duration;
+
 @Listeners(TestSuiteListener.class)
 public class BlazeDemoTests extends BaseTest {
+
+    private static final int DEFAULT_WAIT_SECONDS = 10;
 
     @Test(description = "Verify Home Page Title")
     public void testHomePageTitle() {
@@ -32,6 +38,11 @@ public class BlazeDemoTests extends BaseTest {
     public void testFlightSearchNavigation() {
         Reporter.getCurrentTestResult().setAttribute("US_ID", "US103");
         getDriver().get(UiTestMapper.HOME_URL);
+
+        // Wait for page to load
+        WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(DEFAULT_WAIT_SECONDS));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.name("fromPort")));
+
         getDriver().findElement(By.name("fromPort")).sendKeys("Boston");
         getDriver().findElement(By.name("toPort")).sendKeys("New York");
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
@@ -67,6 +78,11 @@ public class BlazeDemoTests extends BaseTest {
         getDriver().findElement(By.id("creditCardYear")).sendKeys("2025");
         getDriver().findElement(By.id("nameOnCard")).sendKeys("Test User");
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
+
+        // Wait for page to load
+        WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(DEFAULT_WAIT_SECONDS));
+        wait.until(ExpectedConditions.titleContains("Confirmation"));
+
         Assert.assertTrue(getDriver().getTitle().contains("BlazeDemo Confirmation"));
     }
 
@@ -74,6 +90,11 @@ public class BlazeDemoTests extends BaseTest {
     public void testPurchaseFlight() {
         Reporter.getCurrentTestResult().setAttribute("US_ID", "US107");
         getDriver().get(UiTestMapper.PURCHASE_URL);
+
+        // Wait for form to be ready
+        WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(DEFAULT_WAIT_SECONDS));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("inputName")));
+
         getDriver().findElement(By.id("inputName")).sendKeys("Test User");
         getDriver().findElement(By.id("address")).sendKeys("123 Test St");
         getDriver().findElement(By.id("city")).sendKeys("Test City");
@@ -84,7 +105,12 @@ public class BlazeDemoTests extends BaseTest {
         getDriver().findElement(By.id("creditCardYear")).sendKeys("2025");
         getDriver().findElement(By.id("nameOnCard")).sendKeys("Test User");
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
-        Assert.assertTrue(getDriver().getTitle().contains("Confirmation"));
+
+        // Wait for confirmation page to load
+        wait.until(ExpectedConditions.titleContains("Confirmation"));
+
+        Assert.assertTrue(getDriver().getTitle().contains("Confirmation"),
+            "Expected title to contain 'Confirmation' but was: " + getDriver().getTitle());
     }
 
     @Test(description = "Verify Confirmation Page")

@@ -4,9 +4,10 @@ import java.sql.*;
 
 public class DatabaseInserter {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/automation_tests?useSSL=false&serverTimezone=UTC";
-    private static final String DB_USER = "root";
-    private static final String DB_PASS = "Ck@709136";
+    // Using H2 embedded database (no MySQL needed!)
+    private static final String DB_URL = "jdbc:h2:file:./data/automation_framework";
+    private static final String DB_USER = "sa";
+    private static final String DB_PASS = "";
 
     // ---------- Insert UI Test Result ----------
     public static void insertUiTestResult(String usId, String testCaseId, String name,

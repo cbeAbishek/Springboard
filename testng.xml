@@ -2,6 +2,7 @@
 <suite name="Complete Test Suite" parallel="tests" thread-count="2" verbose="2">
 
     <listeners>
+        <listener class-name="org.automation.listeners.UnifiedReportListener"/>
         <listener class-name="org.automation.listeners.TestListener"/>
         <listener class-name="org.automation.listeners.ScreenshotListener"/>
         <listener class-name="org.automation.listeners.ReportListener"/>

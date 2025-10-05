@@ -35,7 +35,7 @@
         <jackson.version>2.15.4</jackson.version>
         <poi.version>5.2.5</poi.version>
         <slf4j.version>2.0.12</slf4j.version>
-        <webdrivermanager.version>5.9.2</webdrivermanager.version>
+        <webdrivermanager.version>6.1.0</webdrivermanager.version>
         <extent.version>5.0.9</extent.version>
         <thymeleaf.version>3.1.1.RELEASE</thymeleaf.version>
         <allure.version>2.24.0</allure.version>
@@ -54,6 +54,20 @@
             <groupId>io.github.bonigarcia</groupId>
             <artifactId>webdrivermanager</artifactId>
             <version>${webdrivermanager.version}</version>
+        </dependency>
+
+        <!-- Apache HttpClient5 (required by WebDriverManager 6.x) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.4.1</version>
+        </dependency>
+
+        <!-- Apache HttpCore5 (required by WebDriverManager 6.x) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.core5</groupId>
+            <artifactId>httpcore5</artifactId>
+            <version>5.3.1</version>
         </dependency>
 
         <!-- TestNG -->

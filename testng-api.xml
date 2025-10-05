@@ -2,6 +2,7 @@
 <suite name="API Test Suite" parallel="methods" thread-count="5" verbose="2">
 
     <listeners>
+        <listener class-name="org.automation.listeners.UnifiedReportListener"/>
         <listener class-name="org.automation.listeners.TestListener"/>
         <listener class-name="org.automation.listeners.ApiReportListener"/>
     </listeners>

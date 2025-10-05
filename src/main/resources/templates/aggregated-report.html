@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aggregated Test Report</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.2/css/bootstrap.min.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+        }
+        .stat-box {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .big-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <div class="header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1>📊 Aggregated Test Report</h1>
+                    <p class="mb-0">Comprehensive view of all test executions to date</p>
+                </div>
+                <a href="/reports" class="btn btn-light">← Back to Reports</a>
+            </div>
+        </div>
+
+        <!-- Overall Statistics -->
+        <h3 class="mb-3">Overall Statistics</h3>
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-box text-center">
+                    <div class="big-number" th:text="${aggregated.totalReports}">0</div>
+                    <div class="text-muted">Total Reports</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box text-center">
+                    <div class="big-number" th:text="${aggregated.totalTests}">0</div>
+                    <div class="text-muted">Total Tests Executed</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box text-center">
+                    <div class="big-number text-success" th:text="${aggregated.totalPassed}">0</div>
+                    <div class="text-muted">Total Passed</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box text-center">
+                    <div class="big-number text-danger" th:text="${aggregated.totalFailed}">0</div>
+                    <div class="text-muted">Total Failed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stat-box text-center">
+                    <div class="big-number text-warning" th:text="${aggregated.totalSkipped}">0</div>
+                    <div class="text-muted">Total Skipped</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-box text-center">
+                    <div class="big-number" th:text="${aggregated.overallSuccessRate + '%'}">0%</div>
+                    <div class="text-muted">Overall Success Rate</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-box text-center">
+                    <div class="big-number" th:text="${#lists.size(aggregated.recentReports)}">0</div>
+                    <div class="text-muted">Recent Reports (Last 10)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports by Suite Type -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5>Reports by Suite Type</h5>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Suite Type</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="entry : ${aggregated.reportsBySuiteType}">
+                                <td th:text="${entry.key}">UI</td>
+                                <td th:text="${entry.value}">10</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5>Reports by Status</h5>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="entry : ${aggregated.reportsByStatus}">
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${entry.key == 'COMPLETED' ? 'bg-success' : (entry.key == 'RUNNING' ? 'bg-info' : 'bg-danger')}"
+                                          th:text="${entry.key}">COMPLETED</span>
+                                </td>
+                                <td th:text="${entry.value}">10</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Trend -->
+        <div class="chart-container">
+            <h5>Success Rate Trend (Last 7 Days)</h5>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total Tests</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                        <th>Success Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="trend : ${aggregated.recentTrend}">
+                        <td th:text="${trend.date}">2023-10-01</td>
+                        <td th:text="${trend.totalTests}">10</td>
+                        <td class="text-success" th:text="${trend.passedTests}">8</td>
+                        <td class="text-danger" th:text="${trend.failedTests}">2</td>
+                        <td>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar bg-success"
+                                     th:style="'width: ' + ${trend.successRate} + '%'"
+                                     th:text="${trend.successRate + '%'}">80%</div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Recent Reports -->
+        <div class="chart-container">
+            <h5>Recent Reports</h5>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Report ID</th>
+                        <th>Name</th>
+                        <th>Date</th>
+                        <th>Tests</th>
+                        <th>Success Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="report : ${aggregated.recentReports}">
+                        <td><code th:text="${report.reportId}">RPT_ID</code></td>
+                        <td th:text="${report.reportName}">Test Suite</td>
+                        <td th:text="${#temporals.format(report.executionDate, 'yyyy-MM-dd HH:mm')}">2023-10-01</td>
+                        <td th:text="${report.totalTests}">10</td>
+                        <td th:text="${#numbers.formatDecimal(report.successRate, 1, 2) + '%'}">80%</td>
+                        <td>
+                            <a th:href="@{/reports/{id}(id=${report.reportId})}" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/webjars/jquery/3.7.1/jquery.min.js"></script>
+    <script src="/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Details</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.2/css/bootstrap.min.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .report-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+        }
+        .detail-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-pass { background-color: #d4edda; }
+        .test-fail { background-color: #f8d7da; }
+        .test-skip { background-color: #fff3cd; }
+        .screenshot-img {
+            max-width: 200px;
+            cursor: pointer;
+            border-radius: 5px;
+            border: 2px solid #dee2e6;
+        }
+        .screenshot-img:hover {
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <div class="report-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1>Report Details</h1>
+                    <p class="mb-0">Report ID: <code th:text="${report.reportId}">RPT_ID</code></p>
+                </div>
+                <a href="/reports" class="btn btn-light">← Back to Reports</a>
+            </div>
+        </div>
+
+        <!-- Report Summary -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="detail-card">
+                    <h4>Summary</h4>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Report Name:</strong><br>
+                            <span th:text="${report.reportName}">Test Suite</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Suite Type:</strong><br>
+                            <span class="badge bg-info" th:text="${report.suiteType}">UI</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Execution Date:</strong><br>
+                            <span th:text="${#temporals.format(report.executionDate, 'yyyy-MM-dd HH:mm:ss')}">2023-10-01</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Status:</strong><br>
+                            <span class="badge bg-success" th:text="${report.status}">COMPLETED</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mt-3">
+                        <div class="col-md-2">
+                            <strong>Total Tests:</strong> <span th:text="${report.totalTests}">10</span>
+                        </div>
+                        <div class="col-md-2">
+                            <strong class="text-success">Passed:</strong> <span th:text="${report.passedTests}">8</span>
+                        </div>
+                        <div class="col-md-2">
+                            <strong class="text-danger">Failed:</strong> <span th:text="${report.failedTests}">2</span>
+                        </div>
+                        <div class="col-md-2">
+                            <strong class="text-warning">Skipped:</strong> <span th:text="${report.skippedTests}">0</span>
+                        </div>
+                        <div class="col-md-2">
+                            <strong>Success Rate:</strong> <span th:text="${#numbers.formatDecimal(report.successRate, 1, 2) + '%'}">80%</span>
+                        </div>
+                        <div class="col-md-2">
+                            <strong>Duration:</strong> <span th:text="${report.durationMs / 1000 + 's'}">120s</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <strong>Executed From:</strong> <span class="badge bg-secondary" th:text="${report.createdBy}">CMD</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Browser:</strong> <span th:text="${report.browser ?: 'N/A'}">chrome</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Report Path:</strong> <code th:text="${report.reportPath}">artifacts/reports/...</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Details -->
+        <div class="detail-card">
+            <h4>Test Details</h4>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Test Name</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Type</th>
+                            <th>Error Message</th>
+                            <th>Screenshot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="detail, iterStat : ${testDetails}"
+                            th:classappend="${detail.status == 'PASS' ? 'test-pass' : (detail.status == 'FAIL' ? 'test-fail' : 'test-skip')}">
+                            <td th:text="${iterStat.count}">1</td>
+                            <td>
+                                <strong th:text="${detail.testName}">testLogin</strong><br>
+                                <small class="text-muted" th:text="${detail.testClass}">com.test.LoginTest</small>
+                            </td>
+                            <td>
+                                <span class="badge"
+                                      th:classappend="${detail.status == 'PASS' ? 'bg-success' : (detail.status == 'FAIL' ? 'bg-danger' : 'bg-warning')}"
+                                      th:text="${detail.status}">PASS</span>
+                            </td>
+                            <td th:text="${detail.durationMs + 'ms'}">1000ms</td>
+                            <td>
+                                <span class="badge bg-info" th:text="${detail.testType}">UI</span>
+                            </td>
+                            <td>
+                                <span th:if="${detail.errorMessage != null}"
+                                      th:text="${#strings.abbreviate(detail.errorMessage, 100)}"
+                                      class="text-danger">Error message</span>
+                            </td>
+                            <td>
+                                <img th:if="${detail.screenshotPath != null}"
+                                     th:src="@{${detail.screenshotPath}}"
+                                     th:alt="${detail.screenshotName}"
+                                     class="screenshot-img"
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#screenshotModal"
+                                     th:onclick="'showScreenshot(\'' + ${detail.screenshotPath} + '\')'">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div class="modal fade" id="screenshotModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Screenshot</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalScreenshot" src="" class="img-fluid" alt="Screenshot">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/webjars/jquery/3.7.1/jquery.min.js"></script>
+    <script src="/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showScreenshot(path) {
+            document.getElementById('modalScreenshot').src = path;
+        }
+    </script>
+</body>
+</html>
+
