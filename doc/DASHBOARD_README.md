@@ -1,4 +1,4 @@
-# Test Automation Dashboard - Complete Documentation
+# Documentation
 
 ## Overview
 
