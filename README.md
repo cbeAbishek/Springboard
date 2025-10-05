@@ -1,4 +1,4 @@
-# Test Automation Framework
+# Test Automation Framework - Infosys
 
 A comprehensive Spring Boot-based test automation framework with TestNG, Selenium WebDriver, REST Assured, and a web dashboard for test management and reporting.
 
