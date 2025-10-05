@@ -1,594 +1,570 @@
-// Reports page JavaScript functionality
-$(document).ready(function() {
-    // Initialize report functionality
-    initializeReports();
+// Reports JavaScript with advanced filtering and sorting
 
-    // Initialize charts
-    initializeReportCharts();
+let allReports = [];
+let filteredReports = [];
+let currentPage = 1;
+let pageSize = 10;
+let sortColumn = 'date';
+let sortDirection = 'desc';
 
-    // Load screenshots on demand
-    $('#loadScreenshots').on('click', loadScreenshots);
-
-    // Initialize filter functionality
-    initializeFilters();
-
-    // Load initial statistics
-    loadReportStatistics();
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initReports();
+    loadReports();
 });
 
-function initializeReports() {
-    // Add click handlers for report links
-    $('a[href*="/artifacts/"]').on('click', function(e) {
-        const href = $(this).attr('href');
-        if (href.endsWith('.json')) {
-            e.preventDefault();
-            viewJsonReport(href);
+// Initialize reports page
+function initReports() {
+    console.log('Reports page initialized');
+
+    // Set active nav link
+    document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.getAttribute('href') === '/dashboard/reports') {
+            link.classList.add('active');
         }
-    });
-
-    // Initialize bulk operations
-    initializeBulkOperations();
-
-    // Auto-refresh reports every 5 minutes
-    setInterval(refreshReports, 300000);
-
-    // Add event handlers for data attribute buttons
-    $(document).on('click', '.share-report-btn', function() {
-        const reportName = $(this).data('report');
-        shareReport(reportName);
-    });
-
-    $(document).on('click', '.delete-report-btn', function() {
-        const reportName = $(this).data('report');
-        deleteReport(reportName);
-    });
-
-    $(document).on('click', '.view-xml-report-btn', function() {
-        const reportName = $(this).data('report');
-        viewXmlReport(reportName);
-    });
-
-    $(document).on('click', '.convert-to-html-btn', function() {
-        const reportName = $(this).data('report');
-        convertToHtml(reportName);
-    });
-
-    $(document).on('click', '.view-json-report-btn', function() {
-        const reportName = $(this).data('report');
-        viewJsonReport(`/artifacts/api/${reportName}`);
-    });
-
-    $(document).on('click', '.format-json-btn', function() {
-        const reportName = $(this).data('report');
-        formatJson(reportName);
     });
 }
 
-function initializeReportCharts() {
-    // Report Generation Trends Chart
-    const trendsCtx = document.getElementById('reportTrendsChart');
-    if (trendsCtx) {
-        new Chart(trendsCtx, {
-            type: 'line',
-            data: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                datasets: [{
-                    label: 'HTML Reports',
-                    data: [12, 15, 8, 20, 18, 5, 3],
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1
-                }, {
-                    label: 'XML Reports',
-                    data: [8, 10, 6, 15, 12, 3, 2],
-                    borderColor: 'rgb(255, 206, 86)',
-                    backgroundColor: 'rgba(255, 206, 86, 0.2)',
-                    tension: 0.1
-                }, {
-                    label: 'JSON Reports',
-                    data: [5, 8, 4, 12, 10, 2, 1],
-                    borderColor: 'rgb(153, 102, 255)',
-                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Report Generation Trends (Last 7 Days)'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    // Report Types Distribution Chart
-    const typesCtx = document.getElementById('reportTypesChart');
-    if (typesCtx) {
-        new Chart(typesCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['HTML Reports', 'XML Reports', 'JSON Reports', 'PDF Reports', 'Excel Reports'],
-                datasets: [{
-                    data: [45, 25, 15, 10, 5],
-                    backgroundColor: [
-                        '#FF6384',
-                        '#36A2EB',
-                        '#FFCE56',
-                        '#4BC0C0',
-                        '#9966FF'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
+// Load reports data
+async function loadReports() {
+    try {
+        showLoadingState();
+        allReports = await fetchReports();
+        filteredReports = [...allReports];
+        updateSummaryStats();
+        renderReports();
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        showError('Failed to load reports');
     }
 }
 
-function initializeFilters() {
-    // Set default date range (last 7 days)
-    const today = new Date();
-    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+// Fetch reports from API
+async function fetchReports() {
+    // Simulate API call with mock data
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const reports = [];
+            const suites = ['API Test Suite', 'UI Test Suite', 'Integration Tests', 'Regression Suite', 'Smoke Tests'];
+            const statuses = ['passed', 'failed', 'partial'];
 
-    $('#dateToFilter').val(today.toISOString().split('T')[0]);
-    $('#dateFromFilter').val(lastWeek.toISOString().split('T')[0]);
-}
+            for (let i = 1; i <= 50; i++) {
+                const passed = Math.floor(Math.random() * 50) + 10;
+                const failed = Math.floor(Math.random() * 10);
+                const total = passed + failed;
+                const passRate = ((passed / total) * 100).toFixed(1);
+                const status = failed === 0 ? 'passed' : (passRate > 80 ? 'partial' : 'failed');
 
-function filterReports() {
-    const searchTerm = $('#reportSearch').val().toLowerCase();
-    const typeFilter = $('#reportTypeFilter').val();
-    const statusFilter = $('#statusFilter').val();
-    const suiteFilter = $('#suiteFilter').val();
-    const dateFrom = $('#dateFromFilter').val();
-    const dateTo = $('#dateToFilter').val();
+                reports.push({
+                    id: `EX-2025-${String(i).padStart(3, '0')}`,
+                    suite: suites[Math.floor(Math.random() * suites.length)],
+                    status: status,
+                    passed: passed,
+                    failed: failed,
+                    skipped: Math.floor(Math.random() * 5),
+                    total: total,
+                    passRate: parseFloat(passRate),
+                    duration: `${Math.floor(Math.random() * 10) + 1}m ${Math.floor(Math.random() * 60)}s`,
+                    durationSeconds: Math.floor(Math.random() * 600) + 60,
+                    date: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
+                    environment: ['dev', 'qa', 'staging'][Math.floor(Math.random() * 3)]
+                });
+            }
 
-    // Filter each report section
-    filterReportSection('#htmlReportsSection', searchTerm, typeFilter, statusFilter, suiteFilter, dateFrom, dateTo);
-    filterReportSection('#xmlReportsSection', searchTerm, typeFilter, statusFilter, suiteFilter, dateFrom, dateTo);
-    filterReportSection('#jsonReportsSection', searchTerm, typeFilter, statusFilter, suiteFilter, dateFrom, dateTo);
-
-    updateFilteredCount();
-}
-
-function filterReportSection(sectionId, searchTerm, typeFilter, statusFilter, suiteFilter, dateFrom, dateTo) {
-    const section = $(sectionId);
-    const rows = section.find('tbody tr');
-
-    rows.each(function() {
-        const row = $(this);
-        const reportName = row.find('td:first').text().toLowerCase();
-        const reportType = sectionId.includes('html') ? 'html' :
-                          sectionId.includes('xml') ? 'xml' : 'json';
-
-        let shouldShow = true;
-
-        // Apply search filter
-        if (searchTerm && !reportName.includes(searchTerm)) {
-            shouldShow = false;
-        }
-
-        // Apply type filter
-        if (typeFilter && typeFilter !== reportType) {
-            shouldShow = false;
-        }
-
-        // Apply other filters (status, suite, date range would be implemented based on actual data)
-
-        row.toggle(shouldShow);
+            resolve(reports.sort((a, b) => new Date(b.date) - new Date(a.date)));
+        }, 800);
     });
 }
 
-function clearFilters() {
-    $('#reportSearch').val('');
-    $('#reportTypeFilter').val('');
-    $('#statusFilter').val('');
-    $('#suiteFilter').val('');
-    $('#dateFromFilter').val('');
-    $('#dateToFilter').val('');
+// Update summary statistics
+function updateSummaryStats() {
+    const total = filteredReports.length;
+    const successful = filteredReports.filter(r => r.status === 'passed').length;
+    const failed = filteredReports.filter(r => r.status === 'failed').length;
+    const avgRate = total > 0
+        ? (filteredReports.reduce((sum, r) => sum + r.passRate, 0) / total).toFixed(1)
+        : 0;
 
-    filterReports();
-    showNotification('Filters cleared', 'info');
+    animateCounter('totalReports', total);
+    animateCounter('successfulRuns', successful);
+    animateCounter('failedRuns', failed);
+    animateValue('avgSuccessRate', avgRate, '%');
 }
 
-function viewJsonReport(url) {
-    showNotification('Loading JSON report...', 'info');
+// Animate counter
+function animateCounter(elementId, targetValue, duration = 800) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
 
-    $.ajax({
-        url: url,
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            showJsonModal(data, url);
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading JSON report:', error);
+    const startValue = parseInt(element.textContent) || 0;
+    const startTime = performance.now();
 
-            // Try to load as text if JSON parsing fails
-            $.get(url, function(textData) {
-                showJsonModal(textData, url, false);
-            }).fail(function() {
-                showNotification('Failed to load JSON report', 'danger');
-            });
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOutQuart);
+
+        element.textContent = currentValue;
+
+        if (progress < 1) {
+            requestAnimationFrame(update);
         }
-    });
-}
-
-function showJsonModal(data, title, isJson = true) {
-    const fileName = title.split('/').pop();
-    let content;
-
-    if (isJson) {
-        content = `<pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>${JSON.stringify(data, null, 2)}</code></pre>`;
-    } else {
-        content = `<pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>${data}</code></pre>`;
     }
 
-    $('#reportModalTitle').text(`JSON Report: ${fileName}`);
-    $('#reportModalContent').html(content);
-    $('#reportDownloadBtn').attr('href', title);
-
-    $('#reportViewModal').modal('show');
+    requestAnimationFrame(update);
 }
 
-function viewXmlReport(reportName) {
-    const url = `/artifacts/reports/${reportName}`;
-    showNotification('Loading XML report...', 'info');
+// Animate value with suffix
+function animateValue(elementId, targetValue, suffix = '') {
+    const element = document.getElementById(elementId);
+    if (!element) return;
 
-    $.get(url, function(data) {
-        const fileName = reportName;
-        const content = `<pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>${$('<div>').text(data).html()}</code></pre>`;
+    const numericValue = parseFloat(targetValue);
+    const startValue = parseFloat(element.textContent) || 0;
+    const duration = 800;
+    const startTime = performance.now();
 
-        $('#reportModalTitle').text(`XML Report: ${fileName}`);
-        $('#reportModalContent').html(content);
-        $('#reportDownloadBtn').attr('href', url);
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const currentValue = (startValue + (numericValue - startValue) * easeOutQuart).toFixed(1);
 
-        $('#reportViewModal').modal('show');
-    }).fail(function() {
-        showNotification('Failed to load XML report', 'danger');
-    });
+        element.textContent = currentValue + suffix;
+
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+
+    requestAnimationFrame(update);
 }
 
-function loadScreenshots() {
-    $('#loadScreenshots').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Loading...');
+// Render reports table
+function renderReports() {
+    const tbody = document.getElementById('reportsTable');
+    if (!tbody) return;
 
-    // Simulate loading screenshots (in real implementation, this would call backend)
-    setTimeout(() => {
-        displayScreenshots([
-            {
-                filename: 'test_login_failed_20241002_143022.png',
-                testName: 'Test Login Failed',
-                timestamp: '2024-10-02 14:30:22',
-                status: 'FAILED'
-            },
-            {
-                filename: 'test_checkout_success_20241002_142015.png',
-                testName: 'Test Checkout Success',
-                timestamp: '2024-10-02 14:20:15',
-                status: 'PASSED'
-            },
-            {
-                filename: 'test_navigation_failed_20241002_141508.png',
-                testName: 'Test Navigation Failed',
-                timestamp: '2024-10-02 14:15:08',
-                status: 'FAILED'
-            }
-        ]);
-    }, 2000);
-}
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const pageReports = filteredReports.slice(startIndex, endIndex);
 
-function displayScreenshots(screenshots) {
-    const gallery = $('#screenshotGallery');
-    gallery.empty();
-
-    if (screenshots.length === 0) {
-        gallery.html('<div class="col-12"><p class="text-muted text-center">No screenshots available</p></div>');
+    if (pageReports.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted" style="padding: 3rem;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📭</div>
+                    <p>No reports found</p>
+                </td>
+            </tr>
+        `;
         return;
     }
 
-    screenshots.forEach(screenshot => {
-        const screenshotHtml = `
-            <div class="col-md-4 col-lg-3 mb-3">
-                <div class="card">
-                    <img src="/artifacts/screenshots/${screenshot.filename}" 
-                         class="card-img-top screenshot-thumbnail" 
-                         alt="${screenshot.testName}"
-                         style="height: 200px; object-fit: cover; cursor: pointer;"
-                         onclick="viewScreenshot('${screenshot.filename}', '${screenshot.testName}')">
-                    <div class="card-body p-2">
-                        <h6 class="card-title mb-1" style="font-size: 0.9rem;">${screenshot.testName}</h6>
-                        <small class="text-muted">${screenshot.timestamp}</small>
-                        <div class="mt-2">
-                            <span class="badge ${screenshot.status === 'FAILED' ? 'bg-danger' : 'bg-success'}">
-                                ${screenshot.status}
-                            </span>
-                        </div>
+    tbody.innerHTML = pageReports.map((report, index) => `
+        <tr style="animation: fadeIn 0.5s ease ${index * 0.05}s both;" onclick="viewReportDetails('${report.id}')">
+            <td><strong>${report.id}</strong></td>
+            <td>${report.suite}</td>
+            <td><span class="badge badge-${getBadgeClass(report.status)}">${report.status}</span></td>
+            <td>
+                <div style="font-size: 0.875rem;">
+                    <span style="color: var(--success-color);">✓ ${report.passed}</span> / 
+                    <span style="color: var(--danger-color);">✗ ${report.failed}</span> / 
+                    <span style="color: var(--text-secondary);">${report.total}</span>
+                </div>
+            </td>
+            <td>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="text-bold">${report.passRate}%</span>
+                    <div class="progress" style="width: 60px; height: 6px;">
+                        <div class="progress-bar ${report.passRate >= 90 ? 'success' : report.passRate >= 70 ? 'warning' : 'danger'}" 
+                             style="width: ${report.passRate}%"></div>
                     </div>
                 </div>
-            </div>
-        `;
-        gallery.append(screenshotHtml);
+            </td>
+            <td>${report.duration}</td>
+            <td>${formatDate(report.date)}</td>
+            <td onclick="event.stopPropagation();">
+                <button class="btn btn-secondary btn-sm" onclick="viewReportDetails('${report.id}')">
+                    View
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    updatePagination();
+}
+
+// Get badge class based on status
+function getBadgeClass(status) {
+    const classes = {
+        'passed': 'success',
+        'failed': 'danger',
+        'partial': 'warning'
+    };
+    return classes[status] || 'secondary';
+}
+
+// Format date
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Update pagination
+function updatePagination() {
+    const totalPages = Math.ceil(filteredReports.length / pageSize);
+    const startIndex = (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, filteredReports.length);
+
+    document.getElementById('showingStart').textContent = filteredReports.length > 0 ? startIndex : 0;
+    document.getElementById('showingEnd').textContent = endIndex;
+    document.getElementById('totalCount').textContent = filteredReports.length;
+
+    const paginationButtons = document.getElementById('paginationButtons');
+    if (!paginationButtons) return;
+
+    let buttons = '';
+
+    // Previous button
+    buttons += `<button class="btn btn-secondary btn-sm" ${currentPage === 1 ? 'disabled' : ''} 
+                onclick="changePage(${currentPage - 1})">←</button>`;
+
+    // Page numbers
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        const pageNum = i;
+        buttons += `<button class="btn ${currentPage === pageNum ? 'btn-primary' : 'btn-secondary'} btn-sm" 
+                    onclick="changePage(${pageNum})">${pageNum}</button>`;
+    }
+
+    if (totalPages > 5) {
+        buttons += `<span style="padding: 0 0.5rem;">...</span>`;
+        buttons += `<button class="btn ${currentPage === totalPages ? 'btn-primary' : 'btn-secondary'} btn-sm" 
+                    onclick="changePage(${totalPages})">${totalPages}</button>`;
+    }
+
+    // Next button
+    buttons += `<button class="btn btn-secondary btn-sm" ${currentPage === totalPages ? 'disabled' : ''} 
+                onclick="changePage(${currentPage + 1})">→</button>`;
+
+    paginationButtons.innerHTML = buttons;
+}
+
+// Change page
+function changePage(page) {
+    const totalPages = Math.ceil(filteredReports.length / pageSize);
+    if (page < 1 || page > totalPages) return;
+
+    currentPage = page;
+    renderReports();
+
+    // Scroll to top of table
+    document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Filter reports
+function filterReports() {
+    const dateRange = document.getElementById('dateRange').value;
+    const suite = document.getElementById('suiteFilter').value;
+    const status = document.getElementById('statusFilter').value;
+
+    filteredReports = allReports.filter(report => {
+        // Date filter
+        if (dateRange !== 'custom') {
+            const days = parseInt(dateRange);
+            const reportDate = new Date(report.date);
+            const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+            if (reportDate < cutoffDate) return false;
+        }
+
+        // Suite filter
+        if (suite !== 'all') {
+            const suiteMap = {
+                'api': 'API Test Suite',
+                'ui': 'UI Test Suite',
+                'integration': 'Integration Tests',
+                'regression': 'Regression Suite',
+                'smoke': 'Smoke Tests'
+            };
+            if (report.suite !== suiteMap[suite]) return false;
+        }
+
+        // Status filter
+        if (status !== 'all' && report.status !== status) return false;
+
+        return true;
     });
 
-    $('#loadScreenshots').prop('disabled', false).html('<i class="fas fa-images"></i> Load Screenshots');
-    showNotification(`Loaded ${screenshots.length} screenshots`, 'success');
+    currentPage = 1;
+    updateSummaryStats();
+    renderReports();
+    showNotification(`Filtered to ${filteredReports.length} reports`, 'info');
 }
 
-function viewScreenshot(filename, testName) {
-    $('#screenshotModalTitle').text(`Screenshot: ${testName}`);
-    $('#screenshotModalContent').html(`
-        <img src="/artifacts/screenshots/${filename}" 
-             class="img-fluid" 
-             alt="${testName}"
-             style="max-height: 80vh; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-    `);
-    $('#screenshotDownloadBtn').attr('href', `/artifacts/screenshots/${filename}`).attr('download', filename);
+// Search reports
+function searchReports() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
 
-    $('#screenshotModal').modal('show');
-}
-
-function clearScreenshots() {
-    $('#screenshotGallery').empty();
-    showNotification('Screenshot gallery cleared', 'info');
-}
-
-function refreshReports() {
-    showNotification('Refreshing reports...', 'info');
-
-    // Simulate refresh (in real implementation, this would reload data from backend)
-    setTimeout(() => {
-        loadReportStatistics();
-        showNotification('Reports refreshed', 'success');
-    }, 2000);
-}
-
-function generateNewReport() {
-    showNotification('Generating new report...', 'info');
-
-    // Simulate report generation
-    setTimeout(() => {
-        showNotification('New report generated successfully', 'success');
-        refreshReports();
-    }, 3000);
-}
-
-function shareReport(reportName) {
-    const shareUrl = `${window.location.origin}/artifacts/reports/${reportName}`;
-
-    if (navigator.share) {
-        navigator.share({
-            title: `Test Report: ${reportName}`,
-            url: shareUrl
-        });
+    if (!searchTerm) {
+        filteredReports = [...allReports];
     } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            showNotification('Report URL copied to clipboard', 'success');
-        }).catch(() => {
-            showNotification('Failed to copy URL', 'danger');
-        });
+        filteredReports = allReports.filter(report =>
+            report.id.toLowerCase().includes(searchTerm) ||
+            report.suite.toLowerCase().includes(searchTerm) ||
+            report.status.toLowerCase().includes(searchTerm)
+        );
     }
+
+    currentPage = 1;
+    updateSummaryStats();
+    renderReports();
 }
 
-function deleteReport(reportName) {
-    if (confirm(`Are you sure you want to delete the report "${reportName}"?`)) {
-        showNotification(`Deleting report: ${reportName}...`, 'warning');
-
-        // Simulate deletion (in real implementation, this would call backend)
-        setTimeout(() => {
-            showNotification('Report deleted successfully', 'success');
-            refreshReports();
-        }, 1500);
+// Sort reports
+function sortReports(column) {
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'desc';
     }
-}
 
-function convertToHtml(reportName) {
-    showNotification(`Converting ${reportName} to HTML format...`, 'info');
+    filteredReports.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
 
-    // Simulate conversion
-    setTimeout(() => {
-        showNotification('Report converted to HTML successfully', 'success');
-        refreshReports();
-    }, 2500);
-}
+        if (column === 'date') {
+            aVal = new Date(aVal);
+            bVal = new Date(bVal);
+        } else if (column === 'duration') {
+            aVal = a.durationSeconds;
+            bVal = b.durationSeconds;
+        }
 
-function formatJson(reportName) {
-    showNotification(`Formatting JSON report: ${reportName}...`, 'info');
-    viewJsonReport(`/artifacts/api/${reportName}`);
-}
-
-// Bulk Operations
-function initializeBulkOperations() {
-    // Add checkboxes to each report row
-    $('table tbody tr').each(function() {
-        const checkbox = '<td><input type="checkbox" class="report-checkbox" /></td>';
-        $(this).prepend(checkbox);
+        if (sortDirection === 'asc') {
+            return aVal > bVal ? 1 : -1;
+        } else {
+            return aVal < bVal ? 1 : -1;
+        }
     });
 
-    // Add header checkbox
-    $('table thead tr').each(function() {
-        $(this).prepend('<th><input type="checkbox" id="selectAllReports" onchange="toggleSelectAll()" /></th>');
-    });
-
-    // Update selected count when checkboxes change
-    $(document).on('change', '.report-checkbox', updateSelectedCount);
+    renderReports();
 }
 
-function toggleSelectAll() {
-    const selectAll = $('#selectAllReports').is(':checked');
-    $('.report-checkbox').prop('checked', selectAll);
-    updateSelectedCount();
+// View report details
+function viewReportDetails(reportId) {
+    const report = allReports.find(r => r.id === reportId);
+    if (!report) return;
+
+    const modal = document.getElementById('reportDetailsModal');
+    const body = document.getElementById('reportDetailsBody');
+
+    body.innerHTML = `
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h4>${report.id}</h4>
+                <span class="badge badge-${getBadgeClass(report.status)}" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                    ${report.status.toUpperCase()}
+                </span>
+            </div>
+            <p class="text-muted">${report.suite} • ${formatDate(report.date)}</p>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.5rem;">
+            <div class="text-center">
+                <div class="text-muted" style="font-size: 0.75rem;">PASSED</div>
+                <div class="text-bold" style="font-size: 1.5rem; color: var(--success-color);">${report.passed}</div>
+            </div>
+            <div class="text-center">
+                <div class="text-muted" style="font-size: 0.75rem;">FAILED</div>
+                <div class="text-bold" style="font-size: 1.5rem; color: var(--danger-color);">${report.failed}</div>
+            </div>
+            <div class="text-center">
+                <div class="text-muted" style="font-size: 0.75rem;">SKIPPED</div>
+                <div class="text-bold" style="font-size: 1.5rem; color: var(--warning-color);">${report.skipped}</div>
+            </div>
+            <div class="text-center">
+                <div class="text-muted" style="font-size: 0.75rem;">TOTAL</div>
+                <div class="text-bold" style="font-size: 1.5rem; color: var(--info-color);">${report.total}</div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-bold">Success Rate</span>
+                <span class="text-bold">${report.passRate}%</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+                <div class="progress-bar ${report.passRate >= 90 ? 'success' : report.passRate >= 70 ? 'warning' : 'danger'}" 
+                     style="width: ${report.passRate}%"></div>
+            </div>
+        </div>
+
+        <div class="grid-2" style="gap: 1rem;">
+            <div>
+                <div class="text-muted" style="font-size: 0.875rem;">Duration</div>
+                <div class="text-bold">${report.duration}</div>
+            </div>
+            <div>
+                <div class="text-muted" style="font-size: 0.875rem;">Environment</div>
+                <div class="text-bold">${report.environment.toUpperCase()}</div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <span>ℹ</span>
+            <span>Full execution logs and screenshots are available in the detailed report</span>
+        </div>
+    `;
+
+    modal.classList.add('show');
 }
 
-function updateSelectedCount() {
-    const selectedCount = $('.report-checkbox:checked').length;
-    $('#selectedCount').text(selectedCount);
+// Close report modal
+function closeReportModal() {
+    document.getElementById('reportDetailsModal').classList.remove('show');
 }
 
-function updateFilteredCount() {
-    const visibleRows = $('table tbody tr:visible').length;
-    showNotification(`Showing ${visibleRows} reports`, 'info');
+// Export reports
+function exportReports() {
+    document.getElementById('exportModal').classList.add('show');
 }
 
-function bulkDownload() {
-    const selectedReports = getSelectedReports();
-    if (selectedReports.length === 0) {
-        showNotification('Please select reports to download', 'warning');
-        return;
-    }
+// Close export modal
+function closeExportModal() {
+    document.getElementById('exportModal').classList.remove('show');
+}
 
-    showNotification(`Preparing ${selectedReports.length} reports for download...`, 'info');
+// Confirm export
+function confirmExport() {
+    const format = document.getElementById('exportFormat').value;
+    showNotification(`Exporting reports as ${format.toUpperCase()}...`, 'info');
 
-    // Simulate bulk download
     setTimeout(() => {
-        showNotification('Bulk download completed', 'success');
+        showNotification(`Reports exported successfully!`, 'success');
+        closeExportModal();
+    }, 1500);
+}
+
+// Download report
+function downloadReport() {
+    showNotification('Downloading PDF report...', 'info');
+    setTimeout(() => {
+        showNotification('Report downloaded successfully!', 'success');
+    }, 1000);
+}
+
+// View Allure report
+function viewAllureReport() {
+    window.open('/allure-report', '_blank');
+}
+
+// Generate report
+function generateReport() {
+    showNotification('Generating new report...', 'info');
+    setTimeout(() => {
+        showNotification('Report generated successfully!', 'success');
+        loadReports();
+    }, 2000);
+}
+
+// Show loading state
+function showLoadingState() {
+    const tbody = document.getElementById('reportsTable');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center">
+                    <div class="spinner" style="margin: 2rem auto;"></div>
+                    Loading reports...
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Show error
+function showError(message) {
+    const tbody = document.getElementById('reportsTable');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted" style="padding: 3rem;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--danger-color);">✗</div>
+                    <p>${message}</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.style.position = 'fixed';
+    alert.style.top = '20px';
+    alert.style.right = '20px';
+    alert.style.zIndex = '9999';
+    alert.style.minWidth = '300px';
+    alert.innerHTML = `
+        <span>${getAlertIcon(type)}</span>
+        <span>${message}</span>
+    `;
+
+    document.body.appendChild(alert);
+
+    setTimeout(() => {
+        alert.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => alert.remove(), 300);
     }, 3000);
 }
 
-function bulkArchive() {
-    const selectedReports = getSelectedReports();
-    if (selectedReports.length === 0) {
-        showNotification('Please select reports to archive', 'warning');
-        return;
+// Get alert icon
+function getAlertIcon(type) {
+    const icons = {
+        success: '✓',
+        danger: '✗',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    return icons[type] || icons.info;
+}
+
+// Close modals on outside click
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('show');
     }
+});
 
-    if (confirm(`Archive ${selectedReports.length} selected reports?`)) {
-        showNotification(`Archiving ${selectedReports.length} reports...`, 'info');
-
-        setTimeout(() => {
-            showNotification('Reports archived successfully', 'success');
-            refreshReports();
-        }, 2500);
+// Add necessary styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideOut {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
     }
-}
-
-function bulkDelete() {
-    const selectedReports = getSelectedReports();
-    if (selectedReports.length === 0) {
-        showNotification('Please select reports to delete', 'warning');
-        return;
+    .table tbody tr {
+        cursor: pointer;
     }
+`;
+document.head.appendChild(style);
 
-    if (confirm(`Delete ${selectedReports.length} selected reports? This action cannot be undone.`)) {
-        showNotification(`Deleting ${selectedReports.length} reports...`, 'warning');
-
-        setTimeout(() => {
-            showNotification('Reports deleted successfully', 'success');
-            refreshReports();
-        }, 2500);
-    }
-}
-
-function bulkEmail() {
-    const selectedReports = getSelectedReports();
-    if (selectedReports.length === 0) {
-        showNotification('Please select reports to email', 'warning');
-        return;
-    }
-
-    const emailAddress = prompt('Enter email address:');
-    if (emailAddress) {
-        showNotification(`Sending ${selectedReports.length} reports to ${emailAddress}...`, 'info');
-
-        setTimeout(() => {
-            showNotification('Reports sent successfully', 'success');
-        }, 3000);
-    }
-}
-
-function bulkExport() {
-    const selectedReports = getSelectedReports();
-    if (selectedReports.length === 0) {
-        showNotification('Please select reports to export', 'warning');
-        return;
-    }
-
-    showNotification(`Exporting ${selectedReports.length} reports to CSV...`, 'info');
-
-    setTimeout(() => {
-        // Create and download CSV file
-        const csvContent = generateReportsCsv(selectedReports);
-        downloadCsv(csvContent, 'reports_export.csv');
-        showNotification('CSV export completed', 'success');
-    }, 2000);
-}
-
-function exportFilteredReports() {
-    const visibleRows = $('table tbody tr:visible');
-    showNotification(`Exporting ${visibleRows.length} filtered reports...`, 'info');
-
-    setTimeout(() => {
-        showNotification('Filtered reports exported successfully', 'success');
-    }, 2000);
-}
-
-function getSelectedReports() {
-    const selected = [];
-    $('.report-checkbox:checked').each(function() {
-        const row = $(this).closest('tr');
-        const reportName = row.find('td').eq(1).text().trim();
-        selected.push(reportName);
-    });
-    return selected;
-}
-
-function generateReportsCsv(reports) {
-    const headers = ['Report Name', 'Type', 'Status', 'Generated Date', 'Size'];
-    const rows = reports.map(report => [report, 'HTML', 'Complete', new Date().toISOString(), '2.3MB']);
-
-    return [headers, ...rows].map(row => row.join(',')).join('\n');
-}
-
-function downloadCsv(content, filename) {
-    const blob = new Blob([content], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    window.URL.revokeObjectURL(url);
-}
-
-function loadReportStatistics() {
-    // Update report statistics (simulate data loading)
-    $('#totalReportsCount').text('24');
-    $('#recentReportsCount').text('8');
-    $('#storageUsed').text('156 MB');
-    $('#avgGenTime').text('2.5s');
-}
-
-// Utility function for notifications
-function showNotification(message, type = 'info') {
-    const alertClass = `alert-${type}`;
-    const iconClass = type === 'success' ? 'fa-check' :
-                     type === 'danger' ? 'fa-times' :
-                     type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info';
-
-    const notification = $(`
-        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
-            <i class="fas ${iconClass} me-2"></i>${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-
-    $('body').append(notification);
-
-    setTimeout(() => {
-        notification.alert('close');
-    }, 5000);
-}

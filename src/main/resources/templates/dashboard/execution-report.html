@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execution Report - Springboard</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Springboard</span>
+                </div>
+                <nav class="nav">
+                    <a href="/dashboard" class="nav-link">Dashboard</a>
+                    <a href="/dashboard/test-manager" class="nav-link">Test Manager</a>
+                    <a href="/dashboard/reports" class="nav-link">Reports</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="fade-in">
+                <!-- Breadcrumb -->
+                <div class="mb-3">
+                    <a href="/dashboard/reports" style="color: var(--text-secondary); text-decoration: none;">
+                        ← Back to Reports
+                    </a>
+                </div>
+
+                <!-- Execution Header -->
+                <div class="card mb-4 slide-in-left">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h1 style="font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;" id="executionId">EX-2025-001</h1>
+                                <p class="text-muted" id="executionSuite">API Test Suite</p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <span class="badge badge-success" id="executionStatus" style="font-size: 1rem; padding: 0.75rem 1.5rem;">PASSED</span>
+                            </div>
+                        </div>
+                        <div class="grid-3 mt-4">
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Executed</div>
+                                <div class="text-bold" id="executionDate">Oct 5, 2025 14:30</div>
+                            </div>
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Duration</div>
+                                <div class="text-bold" id="executionDuration">2m 34s</div>
+                            </div>
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Environment</div>
+                                <div class="text-bold" id="executionEnvironment">QA</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Stats -->
+                <div class="stats-grid mb-4">
+                    <div class="stat-card success scale-in">
+                        <div class="stat-icon">✓</div>
+                        <div class="stat-value" id="passedCount">43</div>
+                        <div class="stat-label">Passed Tests</div>
+                    </div>
+
+                    <div class="stat-card danger scale-in" style="animation-delay: 0.1s;">
+                        <div class="stat-icon">✗</div>
+                        <div class="stat-value" id="failedCount">2</div>
+                        <div class="stat-label">Failed Tests</div>
+                    </div>
+
+                    <div class="stat-card warning scale-in" style="animation-delay: 0.2s;">
+                        <div class="stat-icon">⊘</div>
+                        <div class="stat-value" id="skippedCount">0</div>
+                        <div class="stat-label">Skipped Tests</div>
+                    </div>
+
+                    <div class="stat-card info scale-in" style="animation-delay: 0.3s;">
+                        <div class="stat-icon">%</div>
+                        <div class="stat-value" id="successRate">95.6%</div>
+                        <div class="stat-label">Success Rate</div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar success" id="successBar" style="width: 95.6%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts and Timeline -->
+                <div class="grid-2 mb-4">
+                    <div class="card slide-in-left">
+                        <div class="card-header">
+                            <h2 class="card-title">Test Results Distribution</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="distributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card slide-in-right">
+                        <div class="card-header">
+                            <h2 class="card-title">Execution Timeline</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="timelineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Cases Details -->
+                <div class="card fade-in" style="animation-delay: 0.2s;">
+                    <div class="card-header">
+                        <h2 class="card-title">Test Cases</h2>
+                        <div class="d-flex gap-2">
+                            <select class="form-control" style="width: 200px;" id="filterStatus" onchange="filterTests()">
+                                <option value="all">All Tests</option>
+                                <option value="passed">Passed Only</option>
+                                <option value="failed">Failed Only</option>
+                                <option value="skipped">Skipped Only</option>
+                            </select>
+                            <input type="text" class="form-control" placeholder="Search tests..."
+                                   id="searchTests" style="width: 250px;" onkeyup="searchTests()">
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Test Case</th>
+                                        <th>Class</th>
+                                        <th>Status</th>
+                                        <th>Duration</th>
+                                        <th>Error Message</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="testCasesTable">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-2 mt-4 justify-content-between">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" onclick="downloadReport()">
+                            <span>📥</span>
+                            <span>Download PDF</span>
+                        </button>
+                        <button class="btn btn-success" onclick="viewAllureReport()">
+                            <span>📊</span>
+                            <span>View Allure Report</span>
+                        </button>
+                        <button class="btn btn-outline" onclick="shareReport()">
+                            <span>🔗</span>
+                            <span>Share</span>
+                        </button>
+                    </div>
+                    <button class="btn btn-danger" onclick="rerunFailedTests()">
+                        <span>↻</span>
+                        <span>Rerun Failed Tests</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Test Detail Modal -->
+    <div class="modal" id="testDetailModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="testDetailTitle">Test Details</h3>
+                <button class="modal-close" onclick="closeTestDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="testDetailBody">
+                <!-- Details populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTestDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load execution report data
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExecutionReport();
+            initCharts();
+        });
+
+        async function loadExecutionReport() {
+            // Get execution ID from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            const executionId = urlParams.get('id') || 'EX-2025-001';
+
+            // Simulate loading data
+            const data = await fetchExecutionData(executionId);
+            populateReport(data);
+        }
+
+        async function fetchExecutionData(id) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({
+                        id: id,
+                        suite: 'API Test Suite',
+                        status: 'passed',
+                        date: new Date().toLocaleString(),
+                        duration: '2m 34s',
+                        environment: 'QA',
+                        passed: 43,
+                        failed: 2,
+                        skipped: 0,
+                        total: 45,
+                        testCases: generateTestCases()
+                    });
+                }, 500);
+            });
+        }
+
+        function generateTestCases() {
+            const cases = [];
+            const statuses = ['passed', 'passed', 'passed', 'passed', 'failed'];
+            const classes = ['AuthTest', 'UserTest', 'ProductTest', 'OrderTest', 'PaymentTest'];
+
+            for (let i = 0; i < 45; i++) {
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                cases.push({
+                    name: `test${['Login', 'Create', 'Update', 'Delete', 'List'][i % 5]}${i}`,
+                    class: classes[i % classes.length],
+                    status: status,
+                    duration: (Math.random() * 5).toFixed(2) + 's',
+                    error: status === 'failed' ? 'AssertionError: Expected 200 but got 500' : null
+                });
+            }
+            return cases;
+        }
+
+        function populateReport(data) {
+            document.getElementById('executionId').textContent = data.id;
+            document.getElementById('executionSuite').textContent = data.suite;
+            document.getElementById('executionStatus').textContent = data.status.toUpperCase();
+            document.getElementById('executionStatus').className = `badge badge-${data.status === 'passed' ? 'success' : 'danger'}`;
+            document.getElementById('executionDate').textContent = data.date;
+            document.getElementById('executionDuration').textContent = data.duration;
+            document.getElementById('executionEnvironment').textContent = data.environment.toUpperCase();
+
+            document.getElementById('passedCount').textContent = data.passed;
+            document.getElementById('failedCount').textContent = data.failed;
+            document.getElementById('skippedCount').textContent = data.skipped;
+
+            const successRate = ((data.passed / data.total) * 100).toFixed(1);
+            document.getElementById('successRate').textContent = successRate + '%';
+            document.getElementById('successBar').style.width = successRate + '%';
+
+            renderTestCases(data.testCases);
+        }
+
+        function renderTestCases(testCases) {
+            const tbody = document.getElementById('testCasesTable');
+            tbody.innerHTML = testCases.map((test, index) => `
+                <tr style="animation: fadeIn 0.5s ease ${index * 0.02}s both;">
+                    <td><strong>${test.name}</strong></td>
+                    <td>${test.class}</td>
+                    <td><span class="badge badge-${test.status === 'passed' ? 'success' : 'danger'}">${test.status}</span></td>
+                    <td>${test.duration}</td>
+                    <td>${test.error ? `<span style="color: var(--danger-color); font-size: 0.875rem;">${test.error}</span>` : '-'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="viewTestDetail('${test.name}')">Details</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function initCharts() {
+            const ctx1 = document.getElementById('distributionChart');
+            new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed', 'Skipped'],
+                    datasets: [{
+                        data: [43, 2, 0],
+                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(245, 158, 11, 0.8)']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            const ctx2 = document.getElementById('timelineChart');
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['0-30s', '30-60s', '60-90s', '90-120s', '120s+'],
+                    datasets: [{
+                        label: 'Test Count',
+                        data: [15, 18, 8, 3, 1],
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function filterTests() { /* Implementation */ }
+        function searchTests() { /* Implementation */ }
+        function viewTestDetail(name) { /* Implementation */ }
+        function closeTestDetailModal() { document.getElementById('testDetailModal').classList.remove('show'); }
+        function downloadReport() { alert('Downloading report...'); }
+        function viewAllureReport() { window.open('/allure-report', '_blank'); }
+        function shareReport() { alert('Report link copied to clipboard!'); }
+        function rerunFailedTests() { alert('Rerunning failed tests...'); }
+    </script>
+</body>
+</html>
+

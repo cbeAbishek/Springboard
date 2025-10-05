@@ -1,0 +1,6 @@
+{
+  "testName": "testDeletePost",
+  "timestamp": "20251005_175121",
+  "request": "DELETE /posts/1",
+  "response": "{}"
+}

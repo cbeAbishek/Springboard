@@ -1,0 +1,1 @@
+{"total":2,"items":[{"uid":"b0c1bc0a0453061a2ffe111ff677f308","name":"UI Test Suite","statistic":{"failed":0,"broken":1,"skipped":10,"passed":0,"unknown":0,"total":11}},{"uid":"940a09faf31371a51747026c9d178f0a","name":"Surefire suite","statistic":{"failed":0,"broken":0,"skipped":0,"passed":10,"unknown":0,"total":10}}]}

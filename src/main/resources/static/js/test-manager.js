@@ -1,430 +1,554 @@
-// Test Manager JavaScript functionality
-$(document).ready(function() {
-    // Initialize form handlers
-    initializeFormHandlers();
+// Test Manager JavaScript
 
-    // Check for ongoing executions on page load
-    checkOngoingExecutions();
+let isExecuting = false;
+let executionInterval = null;
+let currentExecutionData = {
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    duration: 0,
+    total: 0
+};
 
-    // Initialize charts if any
-    initializeCharts();
-
-    // Load recent executions
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initTestManager();
+    loadTestSuites();
     loadRecentExecutions();
+    setupEventListeners();
 });
 
-function initializeFormHandlers() {
-    // Run Tests Form Handler
-    $('#runTestsForm').on('submit', function(e) {
-        e.preventDefault();
+// Initialize test manager
+function initTestManager() {
+    console.log('Test Manager initialized');
 
-        const formData = {
-            suite: $('#testSuite').val(),
-            browser: $('#browser').val(),
-            environment: $('#environment').val(),
-            threadCount: $('#threadCount').val(),
-            headless: $('#headless').is(':checked'),
-            captureScreenshots: $('#captureScreenshots').is(':checked'),
-            generateReports: $('#generateReports').is(':checked'),
-            testParameters: $('#testParameters').val()
-        };
-
-        if (!formData.suite) {
-            showNotification('Please select a test suite', 'warning');
-            return;
-        }
-
-        runTests(formData);
-    });
-
-    // Upload Test Form Handler
-    $('#uploadTestForm').on('submit', function(e) {
-        e.preventDefault();
-
-        const formData = new FormData();
-        const fileInput = $('#testFile')[0];
-        const testType = $('#testType').val();
-        const description = $('#testDescription').val();
-
-        if (!fileInput.files[0]) {
-            showNotification('Please select a test file', 'warning');
-            return;
-        }
-
-        if (!testType) {
-            showNotification('Please select test type', 'warning');
-            return;
-        }
-
-        formData.append('file', fileInput.files[0]);
-        formData.append('testType', testType);
-        formData.append('description', description);
-
-        uploadTest(formData);
-    });
-
-    // Schedule Test Form Handler
-    $('#scheduleTestForm').on('submit', function(e) {
-        e.preventDefault();
-
-        const scheduleData = {
-            suite: $('#scheduleSuite').val(),
-            scheduleTime: $('#scheduleTime').val(),
-            frequency: $('#scheduleFrequency').val()
-        };
-
-        scheduleTest(scheduleData);
-    });
-
-    // Add event handlers for data attribute buttons
-    $(document).on('click', '.run-single-test-btn', function() {
-        const testType = $(this).data('test-type');
-        const testName = $(this).data('test');
-        runSingleTest(testType, testName);
-    });
-
-    $(document).on('click', '.view-test-details-btn', function() {
-        const testType = $(this).data('test-type');
-        const testName = $(this).data('test');
-        viewTestDetails(testType, testName);
-    });
-}
-
-function quickRunTest(suite) {
-    const formData = {
-        suite: suite,
-        browser: 'chrome',
-        environment: 'test',
-        threadCount: 3,
-        headless: true,
-        captureScreenshots: true,
-        generateReports: true
-    };
-
-    showNotification(`Starting ${suite} tests...`, 'info');
-    runTests(formData);
-}
-
-function runTests(formData) {
-    // Show execution status
-    $('#executionStatus').show();
-    $('#runTestsForm button[type="submit"]').prop('disabled', true);
-
-    $.ajax({
-        url: '/dashboard/run-tests',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(formData),
-        success: function(response) {
-            if (response.status === 'success') {
-                $('#executionId').text(response.executionId);
-                showNotification('Test execution started successfully', 'success');
-
-                // Start polling for status updates
-                pollExecutionStatus(response.executionId);
-
-                // Store execution ID in session storage
-                sessionStorage.setItem('ongoingExecution', JSON.stringify({
-                    executionId: response.executionId,
-                    suite: formData.suite
-                }));
-            } else {
-                showNotification('Failed to start test execution: ' + response.message, 'danger');
-                hideExecutionStatus();
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error starting test execution:', error);
-            showNotification('Error starting test execution', 'danger');
-            hideExecutionStatus();
+    // Set active nav link
+    document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.getAttribute('href') === '/dashboard/test-manager') {
+            link.classList.add('active');
         }
     });
 }
 
-function runSingleTest(testType, testClass) {
-    const formData = {
-        suite: testType,
-        testClass: testClass,
-        browser: 'chrome',
-        environment: 'test',
-        headless: true,
-        captureScreenshots: true,
-        generateReports: true
-    };
+// Setup event listeners
+function setupEventListeners() {
+    const form = document.getElementById('testExecutionForm');
+    const parallelCheckbox = document.getElementById('parallelExecution');
+    const threadCountGroup = document.getElementById('threadCountGroup');
 
-    showNotification(`Starting ${testClass} execution...`, 'info');
-    runTests(formData);
-}
-
-function uploadTest(formData) {
-    $('#uploadStatus').show().html(`
-        <div class="alert alert-info">
-            <div class="d-flex align-items-center">
-                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                <div>Uploading test file...</div>
-            </div>
-        </div>
-    `);
-
-    $.ajax({
-        url: '/dashboard/upload-test',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            if (response.status === 'success') {
-                $('#uploadStatus').html(`
-                    <div class="alert alert-success">
-                        <i class="fas fa-check"></i> Test file uploaded successfully: ${response.fileName}
-                    </div>
-                `);
-
-                // Reset form
-                $('#uploadTestForm')[0].reset();
-
-                // Refresh test lists
-                setTimeout(() => {
-                    refreshTestList('ui');
-                    refreshTestList('api');
-                }, 1000);
-
-            } else {
-                $('#uploadStatus').html(`
-                    <div class="alert alert-danger">
-                        <i class="fas fa-times"></i> Upload failed: ${response.message}
-                    </div>
-                `);
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error uploading test:', error);
-            $('#uploadStatus').html(`
-                <div class="alert alert-danger">
-                    <i class="fas fa-times"></i> Upload failed: Network error
-                </div>
-            `);
-        }
-    });
-}
-
-function scheduleTest(scheduleData) {
-    // Simulate scheduling (in real implementation, this would call backend)
-    showNotification('Test scheduled successfully', 'success');
-
-    // Add to scheduled tests list
-    const scheduledList = $('#scheduledTestsList');
-    const newSchedule = `
-        <div class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-                <span class="fw-bold">${scheduleData.suite} Tests</span>
-                <div class="small text-muted">${scheduleData.frequency} at ${new Date(scheduleData.scheduleTime).toLocaleString()}</div>
-            </div>
-            <button class="btn btn-sm btn-outline-danger" onclick="removeSchedule(this)">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    `;
-    scheduledList.append(newSchedule);
-
-    // Reset form
-    $('#scheduleTestForm')[0].reset();
-}
-
-function pollExecutionStatus(executionId) {
-    const pollInterval = setInterval(() => {
-        $.ajax({
-            url: `/dashboard/execution-status/${executionId}`,
-            method: 'GET',
-            success: function(response) {
-                updateExecutionProgress(response);
-
-                if (response.status === 'COMPLETED' || response.status === 'FAILED') {
-                    clearInterval(pollInterval);
-                    handleExecutionComplete(response);
-                    sessionStorage.removeItem('ongoingExecution');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error polling execution status:', error);
-                clearInterval(pollInterval);
-                hideExecutionStatus();
-                sessionStorage.removeItem('ongoingExecution');
-            }
+    // Toggle thread count visibility
+    if (parallelCheckbox) {
+        parallelCheckbox.addEventListener('change', function(e) {
+            threadCountGroup.style.display = e.target.checked ? 'block' : 'none';
         });
-    }, 3000); // Poll every 3 seconds
-}
+    }
 
-function updateExecutionProgress(response) {
-    const progress = response.progress || 0;
-    const progressBar = $('#progressBar');
+    // Handle form submission
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            startTestExecution();
+        });
+    }
 
-    progressBar.css('width', progress + '%');
-    progressBar.attr('aria-valuenow', progress);
-
-    if (response.currentTest) {
-        $('#currentTestInfo').html(`
-            <i class="fas fa-cog fa-spin text-primary"></i> 
-            Currently running: <strong>${response.currentTest}</strong> (${progress}%)
-        `);
+    // Stop tests button
+    const stopBtn = document.getElementById('stopTestsBtn');
+    if (stopBtn) {
+        stopBtn.addEventListener('click', stopTestExecution);
     }
 }
 
-function handleExecutionComplete(response) {
-    hideExecutionStatus();
-    loadRecentExecutions(); // Refresh recent executions table
+// Load available test suites
+async function loadTestSuites() {
+    try {
+        const suites = await fetchTestSuites();
+        renderTestSuites(suites);
+    } catch (error) {
+        console.error('Error loading test suites:', error);
+        showNotification('Failed to load test suites', 'danger');
+    }
+}
 
-    if (response.status === 'COMPLETED') {
-        showNotification('Test execution completed successfully!', 'success');
+// Fetch test suites
+async function fetchTestSuites() {
+    // Simulate API call
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve([
+                {
+                    name: 'API Test Suite',
+                    type: 'API',
+                    count: 45,
+                    lastRun: '2 hours ago',
+                    status: 'passed',
+                    successRate: 95.6
+                },
+                {
+                    name: 'UI Test Suite',
+                    type: 'UI',
+                    count: 32,
+                    lastRun: '3 hours ago',
+                    status: 'failed',
+                    successRate: 87.5
+                },
+                {
+                    name: 'Integration Tests',
+                    type: 'Integration',
+                    count: 28,
+                    lastRun: '5 hours ago',
+                    status: 'passed',
+                    successRate: 100
+                },
+                {
+                    name: 'Regression Suite',
+                    type: 'Regression',
+                    count: 67,
+                    lastRun: '1 day ago',
+                    status: 'passed',
+                    successRate: 97.0
+                },
+                {
+                    name: 'Smoke Test Suite',
+                    type: 'Smoke',
+                    count: 15,
+                    lastRun: '1 day ago',
+                    status: 'passed',
+                    successRate: 100
+                }
+            ]);
+        }, 500);
+    });
+}
 
-        if (response.reportUrl) {
-            setTimeout(() => {
-                window.open(response.reportUrl, '_blank');
-            }, 1000);
+// Render test suites table
+function renderTestSuites(suites) {
+    const tbody = document.getElementById('testSuitesTable');
+    if (!tbody) return;
+
+    tbody.innerHTML = suites.map((suite, index) => `
+        <tr style="animation: fadeIn 0.5s ease ${index * 0.1}s both;">
+            <td><strong>${suite.name}</strong></td>
+            <td><span class="badge badge-secondary">${suite.type}</span></td>
+            <td>${suite.count} tests</td>
+            <td>${suite.lastRun}</td>
+            <td><span class="badge badge-${suite.status === 'passed' ? 'success' : 'danger'}">${suite.status}</span></td>
+            <td>
+                <div class="d-flex align-items-center gap-1">
+                    <span>${suite.successRate}%</span>
+                    <div class="progress" style="width: 60px; height: 6px;">
+                        <div class="progress-bar ${suite.successRate >= 90 ? 'success' : suite.successRate >= 70 ? 'warning' : 'danger'}" 
+                             style="width: ${suite.successRate}%"></div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <button class="btn btn-primary btn-sm" onclick="quickRunSuite('${suite.name.toLowerCase().replace(/\s+/g, '-')}')">
+                    Quick Run
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Start test execution
+async function startTestExecution() {
+    if (isExecuting) {
+        showNotification('Test execution is already running', 'warning');
+        return;
+    }
+
+    const suite = document.getElementById('testSuite').value;
+    if (!suite) {
+        showNotification('Please select a test suite', 'warning');
+        return;
+    }
+
+    isExecuting = true;
+    updateExecutionUI(true);
+
+    const environment = document.getElementById('environment').value;
+    const browser = document.getElementById('browser').value;
+    const parallel = document.getElementById('parallelExecution').checked;
+    const threads = parallel ? document.getElementById('threadCount').value : 1;
+
+    showNotification(`Starting ${suite} test execution on ${environment}...`, 'info');
+
+    // Reset execution data
+    currentExecutionData = {
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        duration: 0,
+        total: getTestCount(suite)
+    };
+
+    // Show execution progress
+    document.getElementById('executionStatus').style.display = 'none';
+    document.getElementById('executionProgress').style.display = 'block';
+    document.getElementById('statusBadge').textContent = 'Running';
+    document.getElementById('statusBadge').className = 'badge badge-warning';
+
+    // Simulate test execution
+    simulateTestExecution();
+}
+
+// Get test count for suite
+function getTestCount(suite) {
+    const counts = {
+        'all': 247,
+        'api': 45,
+        'ui': 32,
+        'integration': 28,
+        'regression': 67,
+        'smoke': 15
+    };
+    return counts[suite] || 50;
+}
+
+// Simulate test execution
+function simulateTestExecution() {
+    let progress = 0;
+    const totalTests = currentExecutionData.total;
+    let currentTest = 0;
+
+    executionInterval = setInterval(() => {
+        if (!isExecuting) {
+            clearInterval(executionInterval);
+            return;
         }
-    } else {
-        showNotification('Test execution failed. Check logs for details.', 'danger');
-    }
+
+        progress += Math.random() * 5;
+        currentTest = Math.floor((progress / 100) * totalTests);
+
+        if (progress >= 100) {
+            progress = 100;
+            currentTest = totalTests;
+            completeTestExecution();
+            clearInterval(executionInterval);
+            return;
+        }
+
+        // Update progress
+        updateExecutionProgress(progress, currentTest, totalTests);
+
+        // Simulate test results
+        if (Math.random() > 0.2) {
+            currentExecutionData.passed++;
+        } else {
+            if (Math.random() > 0.5) {
+                currentExecutionData.failed++;
+            } else {
+                currentExecutionData.skipped++;
+            }
+        }
+
+        currentExecutionData.duration += 0.5;
+
+        // Update UI
+        document.getElementById('runningPassed').textContent = currentExecutionData.passed;
+        document.getElementById('runningFailed').textContent = currentExecutionData.failed;
+        document.getElementById('runningSkipped').textContent = currentExecutionData.skipped;
+        document.getElementById('runningDuration').textContent = currentExecutionData.duration.toFixed(1) + 's';
+
+    }, 500);
 }
 
-function hideExecutionStatus() {
-    $('#executionStatus').hide();
-    $('#runTestsForm button[type="submit"]').prop('disabled', false);
-    $('#progressBar').css('width', '0%');
-    $('#currentTestInfo').html('');
+// Update execution progress
+function updateExecutionProgress(progress, current, total) {
+    const progressBar = document.getElementById('overallProgress');
+    const progressText = document.getElementById('progressPercentage');
+    const currentTestName = document.getElementById('currentTestName');
+
+    progressBar.style.width = progress + '%';
+    progressText.textContent = Math.floor(progress) + '%';
+
+    const testNames = [
+        'LoginTest.testValidCredentials',
+        'UserManagementTest.testCreateUser',
+        'APITest.testGetEndpoint',
+        'SearchTest.testSearchFunctionality',
+        'CheckoutTest.testPaymentProcess',
+        'NavigationTest.testMenuNavigation',
+        'FormTest.testFormValidation',
+        'DataTest.testDataPersistence'
+    ];
+
+    const randomTest = testNames[Math.floor(Math.random() * testNames.length)];
+    currentTestName.textContent = `Running: ${randomTest} (${current}/${total})`;
 }
 
-function viewTestDetails(testType, testClass) {
-    // Load test details into modal
-    $('#testDetailsContent').html(`
-        <div class="row">
-            <div class="col-md-6">
-                <h6>Test Information</h6>
-                <table class="table table-sm">
-                    <tr><td><strong>Class:</strong></td><td>${testClass}</td></tr>
-                    <tr><td><strong>Type:</strong></td><td>${testType.toUpperCase()}</td></tr>
-                    <tr><td><strong>Package:</strong></td><td>org.automation.${testType}</td></tr>
-                    <tr><td><strong>Methods:</strong></td><td>5 test methods</td></tr>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <h6>Recent Executions</h6>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex justify-content-between">
-                        <span>2024-10-02 14:30</span>
-                        <span class="badge bg-success">Passed</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between">
-                        <span>2024-10-01 10:15</span>
-                        <span class="badge bg-danger">Failed</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    `);
+// Complete test execution
+function completeTestExecution() {
+    isExecuting = false;
+    updateExecutionUI(false);
 
-    // Store current test info for modal actions
-    $('#testDetailsModal').data('testType', testType);
-    $('#testDetailsModal').data('testClass', testClass);
+    document.getElementById('statusBadge').textContent =
+        currentExecutionData.failed === 0 ? 'Success' : 'Completed';
+    document.getElementById('statusBadge').className =
+        currentExecutionData.failed === 0 ? 'badge badge-success' : 'badge badge-warning';
 
-    $('#testDetailsModal').modal('show');
-}
+    // Show completion modal
+    showExecutionCompleteModal();
 
-function runTestFromModal() {
-    const modal = $('#testDetailsModal');
-    const testType = modal.data('testType');
-    const testClass = modal.data('testClass');
-
-    modal.modal('hide');
-    runSingleTest(testType, testClass);
-}
-
-function refreshTestList(testType) {
-    // In real implementation, this would call backend to refresh test list
-    showNotification(`Refreshing ${testType} test list...`, 'info');
-
+    // Reload test suites and executions
     setTimeout(() => {
-        showNotification(`${testType.toUpperCase()} test list refreshed`, 'success');
+        loadTestSuites();
+        loadRecentExecutions();
     }, 1000);
 }
 
-function stopAllTests() {
-    // Simulate stopping all tests
-    showNotification('Stopping all running tests...', 'warning');
-    hideExecutionStatus();
-    sessionStorage.removeItem('ongoingExecution');
-}
+// Stop test execution
+function stopTestExecution() {
+    if (!isExecuting) return;
 
-function resetForm() {
-    $('#runTestsForm')[0].reset();
-    $('#threadCount').val('3');
-    showNotification('Form reset', 'info');
-}
+    if (confirm('Are you sure you want to stop the test execution?')) {
+        isExecuting = false;
+        clearInterval(executionInterval);
+        updateExecutionUI(false);
 
-function clearUploadForm() {
-    $('#uploadTestForm')[0].reset();
-    $('#uploadStatus').hide();
-}
+        document.getElementById('statusBadge').textContent = 'Stopped';
+        document.getElementById('statusBadge').className = 'badge badge-danger';
 
-function removeSchedule(element) {
-    $(element).closest('.list-group-item').remove();
-    showNotification('Schedule removed', 'info');
-}
-
-function loadRecentExecutions() {
-    // Load recent executions into table (simulate data)
-    // In real implementation, this would call backend
-}
-
-function viewExecutionDetails(executionId) {
-    showNotification(`Loading execution details for ${executionId}...`, 'info');
-    // In real implementation, this would show detailed execution info
-}
-
-function rerunExecution(executionId) {
-    showNotification(`Rerunning execution ${executionId}...`, 'info');
-    // In real implementation, this would rerun the specific execution
-}
-
-function loadPage(pageNum) {
-    showNotification(`Loading page ${pageNum}...`, 'info');
-    // In real implementation, this would load paginated results
-}
-
-function checkOngoingExecutions() {
-    // Check if there are any ongoing executions when page loads
-    const ongoingExecution = sessionStorage.getItem('ongoingExecution');
-    if (ongoingExecution) {
-        const executionData = JSON.parse(ongoingExecution);
-        $('#executionStatus').show();
-        $('#executionId').text(executionData.executionId);
-        pollExecutionStatus(executionData.executionId);
+        showNotification('Test execution stopped', 'warning');
     }
 }
 
-function initializeCharts() {
-    // Initialize any charts if needed
-    // This can be extended based on requirements
+// Update execution UI state
+function updateExecutionUI(executing) {
+    const runBtn = document.getElementById('runTestsBtn');
+    const stopBtn = document.getElementById('stopTestsBtn');
+
+    if (executing) {
+        runBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+        document.getElementById('testExecutionForm').querySelectorAll('input, select').forEach(el => {
+            el.disabled = true;
+        });
+    } else {
+        runBtn.style.display = 'inline-flex';
+        stopBtn.style.display = 'none';
+        document.getElementById('testExecutionForm').querySelectorAll('input, select').forEach(el => {
+            el.disabled = false;
+        });
+
+        // Reset progress display
+        setTimeout(() => {
+            document.getElementById('executionStatus').style.display = 'block';
+            document.getElementById('executionProgress').style.display = 'none';
+        }, 2000);
+    }
 }
 
-// Utility function for notifications
-function showNotification(message, type = 'info') {
-    const alertClass = `alert-${type}`;
-    const iconClass = type === 'success' ? 'fa-check' :
-                     type === 'danger' ? 'fa-times' :
-                     type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info';
+// Show execution complete modal
+function showExecutionCompleteModal() {
+    const modal = document.getElementById('executionCompleteModal');
+    const icon = document.getElementById('executionResultIcon');
+    const title = document.getElementById('executionResultTitle');
+    const summary = document.getElementById('executionResultSummary');
 
-    const notification = $(`
-        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
-            <i class="fas ${iconClass} me-2"></i>${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    const failed = currentExecutionData.failed;
+    const passed = currentExecutionData.passed;
+    const total = currentExecutionData.total;
+
+    if (failed === 0) {
+        icon.textContent = '✓';
+        icon.style.color = 'var(--success-color)';
+        title.textContent = 'All Tests Passed!';
+        summary.textContent = `Successfully executed ${total} tests`;
+    } else {
+        icon.textContent = '⚠';
+        icon.style.color = 'var(--warning-color)';
+        title.textContent = 'Tests Completed with Failures';
+        summary.textContent = `${failed} out of ${total} tests failed`;
+    }
+
+    document.getElementById('finalPassed').textContent = passed;
+    document.getElementById('finalFailed').textContent = failed;
+    document.getElementById('finalDuration').textContent = currentExecutionData.duration.toFixed(1) + 's';
+
+    modal.classList.add('show');
+}
+
+// Close execution modal
+function closeExecutionModal() {
+    const modal = document.getElementById('executionCompleteModal');
+    modal.classList.remove('show');
+}
+
+// Load recent executions
+async function loadRecentExecutions() {
+    try {
+        const executions = await fetchRecentExecutions();
+        renderRecentExecutions(executions);
+    } catch (error) {
+        console.error('Error loading recent executions:', error);
+    }
+}
+
+// Fetch recent executions
+async function fetchRecentExecutions() {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve([
+                {
+                    id: 'EX-2025-001',
+                    suite: 'API Test Suite',
+                    status: 'passed',
+                    passed: 43,
+                    failed: 2,
+                    total: 45,
+                    duration: '2m 34s',
+                    date: '2 hours ago'
+                },
+                {
+                    id: 'EX-2025-002',
+                    suite: 'UI Test Suite',
+                    status: 'failed',
+                    passed: 28,
+                    failed: 4,
+                    total: 32,
+                    duration: '5m 12s',
+                    date: '3 hours ago'
+                },
+                {
+                    id: 'EX-2025-003',
+                    suite: 'Integration Tests',
+                    status: 'passed',
+                    passed: 28,
+                    failed: 0,
+                    total: 28,
+                    duration: '3m 45s',
+                    date: '5 hours ago'
+                }
+            ]);
+        }, 600);
+    });
+}
+
+// Render recent executions
+function renderRecentExecutions(executions) {
+    const container = document.getElementById('recentExecutions');
+    if (!container) return;
+
+    if (executions.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted" style="padding: 2rem;">No recent executions found</div>';
+        return;
+    }
+
+    container.innerHTML = executions.map((exec, index) => `
+        <div class="card mb-2" style="animation: slideInFromLeft 0.5s ease ${index * 0.1}s both;">
+            <div class="card-body" style="padding: 1rem;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <strong>${exec.id}</strong>
+                            <span class="badge badge-${exec.status === 'passed' ? 'success' : 'danger'}">${exec.status}</span>
+                        </div>
+                        <div class="text-muted" style="font-size: 0.875rem;">${exec.suite}</div>
+                    </div>
+                    <div class="text-right">
+                        <div><strong>${exec.passed}/${exec.total}</strong> passed</div>
+                        <div class="text-muted" style="font-size: 0.875rem;">${exec.duration} • ${exec.date}</div>
+                    </div>
+                </div>
+            </div>
         </div>
-    `);
+    `).join('');
+}
 
-    $('body').append(notification);
+// Quick run suite
+function quickRunSuite(suiteId) {
+    const suiteSelect = document.getElementById('testSuite');
+    const suiteMap = {
+        'api-test-suite': 'api',
+        'ui-test-suite': 'ui',
+        'integration-tests': 'integration',
+        'regression-suite': 'regression',
+        'smoke-test-suite': 'smoke'
+    };
+
+    suiteSelect.value = suiteMap[suiteId] || 'all';
+
+    // Scroll to execution form
+    document.getElementById('testExecutionForm').scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+
+    // Highlight the form
+    const card = document.getElementById('testExecutionForm').closest('.card');
+    card.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.3)';
+    setTimeout(() => {
+        card.style.boxShadow = '';
+    }, 2000);
+}
+
+// Refresh test suites
+function refreshTestSuites() {
+    showNotification('Refreshing test suites...', 'info');
+    loadTestSuites();
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.style.position = 'fixed';
+    alert.style.top = '20px';
+    alert.style.right = '20px';
+    alert.style.zIndex = '9999';
+    alert.style.minWidth = '300px';
+    alert.innerHTML = `
+        <span>${getAlertIcon(type)}</span>
+        <span>${message}</span>
+    `;
+
+    document.body.appendChild(alert);
 
     setTimeout(() => {
-        notification.alert('close');
-    }, 5000);
+        alert.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => alert.remove(), 300);
+    }, 3000);
 }
+
+// Get alert icon
+function getAlertIcon(type) {
+    const icons = {
+        success: '✓',
+        danger: '✗',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    return icons[type] || icons.info;
+}
+
+// Handle view report button
+document.addEventListener('DOMContentLoaded', function() {
+    const viewReportBtn = document.getElementById('viewReportBtn');
+    if (viewReportBtn) {
+        viewReportBtn.addEventListener('click', function() {
+            window.location.href = '/dashboard/reports';
+        });
+    }
+});
+
+// Add slide out animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideOut {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+    }
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+    }
+`;
+document.head.appendChild(style);
+
