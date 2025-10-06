@@ -56,6 +56,23 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         logger.info("WebMvcConfig: Registered /reports/** handler -> {}", reportsPath);
 
+        // Serve allure-report from allure-report directory
+        Path allureReportPath = Paths.get("allure-report").toAbsolutePath();
+        if (!Files.exists(allureReportPath)) {
+            try {
+                Files.createDirectories(allureReportPath);
+                logger.info("WebMvcConfig: Created allure-report directory at: {}", allureReportPath);
+            } catch (Exception e) {
+                logger.error("WebMvcConfig: Error creating allure-report directory: {}", e.getMessage());
+            }
+        }
+
+        registry.addResourceHandler("/allure-report/**")
+                .addResourceLocations("file:" + allureReportPath.toString() + "/")
+                .setCachePeriod(3600);
+
+        logger.info("WebMvcConfig: Registered /allure-report/** handler -> {}", allureReportPath);
+
         // Serve allure results
         Path allurePath = Paths.get("allure-results").toAbsolutePath();
         if (Files.exists(allurePath)) {
@@ -69,4 +86,3 @@ public class WebMvcConfig implements WebMvcConfigurer {
         logger.info("WebMvcConfig: Static resource handlers configured successfully");
     }
 }
-

@@ -67,6 +67,23 @@ public class ReportService {
     }
 
     /**
+     * Get individual test detail by ID
+     */
+    public Optional<TestReportDetail> getTestDetailById(Long detailId) {
+        return detailRepository.findById(detailId);
+    }
+
+    /**
+     * Get test detail by report ID and test name
+     */
+    public Optional<TestReportDetail> getTestDetailByName(String reportId, String testName) {
+        List<TestReportDetail> details = detailRepository.findByReportReportId(reportId);
+        return details.stream()
+                .filter(d -> d.getTestName() != null && d.getTestName().equals(testName))
+                .findFirst();
+    }
+
+    /**
      * Get aggregated report containing all test executions
      */
     @Transactional(readOnly = true)

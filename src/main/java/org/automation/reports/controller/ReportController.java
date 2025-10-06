@@ -54,6 +54,28 @@ public class ReportController {
     }
 
     /**
+     * Get individual test detail by ID
+     */
+    @GetMapping("/test-detail/{detailId}")
+    public ResponseEntity<TestReportDetail> getTestDetailById(@PathVariable Long detailId) {
+        Optional<TestReportDetail> detail = reportService.getTestDetailById(detailId);
+        return detail.map(ResponseEntity::ok)
+                     .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Get test detail by report ID and test name
+     */
+    @GetMapping("/{reportId}/test/{testName}")
+    public ResponseEntity<TestReportDetail> getTestDetailByName(
+            @PathVariable String reportId,
+            @PathVariable String testName) {
+        Optional<TestReportDetail> detail = reportService.getTestDetailByName(reportId, testName);
+        return detail.map(ResponseEntity::ok)
+                     .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
      * Get filtered reports with multiple criteria
      */
     @GetMapping("/filter")

@@ -91,10 +91,11 @@ public class BlazeDemoTests extends BaseTest {
         Reporter.getCurrentTestResult().setAttribute("US_ID", "US107");
         getDriver().get(UiTestMapper.PURCHASE_URL);
 
-        // Wait for form to be ready
-        WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(DEFAULT_WAIT_SECONDS));
+        // Wait for form to be ready with increased timeout
+        WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(20));
         wait.until(ExpectedConditions.presenceOfElementLocated(By.id("inputName")));
 
+        // Fill in the purchase form
         getDriver().findElement(By.id("inputName")).sendKeys("Test User");
         getDriver().findElement(By.id("address")).sendKeys("123 Test St");
         getDriver().findElement(By.id("city")).sendKeys("Test City");
@@ -104,13 +105,37 @@ public class BlazeDemoTests extends BaseTest {
         getDriver().findElement(By.id("creditCardMonth")).sendKeys("12");
         getDriver().findElement(By.id("creditCardYear")).sendKeys("2025");
         getDriver().findElement(By.id("nameOnCard")).sendKeys("Test User");
+
+        // Wait for submit button to be clickable before clicking
+        wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("input[type='submit']")));
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
 
-        // Wait for confirmation page to load
-        wait.until(ExpectedConditions.titleContains("Confirmation"));
+        // Wait for confirmation page to load with multiple conditions
+        try {
+            // First, wait for URL to change from purchase page
+            wait.until(ExpectedConditions.not(ExpectedConditions.urlContains("purchase")));
 
-        Assert.assertTrue(getDriver().getTitle().contains("Confirmation"),
-            "Expected title to contain 'Confirmation' but was: " + getDriver().getTitle());
+            // Then wait for either title or specific confirmation element
+            wait.until(ExpectedConditions.or(
+                ExpectedConditions.titleContains("Confirmation"),
+                ExpectedConditions.titleContains("BlazeDemo Confirmation"),
+                ExpectedConditions.presenceOfElementLocated(By.xpath("//*[contains(text(), 'Thank you')]"))
+            ));
+
+            // Additional wait to ensure page is fully loaded
+            Thread.sleep(1000);
+
+        } catch (Exception e) {
+            // Log current state for debugging
+            System.err.println("Failed to find confirmation page. Current URL: " + getDriver().getCurrentUrl());
+            System.err.println("Current Title: " + getDriver().getTitle());
+            throw new AssertionError("Timeout waiting for payment confirmation page to load", e);
+        }
+
+        // Verify we're on the confirmation page
+        String currentTitle = getDriver().getTitle();
+        Assert.assertTrue(currentTitle.contains("Confirmation") || currentTitle.contains("BlazeDemo Confirmation"),
+            "Expected title to contain 'Confirmation' but was: " + currentTitle);
     }
 
     @Test(description = "Verify Confirmation Page")

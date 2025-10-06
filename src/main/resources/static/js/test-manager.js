@@ -69,55 +69,23 @@ async function loadTestSuites() {
     }
 }
 
-// Fetch test suites
+// Fetch test suites from API
 async function fetchTestSuites() {
-    // Simulate API call
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve([
-                {
-                    name: 'API Test Suite',
-                    type: 'API',
-                    count: 45,
-                    lastRun: '2 hours ago',
-                    status: 'passed',
-                    successRate: 95.6
-                },
-                {
-                    name: 'UI Test Suite',
-                    type: 'UI',
-                    count: 32,
-                    lastRun: '3 hours ago',
-                    status: 'failed',
-                    successRate: 87.5
-                },
-                {
-                    name: 'Integration Tests',
-                    type: 'Integration',
-                    count: 28,
-                    lastRun: '5 hours ago',
-                    status: 'passed',
-                    successRate: 100
-                },
-                {
-                    name: 'Regression Suite',
-                    type: 'Regression',
-                    count: 67,
-                    lastRun: '1 day ago',
-                    status: 'passed',
-                    successRate: 97.0
-                },
-                {
-                    name: 'Smoke Test Suite',
-                    type: 'Smoke',
-                    count: 15,
-                    lastRun: '1 day ago',
-                    status: 'passed',
-                    successRate: 100
-                }
-            ]);
-        }, 500);
-    });
+    try {
+        const response = await fetch('/api/test-suites');
+        const data = await response.json();
+
+        if (data.success) {
+            return data.suites;
+        } else {
+            console.error('Error fetching test suites:', data.message);
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching test suites:', error);
+        // Fallback to empty array if API fails
+        return [];
+    }
 }
 
 // Render test suites table
@@ -173,23 +141,44 @@ async function startTestExecution() {
 
     showNotification(`Starting ${suite} test execution on ${environment}...`, 'info');
 
-    // Reset execution data
-    currentExecutionData = {
-        passed: 0,
-        failed: 0,
-        skipped: 0,
-        duration: 0,
-        total: getTestCount(suite)
-    };
+    try {
+        // Call the backend API to execute tests
+        const response = await fetch(`/api/execute-tests?suite=${suite}&environment=${environment}&browser=${browser}&parallel=${parallel}&threads=${threads}`);
+        const result = await response.json();
 
-    // Show execution progress
-    document.getElementById('executionStatus').style.display = 'none';
-    document.getElementById('executionProgress').style.display = 'block';
-    document.getElementById('statusBadge').textContent = 'Running';
-    document.getElementById('statusBadge').className = 'badge badge-warning';
+        if (result.success) {
+            // Store the report ID for later use
+            window.currentReportId = result.reportId;
 
-    // Simulate test execution
-    simulateTestExecution();
+            // Reset execution data
+            currentExecutionData = {
+                passed: 0,
+                failed: 0,
+                skipped: 0,
+                duration: 0,
+                total: getTestCount(suite),
+                reportId: result.reportId
+            };
+
+            // Show execution progress
+            document.getElementById('executionStatus').style.display = 'none';
+            document.getElementById('executionProgress').style.display = 'block';
+            document.getElementById('statusBadge').textContent = 'Running';
+            document.getElementById('statusBadge').className = 'badge badge-warning';
+
+            // Poll for real execution status
+            pollExecutionStatus(result.reportId);
+        } else {
+            showNotification('Failed to start test execution: ' + result.message, 'danger');
+            isExecuting = false;
+            updateExecutionUI(false);
+        }
+    } catch (error) {
+        console.error('Error starting test execution:', error);
+        showNotification('Failed to start test execution', 'danger');
+        isExecuting = false;
+        updateExecutionUI(false);
+    }
 }
 
 // Get test count for suite
@@ -205,62 +194,97 @@ function getTestCount(suite) {
     return counts[suite] || 50;
 }
 
-// Simulate test execution
-function simulateTestExecution() {
-    let progress = 0;
-    const totalTests = currentExecutionData.total;
-    let currentTest = 0;
+// Poll execution status from API
+function pollExecutionStatus(executionId) {
+    let pollCount = 0;
+    const maxPolls = 300; // Maximum 10 minutes (300 * 2 seconds)
 
-    executionInterval = setInterval(() => {
+    executionInterval = setInterval(async () => {
         if (!isExecuting) {
             clearInterval(executionInterval);
             return;
         }
 
-        progress += Math.random() * 5;
-        currentTest = Math.floor((progress / 100) * totalTests);
+        pollCount++;
 
-        if (progress >= 100) {
-            progress = 100;
-            currentTest = totalTests;
-            completeTestExecution();
+        // Safety: Stop polling after max attempts
+        if (pollCount > maxPolls) {
+            console.warn('Polling timeout - stopping execution monitor');
             clearInterval(executionInterval);
+            isExecuting = false;
+            updateExecutionUI(false);
+            showNotification('Test execution monitoring timed out', 'warning');
             return;
         }
 
-        // Update progress
-        updateExecutionProgress(progress, currentTest, totalTests);
+        try {
+            const response = await fetch(`/api/execution-status?executionId=${executionId}`);
+            const data = await response.json();
 
-        // Simulate test results
-        if (Math.random() > 0.2) {
-            currentExecutionData.passed++;
-        } else {
-            if (Math.random() > 0.5) {
-                currentExecutionData.failed++;
+            if (data.success) {
+                // Update execution data from API
+                currentExecutionData.passed = data.passed || 0;
+                currentExecutionData.failed = data.failed || 0;
+                currentExecutionData.skipped = data.skipped || 0;
+                currentExecutionData.total = data.total || 0;
+                currentExecutionData.duration = data.duration || 0;
+
+                const progress = data.progress || 0;
+                const currentTest = data.currentTest || 'Running tests...';
+
+                // Update progress UI
+                updateExecutionProgress(progress,
+                    currentExecutionData.passed + currentExecutionData.failed + currentExecutionData.skipped,
+                    currentExecutionData.total);
+
+                // Update stats
+                document.getElementById('runningPassed').textContent = currentExecutionData.passed;
+                document.getElementById('runningFailed').textContent = currentExecutionData.failed;
+                document.getElementById('runningSkipped').textContent = currentExecutionData.skipped;
+                document.getElementById('runningDuration').textContent = currentExecutionData.duration.toFixed(1) + 's';
+
+                // Update current test name
+                const currentTestNameEl = document.getElementById('currentTestName');
+                if (currentTestNameEl) {
+                    currentTestNameEl.textContent = currentTest;
+                }
+
+                // Check if completed - STOP POLLING
+                if (data.status === 'COMPLETED' || data.status === 'FAILED' || data.status === 'STOPPED') {
+                    console.log('Test execution completed with status:', data.status);
+                    clearInterval(executionInterval);
+                    executionInterval = null;
+                    completeTestExecution();
+                }
             } else {
-                currentExecutionData.skipped++;
+                console.error('Error fetching execution status:', data.message);
+                // If execution not found after a few attempts, stop polling
+                if (pollCount > 5) {
+                    clearInterval(executionInterval);
+                    executionInterval = null;
+                    isExecuting = false;
+                    updateExecutionUI(false);
+                    showNotification('Test execution not found', 'danger');
+                }
             }
+        } catch (error) {
+            console.error('Error polling execution status:', error);
         }
-
-        currentExecutionData.duration += 0.5;
-
-        // Update UI
-        document.getElementById('runningPassed').textContent = currentExecutionData.passed;
-        document.getElementById('runningFailed').textContent = currentExecutionData.failed;
-        document.getElementById('runningSkipped').textContent = currentExecutionData.skipped;
-        document.getElementById('runningDuration').textContent = currentExecutionData.duration.toFixed(1) + 's';
-
-    }, 500);
+    }, 2000); // Poll every 2 seconds
 }
 
 // Update execution progress
 function updateExecutionProgress(progress, current, total) {
     const progressBar = document.getElementById('overallProgress');
     const progressText = document.getElementById('progressPercentage');
-    const currentTestName = document.getElementById('currentTestName');
 
-    progressBar.style.width = progress + '%';
-    progressText.textContent = Math.floor(progress) + '%';
+    if (progressBar) {
+        progressBar.style.width = progress + '%';
+    }
+
+    if (progressText) {
+        progressText.textContent = Math.floor(progress) + '%';
+    }
 
     const testNames = [
         'LoginTest.testValidCredentials',
@@ -298,18 +322,36 @@ function completeTestExecution() {
 }
 
 // Stop test execution
-function stopTestExecution() {
+async function stopTestExecution() {
     if (!isExecuting) return;
 
     if (confirm('Are you sure you want to stop the test execution?')) {
+        try {
+            // Call API to stop the execution
+            if (window.currentReportId) {
+                const response = await fetch(`/api/stop-execution?executionId=${window.currentReportId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('Test execution stopped', 'warning');
+                } else {
+                    showNotification('Failed to stop execution: ' + data.message, 'danger');
+                }
+            }
+        } catch (error) {
+            console.error('Error stopping execution:', error);
+        }
+
+        // Clean up UI regardless
         isExecuting = false;
-        clearInterval(executionInterval);
+        if (executionInterval) {
+            clearInterval(executionInterval);
+            executionInterval = null;
+        }
         updateExecutionUI(false);
 
         document.getElementById('statusBadge').textContent = 'Stopped';
         document.getElementById('statusBadge').className = 'badge badge-danger';
-
-        showNotification('Test execution stopped', 'warning');
     }
 }
 
@@ -375,7 +417,7 @@ function closeExecutionModal() {
     modal.classList.remove('show');
 }
 
-// Load recent executions
+// Load recent executions from API
 async function loadRecentExecutions() {
     try {
         const executions = await fetchRecentExecutions();
@@ -385,44 +427,22 @@ async function loadRecentExecutions() {
     }
 }
 
-// Fetch recent executions
+// Fetch recent executions from API
 async function fetchRecentExecutions() {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve([
-                {
-                    id: 'EX-2025-001',
-                    suite: 'API Test Suite',
-                    status: 'passed',
-                    passed: 43,
-                    failed: 2,
-                    total: 45,
-                    duration: '2m 34s',
-                    date: '2 hours ago'
-                },
-                {
-                    id: 'EX-2025-002',
-                    suite: 'UI Test Suite',
-                    status: 'failed',
-                    passed: 28,
-                    failed: 4,
-                    total: 32,
-                    duration: '5m 12s',
-                    date: '3 hours ago'
-                },
-                {
-                    id: 'EX-2025-003',
-                    suite: 'Integration Tests',
-                    status: 'passed',
-                    passed: 28,
-                    failed: 0,
-                    total: 28,
-                    duration: '3m 45s',
-                    date: '5 hours ago'
-                }
-            ]);
-        }, 600);
-    });
+    try {
+        const response = await fetch('/api/recent-executions?limit=5');
+        const data = await response.json();
+
+        if (data.success) {
+            return data.executions;
+        } else {
+            console.error('Error fetching executions:', data.message);
+            return [];
+        }
+    } catch (error) {
+        console.error('Error fetching executions:', error);
+        return [];
+    }
 }
 
 // Render recent executions
@@ -527,7 +547,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const viewReportBtn = document.getElementById('viewReportBtn');
     if (viewReportBtn) {
         viewReportBtn.addEventListener('click', function() {
-            window.location.href = '/dashboard/reports';
+            // If we have a report ID from the current execution, navigate to that specific report
+            if (window.currentReportId) {
+                window.location.href = `/dashboard/execution-report?id=${window.currentReportId}`;
+            } else {
+                // Otherwise, go to the reports list page
+                window.location.href = '/dashboard/reports';
+            }
         });
     }
 });
@@ -551,4 +577,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
