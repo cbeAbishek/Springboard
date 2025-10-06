@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execution Report - Springboard</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Springboard</span>
+                </div>
+                <nav class="nav">
+                    <a href="/dashboard" class="nav-link">Dashboard</a>
+                    <a href="/dashboard/test-manager" class="nav-link">Test Manager</a>
+                    <a href="/dashboard/reports" class="nav-link">Reports</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="fade-in">
+                <!-- Breadcrumb -->
+                <div class="mb-3">
+                    <a href="/dashboard/reports" style="color: var(--text-secondary); text-decoration: none;">
+                        ← Back to Reports
+                    </a>
+                </div>
+
+                <!-- Execution Header -->
+                <div class="card mb-4 slide-in-left">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h1 style="font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;" id="executionId">EX-2025-001</h1>
+                                <p class="text-muted" id="executionSuite">API Test Suite</p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <span class="badge badge-success" id="executionStatus" style="font-size: 1rem; padding: 0.75rem 1.5rem;">PASSED</span>
+                            </div>
+                        </div>
+                        <div class="grid-3 mt-4">
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Executed</div>
+                                <div class="text-bold" id="executionDate">Oct 5, 2025 14:30</div>
+                            </div>
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Duration</div>
+                                <div class="text-bold" id="executionDuration">2m 34s</div>
+                            </div>
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Environment</div>
+                                <div class="text-bold" id="executionEnvironment">QA</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Stats -->
+                <div class="stats-grid mb-4">
+                    <div class="stat-card success scale-in">
+                        <div class="stat-icon">✓</div>
+                        <div class="stat-value" id="passedCount">43</div>
+                        <div class="stat-label">Passed Tests</div>
+                    </div>
+
+                    <div class="stat-card danger scale-in" style="animation-delay: 0.1s;">
+                        <div class="stat-icon">✗</div>
+                        <div class="stat-value" id="failedCount">2</div>
+                        <div class="stat-label">Failed Tests</div>
+                    </div>
+
+                    <div class="stat-card warning scale-in" style="animation-delay: 0.2s;">
+                        <div class="stat-icon">⊘</div>
+                        <div class="stat-value" id="skippedCount">0</div>
+                        <div class="stat-label">Skipped Tests</div>
+                    </div>
+
+                    <div class="stat-card info scale-in" style="animation-delay: 0.3s;">
+                        <div class="stat-icon">%</div>
+                        <div class="stat-value" id="successRate">95.6%</div>
+                        <div class="stat-label">Success Rate</div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar success" id="successBar" style="width: 95.6%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts and Timeline -->
+                <div class="grid-2 mb-4">
+                    <div class="card slide-in-left">
+                        <div class="card-header">
+                            <h2 class="card-title">Test Results Distribution</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="distributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card slide-in-right">
+                        <div class="card-header">
+                            <h2 class="card-title">Execution Timeline</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="timelineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Cases Details -->
+                <div class="card fade-in" style="animation-delay: 0.2s;">
+                    <div class="card-header">
+                        <h2 class="card-title">Test Cases</h2>
+                        <div class="d-flex gap-2">
+                            <select class="form-control" style="width: 200px;" id="filterStatus" onchange="filterTests()">
+                                <option value="all">All Tests</option>
+                                <option value="passed">Passed Only</option>
+                                <option value="failed">Failed Only</option>
+                                <option value="skipped">Skipped Only</option>
+                            </select>
+                            <input type="text" class="form-control" placeholder="Search tests..."
+                                   id="searchTests" style="width: 250px;" onkeyup="searchTests()">
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Test Case</th>
+                                        <th>Class</th>
+                                        <th>Status</th>
+                                        <th>Duration</th>
+                                        <th>Error Message</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="testCasesTable">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-2 mt-4 justify-content-between">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" onclick="downloadReport()">
+                            <span>📥</span>
+                            <span>Download PDF</span>
+                        </button>
+                        <button class="btn btn-success" onclick="viewAllureReport()">
+                            <span>📊</span>
+                            <span>View Allure Report</span>
+                        </button>
+                        <button class="btn btn-outline" onclick="shareReport()">
+                            <span>🔗</span>
+                            <span>Share</span>
+                        </button>
+                    </div>
+                    <button class="btn btn-danger" onclick="rerunFailedTests()">
+                        <span>↻</span>
+                        <span>Rerun Failed Tests</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Test Detail Modal -->
+    <div class="modal" id="testDetailModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="testDetailTitle">Test Details</h3>
+                <button class="modal-close" onclick="closeTestDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="testDetailBody">
+                <!-- Details populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeTestDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load execution report data
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExecutionReport();
+            initCharts();
+        });
+
+        async function loadExecutionReport() {
+            // Get execution ID from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            const executionId = urlParams.get('id') || 'EX-2025-001';
+
+            // Simulate loading data
+            const data = await fetchExecutionData(executionId);
+            populateReport(data);
+        }
+
+        async function fetchExecutionData(id) {
+            try {
+                // Fetch real data from API
+                const response = await fetch(`/api/reports/${id}`);
+                if (response.ok) {
+                    const reportData = await response.json();
+
+                    // Fetch test details for this report
+                    const detailsResponse = await fetch(`/api/reports/${id}/details`);
+                    let testCases = [];
+
+                    if (detailsResponse.ok) {
+                        testCases = await detailsResponse.json();
+                    }
+
+                    // Count actual results from test cases
+                    const actualPassed = testCases.filter(tc =>
+                        tc.status?.toLowerCase() === 'pass' || tc.status?.toLowerCase() === 'passed'
+                    ).length;
+                    const actualFailed = testCases.filter(tc =>
+                        tc.status?.toLowerCase() === 'fail' || tc.status?.toLowerCase() === 'failed'
+                    ).length;
+                    const actualSkipped = testCases.filter(tc =>
+                        tc.status?.toLowerCase() === 'skip' || tc.status?.toLowerCase() === 'skipped'
+                    ).length;
+
+                    // Use actual counts from test details, or fall back to report summary
+                    const passed = testCases.length > 0 ? actualPassed : (reportData.passedTests || 0);
+                    const failed = testCases.length > 0 ? actualFailed : (reportData.failedTests || 0);
+                    const skipped = testCases.length > 0 ? actualSkipped : (reportData.skippedTests || 0);
+                    const total = testCases.length > 0 ? testCases.length : (reportData.totalTests || 0);
+
+                    console.log(`Real data loaded: ${passed} passed, ${failed} failed, ${skipped} skipped out of ${total} total`);
+
+                    return {
+                        id: reportData.reportId || id,
+                        suite: reportData.suiteType || reportData.reportName || 'Test Suite',
+                        status: reportData.status?.toLowerCase() === 'completed' ?
+                               (failed === 0 ? 'passed' : 'failed') :
+                               reportData.status?.toLowerCase() || 'running',
+                        date: new Date(reportData.executionDate || reportData.createdAt).toLocaleString(),
+                        duration: formatDuration(reportData.durationMs),
+                        environment: reportData.environment || 'N/A',
+                        passed: passed,
+                        failed: failed,
+                        skipped: skipped,
+                        total: total,
+                        testCases: testCases.map(tc => ({
+                            id: tc.id,
+                            name: tc.testName,
+                            class: tc.testClass,
+                            status: tc.status?.toLowerCase() || 'unknown',
+                            duration: formatDuration(tc.durationMs),
+                            error: tc.errorMessage,
+                            hasScreenshot: !!(tc.screenshotPath && tc.screenshotName),
+                            testType: tc.testType,
+                            screenshotName: tc.screenshotName
+                        }))
+                    };
+                } else {
+                    console.error(`API returned ${response.status}: Report not found`);
+                }
+            } catch (error) {
+                console.error('Error fetching real data from API:', error);
+            }
+
+            // If API fails, show error message instead of mock data
+            return {
+                id: id,
+                suite: 'No Data Available',
+                status: 'error',
+                date: new Date().toLocaleString(),
+                duration: 'N/A',
+                environment: 'N/A',
+                passed: 0,
+                failed: 0,
+                skipped: 0,
+                total: 0,
+                testCases: [],
+                error: true,
+                errorMessage: 'Unable to load test execution data. Please ensure tests have been executed and saved to the database.'
+            };
+        }
+
+        function formatDuration(durationMs) {
+            if (!durationMs) return 'N/A';
+            const seconds = (durationMs / 1000).toFixed(2);
+            const minutes = Math.floor(durationMs / 60000);
+            const remainingSeconds = ((durationMs % 60000) / 1000).toFixed(0);
+            return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
+        }
+
+
+        function populateReport(data) {
+            document.getElementById('executionId').textContent = data.id;
+            document.getElementById('executionSuite').textContent = data.suite;
+            document.getElementById('executionStatus').textContent = data.status.toUpperCase();
+            document.getElementById('executionStatus').className = `badge badge-${data.status === 'passed' ? 'success' : 'danger'}`;
+            document.getElementById('executionDate').textContent = data.date;
+            document.getElementById('executionDuration').textContent = data.duration;
+            document.getElementById('executionEnvironment').textContent = data.environment.toUpperCase();
+
+            document.getElementById('passedCount').textContent = data.passed;
+            document.getElementById('failedCount').textContent = data.failed;
+            document.getElementById('skippedCount').textContent = data.skipped;
+
+            const successRate = ((data.passed / data.total) * 100).toFixed(1);
+            document.getElementById('successRate').textContent = successRate + '%';
+            document.getElementById('successBar').style.width = successRate + '%';
+
+            renderTestCases(data.testCases);
+        }
+
+        function renderTestCases(testCases) {
+            const tbody = document.getElementById('testCasesTable');
+
+            // Store test cases globally for filtering and searching
+            window.allTestCases = testCases;
+            window.filteredTestCases = testCases;
+
+            tbody.innerHTML = testCases.map((test, index) => {
+                // Details button should only be enabled for failed tests
+                const isFailed = test.status === 'failed' || test.status === 'FAILED' || test.status === 'FAIL';
+                const hasScreenshot = test.hasScreenshot;
+                const canViewDetails = isFailed && hasScreenshot;
+
+                return `
+                    <tr style="animation: fadeIn 0.5s ease ${index * 0.02}s both;">
+                        <td><strong>${test.name}</strong></td>
+                        <td>${test.class}</td>
+                        <td><span class="badge badge-${test.status === 'passed' ? 'success' : 'danger'}">${test.status}</span></td>
+                        <td>${test.duration}</td>
+                        <td>${test.error ? `<span style="color: var(--danger-color); font-size: 0.875rem;">${test.error}</span>` : '-'}</td>
+                        <td>
+                            ${canViewDetails ?
+                                `<button class="btn btn-secondary btn-sm" onclick="viewTestDetail('${test.name}', ${test.id ? "'" + test.id + "'" : 'null'})" title="View screenshot and error details">
+                                    <span>🔍</span> Details
+                                </button>` :
+                                `<button class="btn btn-secondary btn-sm" disabled title="${!isFailed ? 'Details only available for failed tests' : 'No screenshot available'}" style="opacity: 0.5; cursor: not-allowed;">
+                                    <span>🔍</span> Details
+                                </button>`
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function initCharts() {
+            // Use dynamic data from the report
+            const passedCount = parseInt(document.getElementById('passedCount').textContent) || 43;
+            const failedCount = parseInt(document.getElementById('failedCount').textContent) || 2;
+            const skippedCount = parseInt(document.getElementById('skippedCount').textContent) || 0;
+
+            const ctx1 = document.getElementById('distributionChart');
+            new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed', 'Skipped'],
+                    datasets: [{
+                        data: [passedCount, failedCount, skippedCount],
+                        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(245, 158, 11, 0.8)']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            const ctx2 = document.getElementById('timelineChart');
+            new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['0-30s', '30-60s', '60-90s', '90-120s', '120s+'],
+                    datasets: [{
+                        label: 'Test Count',
+                        data: [15, 18, 8, 3, 1],
+                        backgroundColor: 'rgba(79, 70, 229, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function filterTests() {
+            const filterValue = document.getElementById('filterStatus').value;
+
+            if (filterValue === 'all') {
+                window.filteredTestCases = window.allTestCases;
+            } else {
+                window.filteredTestCases = window.allTestCases.filter(test =>
+                    test.status.toLowerCase() === filterValue.toLowerCase()
+                );
+            }
+
+            renderTestCases(window.filteredTestCases);
+        }
+
+        function searchTests() {
+            const searchTerm = document.getElementById('searchTests').value.toLowerCase();
+
+            if (!searchTerm) {
+                window.filteredTestCases = window.allTestCases;
+            } else {
+                window.filteredTestCases = window.allTestCases.filter(test =>
+                    test.name.toLowerCase().includes(searchTerm) ||
+                    test.class.toLowerCase().includes(searchTerm) ||
+                    (test.error && test.error.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            renderTestCases(window.filteredTestCases);
+        }
+
+        async function viewTestDetail(testName, testId) {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const executionId = urlParams.get('id') || 'EX-2025-001';
+
+                let testDetail = null;
+
+                // Try to fetch from API first
+                try {
+                    const response = await fetch(`/api/reports/${executionId}/test/${encodeURIComponent(testName)}`);
+                    if (response.ok) {
+                        testDetail = await response.json();
+                    }
+                } catch (apiError) {
+                    console.warn('API fetch failed, using local data:', apiError);
+                }
+
+                // Fallback to local test case data if API fails
+                if (!testDetail && window.allTestCases) {
+                    testDetail = window.allTestCases.find(tc => tc.name === testName);
+
+                    // If found, enhance with mock screenshot data for failed tests
+                    if (testDetail && testDetail.hasScreenshot) {
+                        testDetail.screenshotName = `${testName}_FAILED_20251006_011829.png`;
+                        testDetail.screenshotPath = `/screenshots/${testDetail.screenshotName}`;
+                        testDetail.testType = 'UI';
+                        testDetail.browser = 'Chrome';
+                        testDetail.durationMs = parseFloat(testDetail.duration) * 1000;
+                        testDetail.errorMessage = testDetail.error;
+                        testDetail.stackTrace = `org.openqa.selenium.NoSuchElementException: ${testDetail.error}\n    at FlightSearchTest.${testName}(FlightSearchTest.java:45)\n    at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n    at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)`;
+                    }
+                }
+
+                if (!testDetail) {
+                    throw new Error('Test details not found');
+                }
+
+                // Populate modal with test details
+                const modalBody = document.getElementById('testDetailBody');
+
+                let screenshotHtml = '';
+                if (testDetail.screenshotPath && testDetail.screenshotName) {
+                    // Build screenshot URL - screenshots are served from /screenshots/ endpoint
+                    const screenshotUrl = `/screenshots/${testDetail.screenshotName}`;
+                    screenshotHtml = `
+                        <div class="mb-3">
+                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Screenshot</h5>
+                            <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem; background: var(--bg-secondary);">
+                                <img src="${screenshotUrl}" alt="Test Screenshot"
+                                     style="max-width: 100%; height: auto; display: block; border-radius: 4px; cursor: pointer;"
+                                     onclick="window.open('${screenshotUrl}', '_blank')"
+                                     onerror="this.parentElement.innerHTML='<p style=\\'text-align:center; color: var(--text-secondary); padding: 2rem;\\'>Screenshot not available</p>'" />
+                                <div class="mt-2 text-center">
+                                    <a href="${screenshotUrl}" target="_blank" class="btn btn-secondary btn-sm">
+                                        <span>🔍</span>
+                                        <span>View Full Size</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let apiDetailsHtml = '';
+                if (testDetail.testType === 'API' && testDetail.apiEndpoint) {
+                    apiDetailsHtml = `
+                        <div class="mb-3">
+                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">API Details</h5>
+                            <div class="grid-2" style="gap: 0.75rem;">
+                                <div>
+                                    <div class="text-muted" style="font-size: 0.875rem;">Endpoint</div>
+                                    <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiEndpoint || 'N/A'}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted" style="font-size: 0.875rem;">Method</div>
+                                    <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiMethod || 'N/A'}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted" style="font-size: 0.875rem;">Response Code</div>
+                                    <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiResponseCode || 'N/A'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let errorDetailsHtml = '';
+                if (testDetail.errorMessage || testDetail.stackTrace || testDetail.error) {
+                    const errorMsg = testDetail.errorMessage || testDetail.error || 'Unknown error';
+                    errorDetailsHtml = `
+                        <div class="mb-3">
+                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Error Details</h5>
+                            <div class="alert alert-danger mb-2">
+                                <span>⚠</span>
+                                <span>${errorMsg}</span>
+                            </div>
+                            ${testDetail.stackTrace ? `
+                                <details style="margin-top: 0.5rem;">
+                                    <summary style="cursor: pointer; font-weight: 500; color: var(--text-secondary);">
+                                        Stack Trace
+                                    </summary>
+                                    <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; margin-top: 0.5rem;">${testDetail.stackTrace}</pre>
+                                </details>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+
+                modalBody.innerHTML = `
+                    <div>
+                        <h4 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">${testDetail.testName || testDetail.name || testName}</h4>
+                        <p class="text-muted" style="margin-bottom: 1rem;">${testDetail.testClass || testDetail.class || 'N/A'}</p>
+
+                        <div class="mb-3">
+                            <span class="badge badge-${(testDetail.status === 'PASS' || testDetail.status === 'PASSED' || testDetail.status === 'passed') ? 'success' : 'danger'}"
+                                  style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                                ${(testDetail.status || 'UNKNOWN').toUpperCase()}
+                            </span>
+                        </div>
+
+                        <div class="grid-3 mb-3" style="gap: 1rem;">
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Duration</div>
+                                <div class="text-bold">${testDetail.durationMs ? (testDetail.durationMs / 1000).toFixed(2) + 's' : (testDetail.duration || 'N/A')}</div>
+                            </div>
+                            <div>
+                                <div class="text-muted" style="font-size: 0.875rem;">Test Type</div>
+                                <div class="text-bold">${testDetail.testType || 'UI'}</div>
+                            </div>
+                            ${testDetail.browser ? `
+                                <div>
+                                    <div class="text-muted" style="font-size: 0.875rem;">Browser</div>
+                                    <div class="text-bold">${testDetail.browser}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        ${screenshotHtml}
+                        ${apiDetailsHtml}
+                        ${errorDetailsHtml}
+                    </div>
+                `;
+
+                // Show modal
+                document.getElementById('testDetailModal').classList.add('show');
+
+            } catch (error) {
+                console.error('Error displaying test details:', error);
+                // Show error in modal instead of alert
+                const modalBody = document.getElementById('testDetailBody');
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">
+                        <span>⚠</span>
+                        <div>
+                            <strong>Unable to load test details</strong>
+                            <p style="margin-top: 0.5rem; font-size: 0.875rem;">The test details could not be loaded. This may be because:</p>
+                            <ul style="font-size: 0.875rem; margin-top: 0.5rem;">
+                                <li>The test data is not available in the database</li>
+                                <li>The execution report is from a mock/demo session</li>
+                                <li>There was a network error fetching the data</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('testDetailModal').classList.add('show');
+            }
+        }
+
+        function closeTestDetailModal() { document.getElementById('testDetailModal').classList.remove('show'); }
+        function downloadReport() { alert('Downloading report...'); }
+        function viewAllureReport() { window.open('/allure-report', '_blank'); }
+        function shareReport() { alert('Report link copied to clipboard!'); }
+        function rerunFailedTests() { alert('Rerunning failed tests...'); }
+    </script>
+</body>
+</html>

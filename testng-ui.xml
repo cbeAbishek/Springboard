@@ -4,6 +4,7 @@
     <parameter name="headless" value="false"/>
 
     <listeners>
+        <listener class-name="org.automation.listeners.UnifiedReportListener"/>
         <listener class-name="org.automation.listeners.TestListener"/>
         <listener class-name="org.automation.listeners.ScreenshotListener"/>
         <listener class-name="org.automation.listeners.ReportListener"/>

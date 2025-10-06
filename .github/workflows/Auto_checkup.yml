@@ -3,7 +3,6 @@ name: Automated Test Suite
 on:
   push:
   schedule:
-    # Run nightly at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
@@ -13,18 +12,32 @@ on:
         default: 'all'
         type: choice
         options:
-        - all
-        - ui
-        - api
+          - all
+          - ui
+          - api
+          - specific
+      test_file:
+        description: 'Specific Test File (full class name, e.g., org.automation.ui.BlazeDemoTests)'
+        required: false
+        type: string
+      test_method:
+        description: 'Specific Test Method (optional, e.g., testBookFlight)'
+        required: false
+        type: string
       browser:
         description: 'Browser for UI Tests'
         required: false
         default: 'chrome'
         type: choice
         options:
-        - chrome
-        - firefox
-        - edge
+          - chrome
+          - firefox
+          - edge
+      generate_reports:
+        description: 'Generate Reports'
+        required: false
+        default: true
+        type: boolean
 
 env:
   MAVEN_OPTS: -Xmx2048m
@@ -39,6 +52,9 @@ jobs:
     outputs:
       test-suites: ${{ steps.determine-suites.outputs.suites }}
       timestamp: ${{ steps.timestamp.outputs.timestamp }}
+      test-file: ${{ steps.determine-suites.outputs.testfile }}
+      test-method: ${{ steps.determine-suites.outputs.testmethod }}
+      skip-ci: ${{ steps.check-commit.outputs.skip }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -62,12 +78,22 @@ jobs:
       - name: Determine Test Suites
         id: determine-suites
         run: |
-          if [ "${{ github.event.inputs.test_suite }}" == "ui" ]; then
+          if [ "${{ github.event.inputs.test_suite }}" == "specific" ]; then
+            echo "suites=[\"specific\"]" >> $GITHUB_OUTPUT
+            echo "testfile=${{ github.event.inputs.test_file }}" >> $GITHUB_OUTPUT
+            echo "testmethod=${{ github.event.inputs.test_method }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.test_suite }}" == "ui" ]; then
             echo "suites=[\"ui\"]" >> $GITHUB_OUTPUT
+            echo "testfile=" >> $GITHUB_OUTPUT
+            echo "testmethod=" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.inputs.test_suite }}" == "api" ]; then
             echo "suites=[\"api\"]" >> $GITHUB_OUTPUT
+            echo "testfile=" >> $GITHUB_OUTPUT
+            echo "testmethod=" >> $GITHUB_OUTPUT
           else
             echo "suites=[\"ui\", \"api\"]" >> $GITHUB_OUTPUT
+            echo "testfile=" >> $GITHUB_OUTPUT
+            echo "testmethod=" >> $GITHUB_OUTPUT
           fi
 
       - name: Exit if automation commit
@@ -78,7 +104,7 @@ jobs:
 
   ui-tests:
     needs: setup
-    if: contains(fromJson(needs.setup.outputs.test-suites), 'ui')
+    if: needs.setup.outputs.skip-ci != 'true' && contains(fromJson(needs.setup.outputs.test-suites), 'ui')
     runs-on: ubuntu-latest
 
     services:
@@ -141,8 +167,12 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
 
-      - name: Create Screenshots Directory
-        run: mkdir -p artifacts/screenshots
+      - name: Create Required Directories
+        run: |
+          mkdir -p artifacts/screenshots
+          mkdir -p artifacts/reports
+          mkdir -p target/surefire-reports
+          mkdir -p allure-results
 
       - name: Run UI Tests
         run: |
@@ -163,8 +193,33 @@ jobs:
       - name: Generate UI Test Reports
         if: always()
         run: |
+          echo "Generating Surefire reports..."
           mvn surefire-report:report-only
           mvn site -DgenerateReports=false
+          
+          echo "Generating Allure reports..."
+          if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
+            mvn allure:report || echo "Allure report generation skipped"
+          fi
+
+      - name: Create Report Summary
+        if: always()
+        run: |
+          mkdir -p artifacts/reports
+          echo "# UI Test Report - ${{ matrix.browser }} - ${{ needs.setup.outputs.timestamp }}" > artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          echo "" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          echo "**Browser:** ${{ matrix.browser }}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          echo "**Execution Time:** $(date)" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          echo "**Branch:** ${{ github.ref_name }}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          echo "**Commit:** ${{ github.sha }}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          echo "" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          
+          if [ -f "target/surefire-reports/testng-results.xml" ]; then
+            echo "**Test Results:**" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+            echo "\`\`\`" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+            grep -E "tests=|passed=|failed=|skipped=" target/surefire-reports/testng-results.xml || echo "Results parsed from XML"
+            echo "\`\`\`" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
+          fi
 
       - name: Upload UI Test Results
         if: always()
@@ -176,6 +231,8 @@ jobs:
             target/site/
             artifacts/screenshots/
             artifacts/reports/
+            allure-results/
+            test-output/
           retention-days: 30
 
       - name: Upload Screenshots on Failure
@@ -188,7 +245,7 @@ jobs:
 
   api-tests:
     needs: setup
-    if: contains(fromJson(needs.setup.outputs.test-suites), 'api')
+    if: needs.setup.outputs.skip-ci != 'true' && contains(fromJson(needs.setup.outputs.test-suites), 'api')
     runs-on: ubuntu-latest
 
     services:
@@ -234,6 +291,13 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
 
+      - name: Create Required Directories
+        run: |
+          mkdir -p artifacts/api
+          mkdir -p artifacts/reports
+          mkdir -p target/surefire-reports
+          mkdir -p allure-results
+
       - name: Run API Tests
         run: |
           mvn clean test -Dsuite=api \
@@ -250,8 +314,32 @@ jobs:
       - name: Generate API Test Reports
         if: always()
         run: |
+          echo "Generating Surefire reports..."
           mvn surefire-report:report-only
           mvn site -DgenerateReports=false
+          
+          echo "Generating Allure reports..."
+          if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
+            mvn allure:report || echo "Allure report generation skipped"
+          fi
+
+      - name: Create Report Summary
+        if: always()
+        run: |
+          mkdir -p artifacts/reports
+          echo "# API Test Report - ${{ needs.setup.outputs.timestamp }}" > artifacts/reports/api-summary.md
+          echo "" >> artifacts/reports/api-summary.md
+          echo "**Execution Time:** $(date)" >> artifacts/reports/api-summary.md
+          echo "**Branch:** ${{ github.ref_name }}" >> artifacts/reports/api-summary.md
+          echo "**Commit:** ${{ github.sha }}" >> artifacts/reports/api-summary.md
+          echo "" >> artifacts/reports/api-summary.md
+          
+          if [ -f "target/surefire-reports/testng-results.xml" ]; then
+            echo "**Test Results:**" >> artifacts/reports/api-summary.md
+            echo "\`\`\`" >> artifacts/reports/api-summary.md
+            grep -E "tests=|passed=|failed=|skipped=" target/surefire-reports/testng-results.xml || echo "Results parsed from XML"
+            echo "\`\`\`" >> artifacts/reports/api-summary.md
+          fi
 
       - name: Upload API Test Results
         if: always()
@@ -263,11 +351,145 @@ jobs:
             target/site/
             artifacts/api/
             artifacts/reports/
+            allure-results/
+            test-output/
+          retention-days: 30
+
+  specific-test:
+    needs: setup
+    if: needs.setup.outputs.skip-ci != 'true' && contains(fromJson(needs.setup.outputs.test-suites), 'specific')
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ${{ env.DB_DATABASE }}
+          MYSQL_USER: ${{ env.DB_USER }}
+          MYSQL_PASSWORD: ${{ env.DB_PASSWORD }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h"127.0.0.1" -P3306 -u${{ env.DB_USER }} -p${{ env.DB_PASSWORD }} --silent; then
+              echo "MySQL is ready!"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Setup Chrome (default for specific tests)
+        uses: browser-actions/setup-chrome@latest
+        with:
+          chrome-version: stable
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Create Required Directories
+        run: |
+          mkdir -p artifacts/screenshots
+          mkdir -p artifacts/reports
+          mkdir -p target/surefire-reports
+          mkdir -p allure-results
+
+      - name: Run Specific Test
+        run: |
+          TEST_CLASS="${{ needs.setup.outputs.test-file }}"
+          TEST_METHOD="${{ needs.setup.outputs.test-method }}"
+          
+          if [ -z "$TEST_CLASS" ]; then
+            echo "Error: No test class specified"
+            exit 1
+          fi
+          
+          if [ -n "$TEST_METHOD" ]; then
+            echo "Running specific test method: $TEST_CLASS#$TEST_METHOD"
+            mvn clean test -Dtest="$TEST_CLASS#$TEST_METHOD" \
+              -Dbrowser=${{ github.event.inputs.browser || 'chrome' }} \
+              -Dtestng.dtd.http=true \
+              -Dmaven.test.failure.ignore=true
+          else
+            echo "Running entire test class: $TEST_CLASS"
+            mvn clean test -Dtest="$TEST_CLASS" \
+              -Dbrowser=${{ github.event.inputs.browser || 'chrome' }} \
+              -Dtestng.dtd.http=true \
+              -Dmaven.test.failure.ignore=true
+          fi
+        env:
+          BROWSER: ${{ github.event.inputs.browser || 'chrome' }}
+          HEADLESS: true
+          SCREENSHOT_ON_FAILURE: true
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/${{ env.DB_DATABASE }}
+          SPRING_DATASOURCE_DRIVER: com.mysql.cj.jdbc.Driver
+          SPRING_DATASOURCE_USERNAME: ${{ env.DB_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.DB_PASSWORD }}
+          SPRING_JPA_DIALECT: org.hibernate.dialect.MySQLDialect
+
+      - name: Generate Test Reports
+        if: always()
+        run: |
+          echo "Generating Surefire reports..."
+          mvn surefire-report:report-only
+          mvn site -DgenerateReports=false
+          
+          echo "Generating Allure reports..."
+          if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
+            mvn allure:report || echo "Allure report generation skipped"
+          fi
+
+      - name: Create Report Summary
+        if: always()
+        run: |
+          mkdir -p artifacts/reports
+          echo "# Specific Test Report - ${{ needs.setup.outputs.timestamp }}" > artifacts/reports/specific-test-summary.md
+          echo "" >> artifacts/reports/specific-test-summary.md
+          echo "**Test Class:** ${{ needs.setup.outputs.test-file }}" >> artifacts/reports/specific-test-summary.md
+          echo "**Test Method:** ${{ needs.setup.outputs.test-method || 'All methods' }}" >> artifacts/reports/specific-test-summary.md
+          echo "**Browser:** ${{ github.event.inputs.browser || 'chrome' }}" >> artifacts/reports/specific-test-summary.md
+          echo "**Execution Time:** $(date)" >> artifacts/reports/specific-test-summary.md
+          echo "**Branch:** ${{ github.ref_name }}" >> artifacts/reports/specific-test-summary.md
+          echo "**Commit:** ${{ github.sha }}" >> artifacts/reports/specific-test-summary.md
+
+      - name: Upload Specific Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: specific-test-results-${{ needs.setup.outputs.timestamp }}
+          path: |
+            target/surefire-reports/
+            target/site/
+            artifacts/screenshots/
+            artifacts/reports/
+            allure-results/
+            test-output/
           retention-days: 30
 
   analytics-update:
-    needs: [setup, ui-tests, api-tests]
-    if: always() && (needs.ui-tests.result != 'cancelled' || needs.api-tests.result != 'cancelled')
+    needs: [setup, ui-tests, api-tests, specific-test]
+    if: always() && needs.setup.outputs.skip-ci != 'true' && (needs.ui-tests.result != 'cancelled' || needs.api-tests.result != 'cancelled' || needs.specific-test.result != 'cancelled')
     runs-on: ubuntu-latest
 
     steps:
@@ -286,6 +508,34 @@ jobs:
         with:
           path: downloaded-artifacts/
 
+      - name: Parse Test Results
+        id: parse-results
+        run: |
+          TOTAL=0
+          PASSED=0
+          FAILED=0
+          SKIPPED=0
+          
+          for file in $(find downloaded-artifacts -name "testng-results.xml" 2>/dev/null); do
+            if [ -f "$file" ]; then
+              echo "Parsing: $file"
+              TESTS=$(grep -oP 'total="\K[0-9]+' "$file" | head -1 || echo "0")
+              PASS=$(grep -oP 'passed="\K[0-9]+' "$file" | head -1 || echo "0")
+              FAIL=$(grep -oP 'failed="\K[0-9]+' "$file" | head -1 || echo "0")
+              SKIP=$(grep -oP 'skipped="\K[0-9]+' "$file" | head -1 || echo "0")
+              
+              TOTAL=$((TOTAL + TESTS))
+              PASSED=$((PASSED + PASS))
+              FAILED=$((FAILED + FAIL))
+              SKIPPED=$((SKIPPED + SKIP))
+            fi
+          done
+          
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+
       - name: Call Analytics Endpoint
         run: |
           curl -X POST "${{ secrets.ANALYTICS_ENDPOINT_URL || 'http://localhost:8080/api/analytics/refresh' }}" \
@@ -297,15 +547,20 @@ jobs:
               "branch": "${{ github.ref_name }}",
               "commit": "${{ github.sha }}",
               "ui_result": "${{ needs.ui-tests.result }}",
-              "api_result": "${{ needs.api-tests.result }}"
+              "api_result": "${{ needs.api-tests.result }}",
+              "specific_result": "${{ needs.specific-test.result }}",
+              "total_tests": ${{ steps.parse-results.outputs.total }},
+              "passed_tests": ${{ steps.parse-results.outputs.passed }},
+              "failed_tests": ${{ steps.parse-results.outputs.failed }},
+              "skipped_tests": ${{ steps.parse-results.outputs.skipped }}
             }' \
             --fail-with-body \
             --retry 3 \
             --retry-delay 5 || echo "Analytics endpoint call failed, continuing..."
 
   consolidate-reports:
-    needs: [setup, ui-tests, api-tests]
-    if: always() && (needs.ui-tests.result != 'cancelled' || needs.api-tests.result != 'cancelled')
+    needs: [setup, ui-tests, api-tests, specific-test]
+    if: always() && needs.setup.outputs.skip-ci != 'true' && (needs.ui-tests.result != 'cancelled' || needs.api-tests.result != 'cancelled' || needs.specific-test.result != 'cancelled')
     runs-on: ubuntu-latest
 
     steps:
@@ -319,20 +574,54 @@ jobs:
 
       - name: Consolidate Reports
         run: |
-          mkdir -p consolidated-reports
-          find all-results/ -name "*.html" -exec cp {} consolidated-reports/ \;
-          find all-results/ -name "*.xml" -exec cp {} consolidated-reports/ \;
-          find all-results/ -name "*.json" -exec cp {} consolidated-reports/ \;
+          mkdir -p consolidated-reports/{html,xml,json,screenshots,allure}
+          
+          # Copy HTML reports
+          find all-results/ -name "*.html" -exec cp {} consolidated-reports/html/ \; 2>/dev/null || true
+          
+          # Copy XML reports
+          find all-results/ -name "*.xml" -exec cp {} consolidated-reports/xml/ \; 2>/dev/null || true
+          
+          # Copy JSON reports
+          find all-results/ -name "*.json" -exec cp {} consolidated-reports/json/ \; 2>/dev/null || true
+          
+          # Copy screenshots
+          find all-results/ -type f \( -name "*.png" -o -name "*.jpg" \) -exec cp {} consolidated-reports/screenshots/ \; 2>/dev/null || true
+          
+          # Copy Allure results
+          find all-results/ -path "*/allure-results/*" -type f -exec cp {} consolidated-reports/allure/ \; 2>/dev/null || true
           
           # Create summary report
-          echo "# Test Execution Summary - ${{ needs.setup.outputs.timestamp }}" > consolidated-reports/README.md
-          echo "" >> consolidated-reports/README.md
-          echo "**Trigger:** ${{ github.event_name }}" >> consolidated-reports/README.md
-          echo "**Branch:** ${{ github.ref_name }}" >> consolidated-reports/README.md
-          echo "**Commit:** ${{ github.sha }}" >> consolidated-reports/README.md
-          echo "**UI Tests:** ${{ needs.ui-tests.result }}" >> consolidated-reports/README.md
-          echo "**API Tests:** ${{ needs.api-tests.result }}" >> consolidated-reports/README.md
-          echo "**Timestamp:** $(date)" >> consolidated-reports/README.md
+          cat > consolidated-reports/README.md << EOF
+          # Test Execution Summary - ${{ needs.setup.outputs.timestamp }}
+          
+          ## Execution Details
+          - **Trigger:** ${{ github.event_name }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Commit:** ${{ github.sha }}
+          - **Timestamp:** $(date)
+          
+          ## Test Results
+          - **UI Tests:** ${{ needs.ui-tests.result || 'N/A' }}
+          - **API Tests:** ${{ needs.api-tests.result || 'N/A' }}
+          - **Specific Test:** ${{ needs.specific-test.result || 'N/A' }}
+          
+          ## Report Structure
+          - \`html/\` - HTML test reports
+          - \`xml/\` - XML test results (TestNG/JUnit)
+          - \`json/\` - JSON test data
+          - \`screenshots/\` - Test failure screenshots
+          - \`allure/\` - Allure report data
+          
+          ## Access Reports
+          Reports can be accessed via:
+          1. Downloaded artifacts
+          2. Dashboard at: http://localhost:8080/dashboard
+          3. Allure reports: \`allure serve allure/\`
+          EOF
+          
+          echo "Report consolidation complete!"
+          ls -la consolidated-reports/
 
       - name: Upload Consolidated Reports
         uses: actions/upload-artifact@v4
@@ -341,22 +630,92 @@ jobs:
           path: consolidated-reports/
           retention-days: 90
 
+  deploy-dashboard:
+    needs: [setup, consolidate-reports]
+    if: always() && needs.setup.outputs.skip-ci != 'true' && needs.consolidate-reports.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Download Consolidated Reports
+        uses: actions/download-artifact@v4
+        with:
+          name: consolidated-test-reports-${{ needs.setup.outputs.timestamp }}
+          path: consolidated-reports/
+
+      - name: Build Dashboard
+        run: |
+          echo "Building test dashboard..."
+          mvn clean package -DskipTests
+          
+          echo "Dashboard build complete!"
+
+      - name: Generate Dashboard Summary
+        run: |
+          cat > dashboard-info.txt << EOF
+          Dashboard Build Information
+          ===========================
+          Build Time: $(date)
+          Timestamp: ${{ needs.setup.outputs.timestamp }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          
+          To run dashboard locally:
+          1. mvn spring-boot:run
+          2. Access at: http://localhost:8080/dashboard
+          
+          Dashboard Features:
+          - Cumulative test analysis
+          - Test execution trends
+          - Test results visualization
+          - Report management
+          EOF
+          cat dashboard-info.txt
+
+      - name: Upload Dashboard Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-package-${{ needs.setup.outputs.timestamp }}
+          path: |
+            target/*.jar
+            dashboard-info.txt
+            consolidated-reports/
+          retention-days: 30
+
   notification:
-    needs: [setup, ui-tests, api-tests, analytics-update]
-    if: always()
+    needs: [setup, ui-tests, api-tests, specific-test, analytics-update, consolidate-reports]
+    if: always() && needs.setup.outputs.skip-ci != 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Notify on Failure
-        if: needs.ui-tests.result == 'failure' || needs.api-tests.result == 'failure'
+        if: needs.ui-tests.result == 'failure' || needs.api-tests.result == 'failure' || needs.specific-test.result == 'failure'
         run: |
-          echo "Tests failed! Check the artifacts for detailed reports."
+          echo "⚠️ Tests failed! Check the artifacts for detailed reports."
           echo "UI Tests: ${{ needs.ui-tests.result }}"
           echo "API Tests: ${{ needs.api-tests.result }}"
+          echo "Specific Test: ${{ needs.specific-test.result }}"
+          echo ""
+          echo "📊 Reports available in artifacts"
+          echo "🔗 Dashboard: http://localhost:8080/dashboard"
 
       - name: Notify on Success
-        if: needs.ui-tests.result == 'success' && needs.api-tests.result == 'success'
+        if: (needs.ui-tests.result == 'success' || needs.ui-tests.result == 'skipped') && (needs.api-tests.result == 'success' || needs.api-tests.result == 'skipped') && (needs.specific-test.result == 'success' || needs.specific-test.result == 'skipped')
         run: |
-          echo "All tests passed successfully!"
+          echo "✅ All tests passed successfully!"
           echo "UI Tests: ${{ needs.ui-tests.result }}"
           echo "API Tests: ${{ needs.api-tests.result }}"
+          echo "Specific Test: ${{ needs.specific-test.result }}"
+          echo ""
+          echo "📊 Consolidated reports generated"
+          echo "🔗 Dashboard: http://localhost:8080/dashboard"
+

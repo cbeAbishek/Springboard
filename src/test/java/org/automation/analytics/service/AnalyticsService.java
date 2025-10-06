@@ -188,4 +188,166 @@ public class AnalyticsService {
         // Update the execution log with final status
         // In a real implementation, you'd find by executionId and update
     }
+
+    /**
+     * Get test matrix data for cumulative analysis
+     */
+    public Map<String, Object> getTestMatrix(int days, String suite, String status) {
+        LocalDateTime fromDate = LocalDateTime.now().minusDays(days);
+
+        List<ExecutionLog> logs = repo.findAll().stream()
+                .filter(log -> log.getStartTime() != null && log.getStartTime().isAfter(fromDate))
+                .filter(log -> suite.equals("all") || suite.equalsIgnoreCase(log.getSuiteId()))
+                .filter(log -> status.equals("all") || status.equalsIgnoreCase(log.getStatus()))
+                .collect(Collectors.toList());
+
+        // Group tests by name to calculate pass rates
+        Map<String, List<ExecutionLog>> testGroups = logs.stream()
+                .collect(Collectors.groupingBy(ExecutionLog::getTestName));
+
+        List<Map<String, Object>> testData = new ArrayList<>();
+
+        testGroups.forEach((testName, executions) -> {
+            long totalRuns = executions.size();
+            long passed = executions.stream().filter(e -> "PASS".equalsIgnoreCase(e.getStatus()) || "PASSED".equalsIgnoreCase(e.getStatus())).count();
+            double passRate = totalRuns > 0 ? (passed * 100.0 / totalRuns) : 0;
+
+            ExecutionLog latest = executions.stream()
+                    .max(Comparator.comparing(ExecutionLog::getStartTime))
+                    .orElse(executions.get(0));
+
+            Map<String, Object> testInfo = new HashMap<>();
+            testInfo.put("testName", testName);
+            testInfo.put("suite", latest.getSuiteId() != null ? latest.getSuiteId() : "Unknown");
+            testInfo.put("status", latest.getStatus());
+            testInfo.put("executionTime", latest.getStartTime());
+            testInfo.put("duration", latest.getDurationMs());
+            testInfo.put("environment", latest.getBrowser() != null ? latest.getBrowser() : "N/A");
+            testInfo.put("passRate", Math.round(passRate * 100.0) / 100.0);
+            testInfo.put("lastRun", latest.getStartTime());
+            testInfo.put("trend", calculateTrend(executions));
+            testInfo.put("totalRuns", totalRuns);
+
+            testData.add(testInfo);
+        });
+
+        // Calculate summary
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("totalExecutions", logs.size());
+        summary.put("totalPassed", logs.stream().filter(e -> "PASS".equalsIgnoreCase(e.getStatus()) || "PASSED".equalsIgnoreCase(e.getStatus())).count());
+        summary.put("totalFailed", logs.stream().filter(e -> "FAIL".equalsIgnoreCase(e.getStatus()) || "FAILED".equalsIgnoreCase(e.getStatus())).count());
+        summary.put("overallPassRate", logs.isEmpty() ? 0 : (summary.get("totalPassed").toString().equals("0") ? 0 :
+                (Long.parseLong(summary.get("totalPassed").toString()) * 100.0 / logs.size())));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("tests", testData);
+        result.put("summary", summary);
+
+        return result;
+    }
+
+    /**
+     * Get failure heatmap data for last N days
+     */
+    public List<Map<String, Object>> getFailureHeatmap(int days) {
+        LocalDateTime fromDate = LocalDateTime.now().minusDays(days);
+
+        List<ExecutionLog> logs = repo.findAll().stream()
+                .filter(log -> log.getStartTime() != null && log.getStartTime().isAfter(fromDate))
+                .collect(Collectors.toList());
+
+        Map<String, List<ExecutionLog>> testGroups = logs.stream()
+                .collect(Collectors.groupingBy(ExecutionLog::getTestName));
+
+        List<Map<String, Object>> heatmapData = new ArrayList<>();
+
+        testGroups.forEach((testName, executions) -> {
+            Map<String, Object> testHeatmap = new HashMap<>();
+            testHeatmap.put("testName", testName);
+
+            // Create daily failure counts for the last N days
+            List<Integer> dailyFailures = new ArrayList<>();
+            for (int i = days - 1; i >= 0; i--) {
+                LocalDateTime dayStart = LocalDateTime.now().minusDays(i).withHour(0).withMinute(0).withSecond(0);
+                LocalDateTime dayEnd = dayStart.plusDays(1);
+
+                long failures = executions.stream()
+                        .filter(e -> e.getStartTime().isAfter(dayStart) && e.getStartTime().isBefore(dayEnd))
+                        .filter(e -> "FAIL".equalsIgnoreCase(e.getStatus()) || "FAILED".equalsIgnoreCase(e.getStatus()))
+                        .count();
+
+                dailyFailures.add((int) failures);
+            }
+
+            testHeatmap.put("dailyFailures", dailyFailures);
+            heatmapData.add(testHeatmap);
+        });
+
+        return heatmapData;
+    }
+
+    /**
+     * Export test data to CSV format
+     */
+    public String exportTestDataToCsv() {
+        List<ExecutionLog> logs = repo.findAll();
+        StringBuilder csv = new StringBuilder();
+
+        // CSV Header
+        csv.append("Test Name,Suite,Status,Start Time,Duration (ms),Browser,Error Message\n");
+
+        // CSV Data
+        logs.forEach(log -> {
+            csv.append(escapeCSV(log.getTestName())).append(",");
+            csv.append(escapeCSV(log.getSuiteId())).append(",");
+            csv.append(escapeCSV(log.getStatus())).append(",");
+            csv.append(escapeCSV(log.getStartTime() != null ? log.getStartTime().toString() : "")).append(",");
+            csv.append(log.getDurationMs()).append(",");
+            csv.append(escapeCSV(log.getBrowser())).append(",");
+            csv.append(escapeCSV(log.getErrorMessage())).append("\n");
+        });
+
+        return csv.toString();
+    }
+
+    /**
+     * Export test data to Excel format
+     */
+    public byte[] exportTestDataToExcel() {
+        // This is a placeholder. In a real implementation, you'd use Apache POI
+        // to generate actual Excel files
+        return exportTestDataToCsv().getBytes();
+    }
+
+    private String escapeCSV(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    private int calculateTrend(List<ExecutionLog> executions) {
+        if (executions.size() < 2) return 0;
+
+        List<ExecutionLog> sorted = executions.stream()
+                .sorted(Comparator.comparing(ExecutionLog::getStartTime))
+                .collect(Collectors.toList());
+
+        int halfSize = sorted.size() / 2;
+        List<ExecutionLog> firstHalf = sorted.subList(0, halfSize);
+        List<ExecutionLog> secondHalf = sorted.subList(halfSize, sorted.size());
+
+        double firstPassRate = firstHalf.stream()
+                .filter(e -> "PASS".equalsIgnoreCase(e.getStatus()) || "PASSED".equalsIgnoreCase(e.getStatus()))
+                .count() * 100.0 / firstHalf.size();
+
+        double secondPassRate = secondHalf.stream()
+                .filter(e -> "PASS".equalsIgnoreCase(e.getStatus()) || "PASSED".equalsIgnoreCase(e.getStatus()))
+                .count() * 100.0 / secondHalf.size();
+
+        if (secondPassRate > firstPassRate + 5) return 1;  // Improving
+        if (secondPassRate < firstPassRate - 5) return -1; // Declining
+        return 0; // Stable
+    }
 }

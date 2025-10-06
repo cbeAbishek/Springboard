@@ -20,21 +20,33 @@ import java.time.format.DateTimeFormatter;
 
 public class TestSuiteListener implements ITestListener {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/automation_tests";
-    private static final String DB_USER = "root";
-    private static final String DB_PASS = "Ck@709136";
+    // Read database config from system properties or use defaults
+    private static final String DB_URL = System.getProperty("db.url",
+        "jdbc:mysql://localhost:3306/test_automation?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true");
+    private static final String DB_USER = System.getProperty("db.user", "root");
+    private static final String DB_PASS = System.getProperty("db.password", "root");
     private static final String ARTIFACTS_DIR = "artifacts/";
 
     private static final int MAX_US_ID_LENGTH = 50;
     private static final int MAX_TC_ID_LENGTH = 255;
 
+    private static boolean dbAvailable = true;
+
     // ---------- Database Helper ----------
     private Connection getConnection() throws SQLException {
+        if (!dbAvailable) {
+            throw new SQLException("Database is not available - skipping database logging");
+        }
         return java.sql.DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
     }
 
     private void insertExecutionLog(String testName, String status, String type,
                                     String usId, String tcId, String artifact, String screenshotPath) {
+        if (!dbAvailable) {
+            System.out.println("[INFO] Database not available - test results logged to files only");
+            return;
+        }
+
         usId = truncate(usId, MAX_US_ID_LENGTH);
         tcId = truncate(tcId, MAX_TC_ID_LENGTH);
 
@@ -51,7 +63,10 @@ public class TestSuiteListener implements ITestListener {
             ps.setString(8, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            dbAvailable = false;
+            System.err.println("[WARNING] Database connection failed - continuing without database logging");
+            System.err.println("[INFO] To fix this, ensure MySQL is running and credentials are correct in application.properties");
+            // Don't print full stack trace to avoid cluttering test output
         }
     }
 

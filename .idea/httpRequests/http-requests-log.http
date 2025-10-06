@@ -1,0 +1,27 @@
+GET http://localhost:8080/dashboard/reports
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2025.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+
+<> 2025-10-05T175311.200.html
+
+###
+
+GET http://localhost:8080/dashboard/
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2025.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+
+<> 2025-10-05T175254.200.html
+
+###
+
+GET http://localhost:8080/dashboard/
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2025.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+
+<> 2025-10-05T175241.200.html
+
+###
+

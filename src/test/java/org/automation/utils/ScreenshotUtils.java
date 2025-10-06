@@ -50,6 +50,39 @@ public class ScreenshotUtils {
         }
     }
 
+    /**
+     * Capture screenshot to a specific path (for report integration)
+     */
+    public static String captureToPath(String testName, String targetPath) {
+        try {
+            WebDriver driver = getActiveDriver();
+            if (driver == null) {
+                System.err.println("No active WebDriver found for screenshot: " + testName);
+                return null;
+            }
+
+            if (targetPath == null) {
+                return capture(driver, testName);
+            }
+
+            // Create parent directories if needed
+            File targetFile = new File(targetPath);
+            Files.createDirectories(targetFile.getParentFile().toPath());
+
+            // Capture screenshot
+            File src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+            Files.copy(src.toPath(), targetFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            System.out.println("📸 Screenshot captured to: " + targetPath);
+            return targetPath;
+
+        } catch (Exception e) {
+            System.err.println("Error capturing screenshot to path: " + e.getMessage());
+            e.printStackTrace();
+            return capture(getActiveDriver(), testName); // Fallback
+        }
+    }
+
     // Helper method to get active driver (implement based on your driver management)
     private static WebDriver getActiveDriver() {
         try {
