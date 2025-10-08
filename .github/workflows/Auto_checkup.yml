@@ -210,16 +210,15 @@ jobs:
           DB_USERNAME: ${{ env.DB_USER }}
           DB_PASSWORD: ${{ env.DB_PASSWORD }}
 
-      - name: 📦 Upload API Test Artifacts
+      - name: 📦 Upload API Test Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: api-test-results-${{ needs.setup.outputs.timestamp }}
+          name: api-test-reports
           path: |
             artifacts/api/
-            artifacts/reports/
-            target/surefire-reports/
-            test-output/
+            test-output/emailable-report.html
+            test-output/index.html
           retention-days: 30
 
       - name: Publish JUnit (API)
@@ -227,7 +226,7 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: API Tests
-          path: target/surefire-reports/TEST-*.xml
+          path: target/surefire-reports/TEST-*JsonPlaceholderTests.xml
           reporter: java-junit
 
   ui-tests:
@@ -353,65 +352,23 @@ jobs:
           DB_USERNAME: ${{ env.DB_USER }}
           DB_PASSWORD: ${{ env.DB_PASSWORD }}
 
-      - name: Generate UI Test Reports
-        if: always()
-        run: |
-          echo "Generating Surefire reports..."
-          mvn surefire-report:report-only || true
-          mvn site -DgenerateReports=false || true
-
-      - name: Create Report Summary
-        if: always()
-        run: |
-          mkdir -p artifacts/reports
-          echo "# UI Test Report - ${{ matrix.browser }} - ${{ needs.setup.outputs.timestamp }}" > artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          echo "" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          echo "**Browser:** ${{ matrix.browser }}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          echo "**Execution Time:** $(date)" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          echo "**Branch:** ${{ github.ref_name }}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          echo "**Commit:** ${{ github.sha }}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          echo "" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          
-          if [ -f "test-output/testng-results.xml" ]; then
-            echo "**Test Results:**" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-            echo "\`\`\`" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-            grep -oP 'total="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Total: {}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md || true
-            grep -oP 'passed="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Passed: {}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md || true
-            grep -oP 'failed="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Failed: {}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md || true
-            grep -oP 'skipped="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Skipped: {}" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md || true
-            echo "\`\`\`" >> artifacts/reports/ui-summary-${{ matrix.browser }}.md
-          fi
-
-      - name: Upload UI Test Results
+      - name: Upload UI Test Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ui-test-results-${{ matrix.browser }}-${{ needs.setup.outputs.timestamp }}
+          name: ui-test-reports
           path: |
-            target/surefire-reports/
-            target/site/
             artifacts/screenshots/
-            artifacts/reports/
-            target/screenshots/
-            test-output/
+            test-output/emailable-report.html
+            test-output/index.html
           retention-days: 30
-
-      - name: Upload Screenshots on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-screenshots-failure-${{ matrix.browser }}-${{ needs.setup.outputs.timestamp }}
-          path: |
-            artifacts/screenshots/
-            target/screenshots/
-          retention-days: 7
 
       - name: Publish JUnit (UI)
         if: always()
         uses: dorny/test-reporter@v1
         with:
           name: UI Tests - ${{ matrix.browser }}
-          path: target/surefire-reports/TEST-*.xml
+          path: target/surefire-reports/TEST-*BlazeDemoTests.xml
           reporter: java-junit
 
   specific-test:
@@ -721,7 +678,7 @@ jobs:
         if: (needs.ui-tests.result == 'success' || needs.ui-tests.result == 'skipped') && (needs.api-tests.result == 'success' || needs.api-tests.result == 'skipped') && (needs.specific-test.result == 'success' || needs.specific-test.result == 'skipped')
         run: |
           echo "✅ All tests passed successfully!"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━��━━━━━━━━━━━━━━━━"
           echo "UI Tests: ${{ needs.ui-tests.result }}"
           echo "API Tests: ${{ needs.api-tests.result }}"
           echo "Specific Test: ${{ needs.specific-test.result }}"
