@@ -57,6 +57,7 @@ env:
   JAVA_VERSION: '17'
   DB_DATABASE: automation_tests
   DB_USER: root
+  DB_PASSWORD: rooT@12345
   CI: true
 
 jobs:
