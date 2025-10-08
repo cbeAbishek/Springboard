@@ -181,11 +181,6 @@ jobs:
             execution_time DATETIME DEFAULT CURRENT_TIMESTAMP
           );"
 
-      - name: Configure Git User
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-
       - name: Create Required Directories
         run: |
           mkdir -p artifacts/api
@@ -193,14 +188,20 @@ jobs:
           mkdir -p target/surefire-reports
           mkdir -p test-output
 
-      - name: Resolve & Cache Dependencies
-        run: mvn -B -q dependency:go-offline
+      - name: 📦 Cache Maven Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
-      - name: Run API Tests
+      - name: 🔨 Build Project
+        run: mvn clean install -DskipTests
+
+      - name: ▶️ Run API Tests (Parallel)
         run: |
-          mvn -B clean test \
-            -DsuiteXmlFile=testng-api.xml \
-            -Dparallel=methods \
+          mvn test -Dtest=**/*JsonPlaceholderTests.java \
             -DthreadCount=10 \
             -Ddataproviderthreadcount=10 \
             -Dmaven.test.failure.ignore=true
@@ -209,44 +210,15 @@ jobs:
           DB_USERNAME: ${{ env.DB_USER }}
           DB_PASSWORD: ${{ env.DB_PASSWORD }}
 
-      - name: Generate API Test Reports
-        if: always()
-        run: |
-          echo "Generating Surefire reports..."
-          mvn surefire-report:report-only || true
-          mvn site -DgenerateReports=false || true
-
-      - name: Create Report Summary
-        if: always()
-        run: |
-          mkdir -p artifacts/reports
-          echo "# API Test Report - ${{ needs.setup.outputs.timestamp }}" > artifacts/reports/api-summary.md
-          echo "" >> artifacts/reports/api-summary.md
-          echo "**Execution Time:** $(date)" >> artifacts/reports/api-summary.md
-          echo "**Branch:** ${{ github.ref_name }}" >> artifacts/reports/api-summary.md
-          echo "**Commit:** ${{ github.sha }}" >> artifacts/reports/api-summary.md
-          echo "" >> artifacts/reports/api-summary.md
-          
-          if [ -f "test-output/testng-results.xml" ]; then
-            echo "**Test Results:**" >> artifacts/reports/api-summary.md
-            echo "\`\`\`" >> artifacts/reports/api-summary.md
-            grep -oP 'total="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Total: {}" >> artifacts/reports/api-summary.md || true
-            grep -oP 'passed="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Passed: {}" >> artifacts/reports/api-summary.md || true
-            grep -oP 'failed="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Failed: {}" >> artifacts/reports/api-summary.md || true
-            grep -oP 'skipped="\K[0-9]+' test-output/testng-results.xml | head -1 | xargs -I {} echo "Skipped: {}" >> artifacts/reports/api-summary.md || true
-            echo "\`\`\`" >> artifacts/reports/api-summary.md
-          fi
-
-      - name: Upload API Test Results
+      - name: 📦 Upload API Test Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: api-test-results-${{ needs.setup.outputs.timestamp }}
           path: |
-            target/surefire-reports/
-            target/site/
             artifacts/api/
             artifacts/reports/
+            target/surefire-reports/
             test-output/
           retention-days: 30
 
