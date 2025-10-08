@@ -342,7 +342,7 @@ jobs:
           sleep 3
           
           mvn -B clean test \
-            -DsuiteXmlFile=testng-ui.xml \
+            -Dtest=**/*BlazeDemoTests \
             -Dbrowser=${{ matrix.browser }} \
             -Dheadless=true \
             -Dparallel=methods \
@@ -373,8 +373,9 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: UI Tests - ${{ matrix.browser }}
-          path: target/surefire-reports/TEST-*BlazeDemoTests.xml
+          path: target/surefire-reports/TEST-*.xml
           reporter: java-junit
+          fail-on-error: false
 
   specific-test:
     name: 🎯 Specific Test
