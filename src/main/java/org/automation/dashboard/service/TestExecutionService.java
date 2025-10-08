@@ -4,6 +4,8 @@ import org.automation.analytics.model.ExecutionLog;
 import org.automation.analytics.repo.ExecutionLogRepository;
 import org.automation.dashboard.model.ExecutionStatus;
 import org.automation.dashboard.model.TestExecutionRequest;
+import org.automation.reports.ReportManager;
+import org.automation.reports.model.TestReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -363,4 +365,3 @@ public class TestExecutionService {
         }, 5 * 60 * 1000); // 5 minutes
     }
 }
-

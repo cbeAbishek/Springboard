@@ -41,39 +41,79 @@ async function loadReports() {
 
 // Fetch reports from API
 async function fetchReports() {
-    // Simulate API call with mock data
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const reports = [];
-            const suites = ['API Test Suite', 'UI Test Suite', 'Integration Tests', 'Regression Suite', 'Smoke Tests'];
-            const statuses = ['passed', 'failed', 'partial'];
+    try {
+        // Fetch real reports from API
+        const response = await fetch('/api/reports');
+        if (response.ok) {
+            const reports = await response.json();
+            console.log('Real reports loaded from API:', reports.length);
 
-            for (let i = 1; i <= 50; i++) {
-                const passed = Math.floor(Math.random() * 50) + 10;
-                const failed = Math.floor(Math.random() * 10);
-                const total = passed + failed;
-                const passRate = ((passed / total) * 100).toFixed(1);
-                const status = failed === 0 ? 'passed' : (passRate > 80 ? 'partial' : 'failed');
+            // Transform API data to match UI format
+            return reports.map(r => ({
+                id: r.reportId,
+                suite: r.suiteType || r.reportName || 'Test Suite',
+                status: r.status?.toLowerCase() === 'completed' ?
+                       (r.failedTests === 0 ? 'passed' : (r.passedTests / r.totalTests > 0.8 ? 'partial' : 'failed')) :
+                       'running',
+                passed: r.passedTests || 0,
+                failed: r.failedTests || 0,
+                skipped: r.skippedTests || 0,
+                total: r.totalTests || 0,
+                passRate: r.totalTests > 0 ? ((r.passedTests / r.totalTests) * 100).toFixed(1) : 0,
+                duration: formatDuration(r.durationMs),
+                durationSeconds: r.durationMs ? r.durationMs / 1000 : 0,
+                date: r.executionDate || r.createdAt,
+                environment: r.environment || 'N/A',
+                browser: r.browser
+            }));
+        } else {
+            console.warn('Failed to fetch reports from API, using mock data');
+            return getMockReports();
+        }
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+        return getMockReports();
+    }
+}
 
-                reports.push({
-                    id: `EX-2025-${String(i).padStart(3, '0')}`,
-                    suite: suites[Math.floor(Math.random() * suites.length)],
-                    status: status,
-                    passed: passed,
-                    failed: failed,
-                    skipped: Math.floor(Math.random() * 5),
-                    total: total,
-                    passRate: parseFloat(passRate),
-                    duration: `${Math.floor(Math.random() * 10) + 1}m ${Math.floor(Math.random() * 60)}s`,
-                    durationSeconds: Math.floor(Math.random() * 600) + 60,
-                    date: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
-                    environment: ['dev', 'qa', 'staging'][Math.floor(Math.random() * 3)]
-                });
-            }
+// Get mock reports for fallback
+function getMockReports() {
+    const reports = [];
+    const suites = ['API Test Suite', 'UI Test Suite', 'Integration Tests', 'Regression Suite', 'Smoke Tests'];
 
-            resolve(reports.sort((a, b) => new Date(b.date) - new Date(a.date)));
-        }, 800);
-    });
+    for (let i = 1; i <= 50; i++) {
+        const passed = Math.floor(Math.random() * 50) + 10;
+        const failed = Math.floor(Math.random() * 10);
+        const total = passed + failed;
+        const passRate = ((passed / total) * 100).toFixed(1);
+        const status = failed === 0 ? 'passed' : (passRate > 80 ? 'partial' : 'failed');
+
+        reports.push({
+            id: `EX-2025-${String(i).padStart(3, '0')}`,
+            suite: suites[Math.floor(Math.random() * suites.length)],
+            status: status,
+            passed: passed,
+            failed: failed,
+            skipped: Math.floor(Math.random() * 5),
+            total: total,
+            passRate: parseFloat(passRate),
+            duration: `${Math.floor(Math.random() * 10) + 1}m ${Math.floor(Math.random() * 60)}s`,
+            durationSeconds: Math.floor(Math.random() * 600) + 60,
+            date: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
+            environment: ['dev', 'qa', 'staging'][Math.floor(Math.random() * 3)]
+        });
+    }
+
+    return reports.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+// Format duration
+function formatDuration(durationMs) {
+    if (!durationMs) return 'N/A';
+    const seconds = Math.floor(durationMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
 }
 
 // Update summary statistics
@@ -567,4 +607,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-

@@ -217,17 +217,20 @@
 
         async function fetchExecutionData(id) {
             try {
-                // Fetch real data from API
-                const response = await fetch(`/api/reports/${id}`);
+                // Fetch real data from API - Updated endpoint
+                const response = await fetch(`/api/execution/${id}`);
                 if (response.ok) {
                     const reportData = await response.json();
 
-                    // Fetch test details for this report
-                    const detailsResponse = await fetch(`/api/reports/${id}/details`);
-                    let testCases = [];
+                    // Check if we got data with testCases included
+                    let testCases = reportData.testCases || [];
 
-                    if (detailsResponse.ok) {
-                        testCases = await detailsResponse.json();
+                    // If no test cases in main response, try the details endpoint
+                    if (testCases.length === 0) {
+                        const detailsResponse = await fetch(`/api/reports/${id}/details`);
+                        if (detailsResponse.ok) {
+                            testCases = await detailsResponse.json();
+                        }
                     }
 
                     // Count actual results from test cases
@@ -242,10 +245,10 @@
                     ).length;
 
                     // Use actual counts from test details, or fall back to report summary
-                    const passed = testCases.length > 0 ? actualPassed : (reportData.passedTests || 0);
-                    const failed = testCases.length > 0 ? actualFailed : (reportData.failedTests || 0);
-                    const skipped = testCases.length > 0 ? actualSkipped : (reportData.skippedTests || 0);
-                    const total = testCases.length > 0 ? testCases.length : (reportData.totalTests || 0);
+                    const passed = testCases.length > 0 ? actualPassed : (reportData.passed || reportData.passedTests || 0);
+                    const failed = testCases.length > 0 ? actualFailed : (reportData.failed || reportData.failedTests || 0);
+                    const skipped = testCases.length > 0 ? actualSkipped : (reportData.skipped || reportData.skippedTests || 0);
+                    const total = testCases.length > 0 ? testCases.length : (reportData.total || reportData.totalTests || 0);
 
                     console.log(`Real data loaded: ${passed} passed, ${failed} failed, ${skipped} skipped out of ${total} total`);
 
@@ -309,23 +312,42 @@
 
 
         function populateReport(data) {
-            document.getElementById('executionId').textContent = data.id;
-            document.getElementById('executionSuite').textContent = data.suite;
-            document.getElementById('executionStatus').textContent = data.status.toUpperCase();
-            document.getElementById('executionStatus').className = `badge badge-${data.status === 'passed' ? 'success' : 'danger'}`;
-            document.getElementById('executionDate').textContent = data.date;
-            document.getElementById('executionDuration').textContent = data.duration;
-            document.getElementById('executionEnvironment').textContent = data.environment.toUpperCase();
+            // Handle null/undefined values with fallbacks
+            document.getElementById('executionId').textContent = data.id || 'N/A';
+            document.getElementById('executionSuite').textContent = data.suite || 'Test Suite';
 
-            document.getElementById('passedCount').textContent = data.passed;
-            document.getElementById('failedCount').textContent = data.failed;
-            document.getElementById('skippedCount').textContent = data.skipped;
+            const status = data.status ? data.status.toUpperCase() : 'UNKNOWN';
+            const statusBadge = document.getElementById('executionStatus');
+            statusBadge.textContent = status;
+            statusBadge.className = `badge badge-${getStatusClass(status)}`;
 
-            const successRate = ((data.passed / data.total) * 100).toFixed(1);
+            document.getElementById('executionDate').textContent = data.date || 'N/A';
+            document.getElementById('executionDuration').textContent = data.duration || 'N/A';
+            document.getElementById('executionEnvironment').textContent = data.environment ? data.environment.toUpperCase() : 'N/A';
+
+            const passed = data.passed || 0;
+            const failed = data.failed || 0;
+            const skipped = data.skipped || 0;
+            const total = data.total || (passed + failed + skipped);
+
+            document.getElementById('passedCount').textContent = passed;
+            document.getElementById('failedCount').textContent = failed;
+            document.getElementById('skippedCount').textContent = skipped;
+
+            const successRate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0.0';
             document.getElementById('successRate').textContent = successRate + '%';
             document.getElementById('successBar').style.width = successRate + '%';
 
-            renderTestCases(data.testCases);
+            renderTestCases(data.testCases || []);
+        }
+
+        function getStatusClass(status) {
+            const normalizedStatus = status.toLowerCase();
+            if (normalizedStatus === 'passed' || normalizedStatus === 'pass') return 'success';
+            if (normalizedStatus === 'failed' || normalizedStatus === 'fail') return 'danger';
+            if (normalizedStatus === 'skipped' || normalizedStatus === 'skip') return 'warning';
+            if (normalizedStatus === 'running') return 'info';
+            return 'secondary';
         }
 
         function renderTestCases(testCases) {
@@ -335,25 +357,51 @@
             window.allTestCases = testCases;
             window.filteredTestCases = testCases;
 
+            if (!testCases || testCases.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                            <div style="font-size: 1.2rem; font-weight: 500; margin-bottom: 0.5rem;">No Test Data Available</div>
+                            <div style="font-size: 0.875rem;">No test cases found for this execution. Please ensure tests have been executed and data is saved.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
             tbody.innerHTML = testCases.map((test, index) => {
-                // Details button should only be enabled for failed tests
-                const isFailed = test.status === 'failed' || test.status === 'FAILED' || test.status === 'FAIL';
-                const hasScreenshot = test.hasScreenshot;
-                const canViewDetails = isFailed && hasScreenshot;
+                // Normalize status
+                const status = (test.status || 'unknown').toLowerCase();
+                const isFailed = status === 'failed' || status === 'fail';
+                const isPassed = status === 'passed' || status === 'pass';
+                const isSkipped = status === 'skipped' || status === 'skip';
+
+                // Check for screenshot availability
+                const hasScreenshot = !!(test.screenshotName || test.screenshotPath);
+                const canViewDetails = isFailed || hasScreenshot || test.errorMessage || test.error;
+
+                // Get error message with fallback
+                const errorMessage = test.errorMessage || test.error || '';
+                const displayError = errorMessage
+                    ? (errorMessage.length > 100
+                        ? errorMessage.substring(0, 100) + '...'
+                        : errorMessage)
+                    : (isFailed ? 'Test failed - details available' : '-');
 
                 return `
                     <tr style="animation: fadeIn 0.5s ease ${index * 0.02}s both;">
-                        <td><strong>${test.name}</strong></td>
-                        <td>${test.class}</td>
-                        <td><span class="badge badge-${test.status === 'passed' ? 'success' : 'danger'}">${test.status}</span></td>
-                        <td>${test.duration}</td>
-                        <td>${test.error ? `<span style="color: var(--danger-color); font-size: 0.875rem;">${test.error}</span>` : '-'}</td>
+                        <td><strong>${test.name || test.testName || 'Unknown Test'}</strong></td>
+                        <td>${test.class || test.testClass || 'N/A'}</td>
+                        <td><span class="badge badge-${getStatusBadgeClass(status)}">${status.toUpperCase()}</span></td>
+                        <td>${test.duration || 'N/A'}</td>
+                        <td>${isFailed ? `<span style="color: var(--danger-color); font-size: 0.875rem;" title="${errorMessage}">${displayError}</span>` : '-'}</td>
                         <td>
                             ${canViewDetails ?
-                                `<button class="btn btn-secondary btn-sm" onclick="viewTestDetail('${test.name}', ${test.id ? "'" + test.id + "'" : 'null'})" title="View screenshot and error details">
+                                `<button class="btn btn-secondary btn-sm" onclick="viewTestDetail('${escapeHtml(test.name || test.testName)}', ${test.id ? test.id : 'null'})" title="View ${isFailed ? 'error details' : 'test details'}${hasScreenshot ? ' and screenshot' : ''}">
                                     <span>🔍</span> Details
                                 </button>` :
-                                `<button class="btn btn-secondary btn-sm" disabled title="${!isFailed ? 'Details only available for failed tests' : 'No screenshot available'}" style="opacity: 0.5; cursor: not-allowed;">
+                                `<button class="btn btn-secondary btn-sm" disabled title="No additional details available" style="opacity: 0.5; cursor: not-allowed;">
                                     <span>🔍</span> Details
                                 </button>`
                             }
@@ -361,6 +409,23 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        function getStatusBadgeClass(status) {
+            if (status === 'passed' || status === 'pass') return 'success';
+            if (status === 'failed' || status === 'fail') return 'danger';
+            if (status === 'skipped' || status === 'skip') return 'warning';
+            return 'secondary';
+        }
+
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
         function initCharts() {
@@ -444,9 +509,12 @@
 
                 // Try to fetch from API first
                 try {
-                    const response = await fetch(`/api/reports/${executionId}/test/${encodeURIComponent(testName)}`);
+                    const response = await fetch(`/api/execution/${executionId}/test/${encodeURIComponent(testName)}`);
                     if (response.ok) {
                         testDetail = await response.json();
+                        console.log('Test detail loaded from API:', testDetail);
+                    } else {
+                        console.warn('API returned non-OK status:', response.status);
                     }
                 } catch (apiError) {
                     console.warn('API fetch failed, using local data:', apiError);
@@ -454,18 +522,7 @@
 
                 // Fallback to local test case data if API fails
                 if (!testDetail && window.allTestCases) {
-                    testDetail = window.allTestCases.find(tc => tc.name === testName);
-
-                    // If found, enhance with mock screenshot data for failed tests
-                    if (testDetail && testDetail.hasScreenshot) {
-                        testDetail.screenshotName = `${testName}_FAILED_20251006_011829.png`;
-                        testDetail.screenshotPath = `/screenshots/${testDetail.screenshotName}`;
-                        testDetail.testType = 'UI';
-                        testDetail.browser = 'Chrome';
-                        testDetail.durationMs = parseFloat(testDetail.duration) * 1000;
-                        testDetail.errorMessage = testDetail.error;
-                        testDetail.stackTrace = `org.openqa.selenium.NoSuchElementException: ${testDetail.error}\n    at FlightSearchTest.${testName}(FlightSearchTest.java:45)\n    at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n    at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)`;
-                    }
+                    testDetail = window.allTestCases.find(tc => tc.name === testName || tc.testName === testName);
                 }
 
                 if (!testDetail) {
@@ -475,19 +532,27 @@
                 // Populate modal with test details
                 const modalBody = document.getElementById('testDetailBody');
 
+                // Build screenshot HTML if available
                 let screenshotHtml = '';
-                if (testDetail.screenshotPath && testDetail.screenshotName) {
+                const isFailed = testDetail.status && (testDetail.status.toLowerCase() === 'fail' || testDetail.status.toLowerCase() === 'failed');
+                const screenshotName = testDetail.screenshotName || testDetail.screenshotPath?.split('/').pop();
+
+                if (isFailed && screenshotName) {
                     // Build screenshot URL - screenshots are served from /screenshots/ endpoint
-                    const screenshotUrl = `/screenshots/${testDetail.screenshotName}`;
+                    const screenshotUrl = `/screenshots/${screenshotName}`;
                     screenshotHtml = `
                         <div class="mb-3">
-                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Screenshot</h5>
+                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">📸 Screenshot</h5>
                             <div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem; background: var(--bg-secondary);">
-                                <img src="${screenshotUrl}" alt="Test Screenshot"
+                                <img src="${screenshotUrl}" alt="Test Failure Screenshot"
                                      style="max-width: 100%; height: auto; display: block; border-radius: 4px; cursor: pointer;"
                                      onclick="window.open('${screenshotUrl}', '_blank')"
-                                     onerror="this.parentElement.innerHTML='<p style=\\'text-align:center; color: var(--text-secondary); padding: 2rem;\\'>Screenshot not available</p>'" />
+                                     onerror="this.parentElement.innerHTML='<p style=\\'text-align:center; color: var(--text-secondary); padding: 2rem;\\'>Screenshot not available or still being processed. Path: ${screenshotName}</p>'" />
                                 <div class="mt-2 text-center">
+                                    <a href="${screenshotUrl}" target="_blank" class="btn btn-secondary btn-sm" download>
+                                        <span>⬇️</span>
+                                        <span>Download Screenshot</span>
+                                    </a>
                                     <a href="${screenshotUrl}" target="_blank" class="btn btn-secondary btn-sm">
                                         <span>🔍</span>
                                         <span>View Full Size</span>
@@ -498,58 +563,90 @@
                     `;
                 }
 
+                // Build API details HTML if available
                 let apiDetailsHtml = '';
                 if (testDetail.testType === 'API' && testDetail.apiEndpoint) {
                     apiDetailsHtml = `
                         <div class="mb-3">
-                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">API Details</h5>
-                            <div class="grid-2" style="gap: 0.75rem;">
-                                <div>
-                                    <div class="text-muted" style="font-size: 0.875rem;">Endpoint</div>
-                                    <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiEndpoint || 'N/A'}</div>
+                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">🔌 API Details</h5>
+                            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px;">
+                                <div class="grid-2" style="gap: 0.75rem;">
+                                    <div>
+                                        <div class="text-muted" style="font-size: 0.875rem;">Endpoint</div>
+                                        <div class="text-bold" style="font-size: 0.875rem; word-break: break-all;">${testDetail.apiEndpoint || 'N/A'}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted" style="font-size: 0.875rem;">Method</div>
+                                        <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiMethod || 'N/A'}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted" style="font-size: 0.875rem;">Response Code</div>
+                                        <div class="text-bold" style="font-size: 0.875rem;">
+                                            <span class="badge ${testDetail.apiResponseCode >= 200 && testDetail.apiResponseCode < 300 ? 'badge-success' : 'badge-danger'}">
+                                                ${testDetail.apiResponseCode || 'N/A'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div class="text-muted" style="font-size: 0.875rem;">Method</div>
-                                    <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiMethod || 'N/A'}</div>
-                                </div>
-                                <div>
-                                    <div class="text-muted" style="font-size: 0.875rem;">Response Code</div>
-                                    <div class="text-bold" style="font-size: 0.875rem;">${testDetail.apiResponseCode || 'N/A'}</div>
-                                </div>
+                                ${testDetail.apiRequestBody ? `
+                                    <details style="margin-top: 1rem;">
+                                        <summary style="cursor: pointer; font-weight: 500; color: var(--primary-color); margin-bottom: 0.5rem;">
+                                            Request Body
+                                        </summary>
+                                        <pre style="background: var(--bg-primary); padding: 1rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; max-height: 200px;">${testDetail.apiRequestBody}</pre>
+                                    </details>
+                                ` : ''}
+                                ${testDetail.apiResponseBody ? `
+                                    <details style="margin-top: 1rem;">
+                                        <summary style="cursor: pointer; font-weight: 500; color: var(--primary-color); margin-bottom: 0.5rem;">
+                                            Response Body
+                                        </summary>
+                                        <pre style="background: var(--bg-primary); padding: 1rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; max-height: 200px;">${testDetail.apiResponseBody}</pre>
+                                    </details>
+                                ` : ''}
                             </div>
                         </div>
                     `;
                 }
 
+                // Build error details HTML if available
                 let errorDetailsHtml = '';
-                if (testDetail.errorMessage || testDetail.stackTrace || testDetail.error) {
+                if (isFailed && (testDetail.errorMessage || testDetail.stackTrace || testDetail.error)) {
                     const errorMsg = testDetail.errorMessage || testDetail.error || 'Unknown error';
                     errorDetailsHtml = `
                         <div class="mb-3">
-                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">Error Details</h5>
-                            <div class="alert alert-danger mb-2">
-                                <span>⚠</span>
-                                <span>${errorMsg}</span>
+                            <h5 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem;">⚠️ Error Details</h5>
+                            <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 1rem; border-radius: 8px;">
+                                <div style="display: flex; align-items: start; gap: 0.75rem;">
+                                    <span style="font-size: 1.5rem;">❌</span>
+                                    <div style="flex: 1;">
+                                        <strong style="display: block; margin-bottom: 0.5rem;">Error Message:</strong>
+                                        <p style="margin: 0; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; font-size: 0.875rem;">${errorMsg}</p>
+                                    </div>
+                                </div>
                             </div>
                             ${testDetail.stackTrace ? `
-                                <details style="margin-top: 0.5rem;">
-                                    <summary style="cursor: pointer; font-weight: 500; color: var(--text-secondary);">
-                                        Stack Trace
+                                <details style="margin-top: 0.75rem;">
+                                    <summary style="cursor: pointer; font-weight: 500; color: var(--danger-color); padding: 0.5rem; background: rgba(239, 68, 68, 0.05); border-radius: 4px;">
+                                        📋 Full Stack Trace (Click to expand)
                                     </summary>
-                                    <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; margin-top: 0.5rem;">${testDetail.stackTrace}</pre>
+                                    <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; margin-top: 0.5rem; max-height: 400px; border: 1px solid var(--border-color);">${testDetail.stackTrace}</pre>
                                 </details>
                             ` : ''}
                         </div>
                     `;
                 }
 
+                // Build the complete modal content
                 modalBody.innerHTML = `
                     <div>
                         <h4 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">${testDetail.testName || testDetail.name || testName}</h4>
-                        <p class="text-muted" style="margin-bottom: 1rem;">${testDetail.testClass || testDetail.class || 'N/A'}</p>
+                        <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.875rem;">
+                            <strong>Class:</strong> ${testDetail.testClass || testDetail.class || 'N/A'}
+                        </p>
 
                         <div class="mb-3">
-                            <span class="badge badge-${(testDetail.status === 'PASS' || testDetail.status === 'PASSED' || testDetail.status === 'passed') ? 'success' : 'danger'}"
+                            <span class="badge badge-${isFailed ? 'danger' : 'success'}"
                                   style="font-size: 0.875rem; padding: 0.5rem 1rem;">
                                 ${(testDetail.status || 'UNKNOWN').toUpperCase()}
                             </span>
@@ -557,24 +654,24 @@
 
                         <div class="grid-3 mb-3" style="gap: 1rem;">
                             <div>
-                                <div class="text-muted" style="font-size: 0.875rem;">Duration</div>
+                                <div class="text-muted" style="font-size: 0.875rem;">⏱️ Duration</div>
                                 <div class="text-bold">${testDetail.durationMs ? (testDetail.durationMs / 1000).toFixed(2) + 's' : (testDetail.duration || 'N/A')}</div>
                             </div>
                             <div>
-                                <div class="text-muted" style="font-size: 0.875rem;">Test Type</div>
+                                <div class="text-muted" style="font-size: 0.875rem;">🧪 Test Type</div>
                                 <div class="text-bold">${testDetail.testType || 'UI'}</div>
                             </div>
                             ${testDetail.browser ? `
                                 <div>
-                                    <div class="text-muted" style="font-size: 0.875rem;">Browser</div>
+                                    <div class="text-muted" style="font-size: 0.875rem;">🌐 Browser</div>
                                     <div class="text-bold">${testDetail.browser}</div>
                                 </div>
                             ` : ''}
                         </div>
 
+                        ${errorDetailsHtml}
                         ${screenshotHtml}
                         ${apiDetailsHtml}
-                        ${errorDetailsHtml}
                     </div>
                 `;
 
@@ -583,19 +680,25 @@
 
             } catch (error) {
                 console.error('Error displaying test details:', error);
-                // Show error in modal instead of alert
+                // Show error in modal
                 const modalBody = document.getElementById('testDetailBody');
                 modalBody.innerHTML = `
-                    <div class="alert alert-danger">
-                        <span>⚠</span>
-                        <div>
-                            <strong>Unable to load test details</strong>
-                            <p style="margin-top: 0.5rem; font-size: 0.875rem;">The test details could not be loaded. This may be because:</p>
-                            <ul style="font-size: 0.875rem; margin-top: 0.5rem;">
-                                <li>The test data is not available in the database</li>
-                                <li>The execution report is from a mock/demo session</li>
-                                <li>There was a network error fetching the data</li>
-                            </ul>
+                    <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 1.5rem; border-radius: 8px;">
+                        <div style="display: flex; align-items: start; gap: 1rem;">
+                            <span style="font-size: 2rem;">⚠️</span>
+                            <div>
+                                <strong style="display: block; font-size: 1.1rem; margin-bottom: 0.5rem;">Unable to load test details</strong>
+                                <p style="margin-top: 0.5rem; font-size: 0.875rem; margin-bottom: 0.5rem;">The test details could not be loaded. This may be because:</p>
+                                <ul style="font-size: 0.875rem; margin-top: 0.5rem; padding-left: 1.5rem;">
+                                    <li>The test data is not available in the database</li>
+                                    <li>The execution report is from a mock/demo session</li>
+                                    <li>There was a network error fetching the data</li>
+                                    <li>The test has not been executed yet</li>
+                                </ul>
+                                <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+                                    <strong>Error:</strong> ${error.message}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 `;

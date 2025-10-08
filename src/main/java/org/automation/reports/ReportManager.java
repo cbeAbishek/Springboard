@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -127,20 +128,31 @@ public class ReportManager {
         }
 
         try {
+            // Log before saving
+            logger.info("Adding test detail: {} | Status: {} | Report ID: {}",
+                detail.getTestName(), detail.getStatus(), report.getReportId());
+
             detail.setReport(report);
+
+            // Add to report's internal list (important for non-database mode!)
+            report.addTestDetail(detail);
 
             // Save to database if available
             if (detailRepository != null) {
-                detailRepository.save(detail);
+                TestReportDetail savedDetail = detailRepository.save(detail);
+                logger.info("✓ Test detail saved to database with ID: {}", savedDetail.getId());
+            } else {
+                logger.warn("⚠ Detail repository not available, test detail not persisted to database");
             }
 
             // Update report statistics
             updateReportStatistics(report, detail);
 
-            logger.debug("Test detail added: {} - {}", detail.getTestName(), detail.getStatus());
+            logger.info("✓ Test detail processed: {} - {} | Total tests in report: {}",
+                detail.getTestName(), detail.getStatus(), report.getTotalTests());
 
         } catch (Exception e) {
-            logger.error("Error adding test detail", e);
+            logger.error("Error adding test detail: {}", e.getMessage(), e);
         }
     }
 
@@ -207,9 +219,9 @@ public class ReportManager {
             // Generate HTML summary
             generateHtmlSummary(report);
 
-            logger.info("Report finalized: {} | Total: {} | Passed: {} | Failed: {} | Success Rate: {:.2f}%",
+            logger.info("Report finalized: {} | Total: {} | Passed: {} | Failed: {} | Skipped: {} | Success Rate: {:.2f}%",
                 report.getReportId(), report.getTotalTests(), report.getPassedTests(),
-                report.getFailedTests(), report.getSuccessRate());
+                report.getFailedTests(), report.getSkippedTests(), report.getSuccessRate());
 
         } catch (Exception e) {
             logger.error("Error finalizing report", e);
@@ -410,15 +422,77 @@ public class ReportManager {
     }
 
     /**
-     * Set current report ID (static method for fallback)
+     * Set current report ID and load existing report from database
+     * Used when report ID is provided from UI execution
+     */
+    public void loadExistingReport(String reportId) {
+        if (reportRepository != null) {
+            try {
+                // Load existing report from database
+                Optional<TestReport> existingReport = reportRepository.findByReportId(reportId);
+
+                if (existingReport.isPresent()) {
+                    TestReport report = existingReport.get();
+                    currentReport.set(report);
+                    logger.info("✓ Loaded existing report from database: {} | Total Tests: {} | Status: {}",
+                        reportId, report.getTotalTests(), report.getStatus());
+                    return;
+                }
+                logger.warn("Report not found in database: {}", reportId);
+            } catch (Exception e) {
+                logger.error("Error loading report from database: {}", e.getMessage(), e);
+            }
+        } else {
+            logger.warn("Report repository not available, cannot load existing report");
+        }
+
+        // Fallback: create minimal report object with the ID
+        TestReport report = new TestReport();
+        report.setReportId(reportId);
+        currentReport.set(report);
+        logger.info("Created fallback report object with ID: {}", reportId);
+    }
+
+    /**
+     * Set current report ID and load existing report from database (static wrapper)
+     * Used when report ID is provided from UI execution
      */
     public static void setCurrentReportId(String reportId) {
+        // Try to get the Spring-managed instance to load from database
+        try {
+            ReportManager manager = org.automation.config.SpringContext.getBean(ReportManager.class);
+            if (manager != null) {
+                manager.loadExistingReport(reportId);
+                return;
+            }
+        } catch (Exception e) {
+            logger.warn("Could not get Spring-managed ReportManager: {}", e.getMessage());
+        }
+
+        // Fallback for non-Spring contexts
+        ReportManager manager = getInstance();
+        if (manager != null && manager.reportRepository != null) {
+            try {
+                Optional<TestReport> existingReport = manager.reportRepository.findByReportId(reportId);
+                if (existingReport.isPresent()) {
+                    TestReport report = existingReport.get();
+                    currentReport.set(report);
+                    logger.info("Loaded existing report from database: {}", reportId);
+                    return;
+                }
+            } catch (Exception e) {
+                logger.warn("Could not load report from database: {}", e.getMessage());
+            }
+        }
+
+        // Last resort: create minimal report object
         TestReport report = currentReport.get();
         if (report == null) {
             report = new TestReport();
             currentReport.set(report);
         }
         report.setReportId(reportId);
+        logger.info("Set report ID in thread local: {}", reportId);
     }
 
     /**

@@ -1,21 +1,27 @@
 package org.automation.listeners;
 
+import io.qameta.allure.Allure;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.automation.utils.ScreenshotUtils;
-import org.automation.ui.DriverManager;
 import org.automation.analytics.model.ExecutionLog;
 import org.automation.analytics.repo.ExecutionLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 
 /**
  * TestNG listener specifically for handling screenshot capture on test failures
- * Enhanced with comprehensive logging and database integration
+ * Enhanced with comprehensive logging, database integration, and Allure reporting
  */
+@Component
 public class ScreenshotListener implements ITestListener {
     
     private static final Logger logger = LoggerFactory.getLogger(ScreenshotListener.class);
@@ -45,6 +51,28 @@ public class ScreenshotListener implements ITestListener {
 
                     // Store in test result attributes
                     result.setAttribute("screenshotPath", screenshotPath);
+
+                    // Attach screenshot to Allure report
+                    try {
+                        attachScreenshotToAllure(screenshotPath, "UI Failure Screenshot");
+                        logger.info("ScreenshotListener: Screenshot attached to Allure report");
+                    } catch (Exception e) {
+                        logger.error("ScreenshotListener: Failed to attach screenshot to Allure: {}", e.getMessage());
+                    }
+
+                    // Attach error details to Allure
+                    if (result.getThrowable() != null) {
+                        String errorMsg = result.getThrowable().getMessage();
+                        if (errorMsg != null) {
+                            Allure.addAttachment("Error Details", "text/plain", errorMsg, ".txt");
+                        }
+
+                        // Add full stack trace
+                        String stackTrace = getStackTraceAsString(result.getThrowable());
+                        if (stackTrace != null) {
+                            Allure.addAttachment("Stack Trace", "text/plain", stackTrace, ".txt");
+                        }
+                    }
 
                     // Update execution log with screenshot path
                     updateExecutionLogWithScreenshot(testName, className, screenshotPath, result);
@@ -150,12 +178,40 @@ public class ScreenshotListener implements ITestListener {
                 log.setDurationMs(duration);
 
                 executionLogRepository.save(log);
-                logger.info("ScreenshotListener: Execution log saved with screenshot path for: {}", testName);
-            } else {
-                logger.debug("ScreenshotListener: ExecutionLogRepository not available, skipping database update");
+                logger.debug("ScreenshotListener: Execution log saved with screenshot path");
             }
         } catch (Exception e) {
-            logger.error("ScreenshotListener: Error updating execution log: {}", e.getMessage(), e);
+            logger.warn("ScreenshotListener: Failed to update execution log: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Attach screenshot to Allure report
+     */
+    private void attachScreenshotToAllure(String filePath, String title) throws IOException {
+        if (filePath != null && Files.exists(Paths.get(filePath))) {
+            byte[] fileContent = Files.readAllBytes(Paths.get(filePath));
+            Allure.addAttachment(title, "image/png", new ByteArrayInputStream(fileContent), "png");
+        }
+    }
+
+    /**
+     * Get stack trace as string
+     */
+    private String getStackTraceAsString(Throwable throwable) {
+        if (throwable == null) return null;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(throwable.toString()).append("\n");
+
+        for (StackTraceElement element : throwable.getStackTrace()) {
+            sb.append("\tat ").append(element.toString()).append("\n");
+            if (sb.length() > 5000) {
+                sb.append("\n... (truncated)");
+                break;
+            }
+        }
+
+        return sb.toString();
     }
 }

@@ -1,9 +1,13 @@
 package org.automation.utils;
 
+import io.qameta.allure.Allure;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +16,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ScreenshotUtils {
+
+    private static final Logger logger = LoggerFactory.getLogger(ScreenshotUtils.class);
 
     public static String capture(WebDriver driver, String testName) {
         if (driver == null) return null;
@@ -25,10 +31,20 @@ public class ScreenshotUtils {
             File src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
             Files.copy(src.toPath(), Paths.get(path));
 
-            System.out.println("📸 Screenshot captured for failed test: " + path);
+            logger.info("📸 Screenshot captured for failed test: {}", path);
+
+            // Also attach to Allure report
+            try {
+                byte[] screenshotBytes = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                Allure.addAttachment(testName + " - Failure Screenshot", "image/png",
+                                   new ByteArrayInputStream(screenshotBytes), "png");
+            } catch (Exception e) {
+                logger.error("Failed to attach screenshot to Allure: {}", e.getMessage());
+            }
+
             return path;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error capturing screenshot", e);
             return null;
         }
     }
@@ -41,11 +57,11 @@ public class ScreenshotUtils {
             if (driver != null) {
                 return capture(driver, testName);
             } else {
-                System.err.println("No active WebDriver found for screenshot: " + testName);
+                logger.error("No active WebDriver found for screenshot: {}", testName);
                 return null;
             }
         } catch (Exception e) {
-            System.err.println("Error taking screenshot: " + e.getMessage());
+            logger.error("Error taking screenshot: {}", e.getMessage());
             return null;
         }
     }
@@ -57,7 +73,7 @@ public class ScreenshotUtils {
         try {
             WebDriver driver = getActiveDriver();
             if (driver == null) {
-                System.err.println("No active WebDriver found for screenshot: " + testName);
+                logger.error("No active WebDriver found for screenshot: {}", testName);
                 return null;
             }
 
@@ -73,12 +89,21 @@ public class ScreenshotUtils {
             File src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
             Files.copy(src.toPath(), targetFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
-            System.out.println("📸 Screenshot captured to: " + targetPath);
+            logger.info("📸 Screenshot captured to: {}", targetPath);
+
+            // Also attach to Allure report
+            try {
+                byte[] screenshotBytes = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                Allure.addAttachment(testName + " - Screenshot", "image/png",
+                                   new ByteArrayInputStream(screenshotBytes), "png");
+            } catch (Exception e) {
+                logger.error("Failed to attach screenshot to Allure: {}", e.getMessage());
+            }
+
             return targetPath;
 
         } catch (Exception e) {
-            System.err.println("Error capturing screenshot to path: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Error capturing screenshot to path: {}", e.getMessage(), e);
             return capture(getActiveDriver(), testName); // Fallback
         }
     }

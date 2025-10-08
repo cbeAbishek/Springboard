@@ -2,10 +2,9 @@ package org.automation.listeners;
 
 import org.automation.reports.model.TestReportDetail;
 import org.automation.reports.ReportManager;
+import org.automation.config.SpringContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 import org.testng.ITestListener;
@@ -18,13 +17,42 @@ import java.time.ZoneId;
  * Unified listener for test execution and report generation
  * Works for both UI-triggered and CMD-triggered test executions
  */
-@Component
 public class UnifiedReportListener implements ITestListener, ISuiteListener {
 
     private static final Logger logger = LoggerFactory.getLogger(UnifiedReportListener.class);
-
-    @Autowired(required = false)
     private ReportManager reportManager;
+
+    // Use static singleton instance when Spring context is not available
+    private static ReportManager fallbackReportManager;
+
+    /**
+     * Get ReportManager bean from Spring context or fallback to singleton
+     */
+    private ReportManager getReportManager() {
+        if (reportManager == null) {
+            try {
+                if (SpringContext.isContextAvailable()) {
+                    reportManager = SpringContext.getBean(ReportManager.class);
+                    logger.info("ReportManager bean retrieved from Spring context");
+                } else {
+                    // Use singleton fallback when Spring is not available
+                    if (fallbackReportManager == null) {
+                        fallbackReportManager = ReportManager.getInstance();
+                        logger.info("Using fallback ReportManager instance (non-Spring context)");
+                    }
+                    reportManager = fallbackReportManager;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to get ReportManager from Spring context: {}", e.getMessage());
+                // Use singleton fallback
+                if (fallbackReportManager == null) {
+                    fallbackReportManager = ReportManager.getInstance();
+                }
+                reportManager = fallbackReportManager;
+            }
+        }
+        return reportManager;
+    }
 
     @Override
     public void onStart(ISuite suite) {
@@ -37,15 +65,15 @@ public class UnifiedReportListener implements ITestListener, ISuiteListener {
             String suiteType = determineSuiteType(suite.getName());
             String browser = System.getProperty("browser", "chrome");
 
+            // Get ReportManager instance (works with or without Spring)
+            ReportManager manager = getReportManager();
+
             // Initialize report
-            if (reportManager != null) {
-                reportManager.initializeReport(suiteType, browser, createdBy, triggerType);
-                logger.info("Report initialized with ID: {}", ReportManager.getCurrentReportId());
+            if (manager != null) {
+                manager.initializeReport(suiteType, browser, createdBy, triggerType);
+                logger.info("✅ Report initialized with ID: {}", ReportManager.getCurrentReportId());
             } else {
-                // Fallback for non-Spring context
-                String reportId = ReportManager.generateReportId();
-                ReportManager.setCurrentReportId(reportId);
-                logger.warn("ReportManager bean not available, using fallback initialization");
+                logger.error("❌ Failed to initialize ReportManager");
             }
         } catch (Exception e) {
             logger.error("Error initializing report: {}", e.getMessage(), e);
@@ -57,10 +85,10 @@ public class UnifiedReportListener implements ITestListener, ISuiteListener {
         logger.info("=== Test Suite Finished: {} ===", suite.getName());
 
         try {
-            if (reportManager != null) {
-                reportManager.finalizeReport();
-                reportManager.generateAggregatedReport();
-                logger.info("Reports finalized successfully");
+            ReportManager manager = getReportManager();
+            if (manager != null) {
+                manager.finalizeReport();
+                logger.info("✅ Report finalized successfully");
             }
         } catch (Exception e) {
             logger.error("Error finalizing report: {}", e.getMessage(), e);
@@ -147,10 +175,15 @@ public class UnifiedReportListener implements ITestListener, ISuiteListener {
                 detail.setApiArtifactPath(artifactPath);
             }
 
-            // Add to report
-            if (reportManager != null) {
-                reportManager.addTestDetail(detail);
-                logger.debug("Added test detail for: {} - {}", detail.getTestName(), status);
+            // Add to report - now this should always work!
+            ReportManager manager = getReportManager();
+            if (manager != null) {
+                manager.addTestDetail(detail);
+                logger.info("✅ Test detail saved: {} - {} (Duration: {}ms)",
+                    detail.getTestName(), status, detail.getDurationMs());
+            } else {
+                logger.error("❌ Cannot save test detail - ReportManager not available: {} - {}",
+                    detail.getTestName(), status);
             }
 
         } catch (Exception e) {
@@ -178,9 +211,7 @@ public class UnifiedReportListener implements ITestListener, ISuiteListener {
 
     private String extractFileName(String path) {
         if (path == null) return null;
-        int lastSlash = path.lastIndexOf('/');
-        int lastBackslash = path.lastIndexOf('\\');
-        int lastSeparator = Math.max(lastSlash, lastBackslash);
-        return lastSeparator >= 0 ? path.substring(lastSeparator + 1) : path;
+        int lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
     }
 }

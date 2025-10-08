@@ -28,6 +28,10 @@
         <surefire.reuseForks>true</surefire.reuseForks>
         <surefire.timeout>600</surefire.timeout>
 
+        <!-- Default test configuration -->
+        <browser>chrome</browser>
+        <headless>false</headless>
+
         <!-- Dependency versions -->
         <selenium.version>4.24.0</selenium.version>
         <testng.version>7.10.2</testng.version>
@@ -192,7 +196,7 @@
                 <version>3.2.5</version>
                 <configuration>
                     <suiteXmlFiles>
-                        <suiteXmlFile>${project.basedir}/testng-${suite}.xml</suiteXmlFile>
+                        <suiteXmlFile>${project.basedir}/testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
                     <parallel>methods</parallel>
                     <threadCount>10</threadCount>
@@ -204,7 +208,6 @@
                     <systemPropertyVariables>
                         <browser>${browser}</browser>
                         <headless>${headless}</headless>
-                        <suite>${suite}</suite>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
@@ -240,5 +243,61 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Maven Profiles for different test suites -->
+    <profiles>
+        <!-- Profile to run all tests (default testng.xml) -->
+        <profile>
+            <id>all-tests</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <testng.suite>${project.basedir}/testng.xml</testng.suite>
+            </properties>
+        </profile>
+
+        <!-- Profile to run only UI tests -->
+        <profile>
+            <id>ui-tests</id>
+            <properties>
+                <testng.suite>${project.basedir}/testng-ui.xml</testng.suite>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>${project.basedir}/testng-ui.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Profile to run only API tests -->
+        <profile>
+            <id>api-tests</id>
+            <properties>
+                <testng.suite>${project.basedir}/testng-api.xml</testng.suite>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>${project.basedir}/testng-api.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
