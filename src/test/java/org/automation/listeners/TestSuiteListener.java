@@ -15,38 +15,27 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class TestSuiteListener implements ITestListener {
 
-    // Read database config from system properties or use defaults
-    private static final String DB_URL = System.getProperty("db.url",
-        "jdbc:mysql://localhost:3306/test_automation?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true");
-    private static final String DB_USER = System.getProperty("db.user", "root");
-    private static final String DB_PASS = System.getProperty("db.password", "root");
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/automation_tests";
+    private static final String DB_USER = "root";
+    private static final String DB_PASS = "rooT@12345"; // updated
     private static final String ARTIFACTS_DIR = "artifacts/";
 
     private static final int MAX_US_ID_LENGTH = 50;
     private static final int MAX_TC_ID_LENGTH = 255;
 
-    private static boolean dbAvailable = true;
-
     // ---------- Database Helper ----------
     private Connection getConnection() throws SQLException {
-        if (!dbAvailable) {
-            throw new SQLException("Database is not available - skipping database logging");
-        }
         return java.sql.DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
     }
 
     private void insertExecutionLog(String testName, String status, String type,
                                     String usId, String tcId, String artifact, String screenshotPath) {
-        if (!dbAvailable) {
-            System.out.println("[INFO] Database not available - test results logged to files only");
-            return;
-        }
-
         usId = truncate(usId, MAX_US_ID_LENGTH);
         tcId = truncate(tcId, MAX_TC_ID_LENGTH);
 
@@ -63,10 +52,46 @@ public class TestSuiteListener implements ITestListener {
             ps.setString(8, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             ps.executeUpdate();
         } catch (SQLException e) {
-            dbAvailable = false;
-            System.err.println("[WARNING] Database connection failed - continuing without database logging");
-            System.err.println("[INFO] To fix this, ensure MySQL is running and credentials are correct in application.properties");
-            // Don't print full stack trace to avoid cluttering test output
+            if (e.getMessage() != null && e.getMessage().contains("Unknown column 'test_type'")) {
+                System.err.println("[DB] Missing columns detected. Attempting auto-migration...");
+                selfHealSchema();
+                // retry once
+                try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, testName);
+                    ps.setString(2, status);
+                    ps.setString(3, type);
+                    ps.setString(4, usId);
+                    ps.setString(5, tcId);
+                    ps.setString(6, artifact);
+                    ps.setString(7, screenshotPath);
+                    ps.setString(8, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                    ps.executeUpdate();
+                    System.out.println("[DB] Insert succeeded after schema repair.");
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            } else {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void selfHealSchema() {
+        String[] alters = new String[] {
+                "ALTER TABLE execution_log ADD COLUMN test_type VARCHAR(20) NULL",
+                "ALTER TABLE execution_log ADD COLUMN us_id VARCHAR(50) NULL",
+                "ALTER TABLE execution_log ADD COLUMN tc_id VARCHAR(255) NULL",
+                "ALTER TABLE execution_log ADD COLUMN artifact VARCHAR(500) NULL",
+                "ALTER TABLE execution_log ADD COLUMN screenshot_path VARCHAR(500) NULL",
+                "ALTER TABLE execution_log ADD COLUMN execution_time DATETIME DEFAULT CURRENT_TIMESTAMP"
+        };
+        try (Connection conn = getConnection(); Statement st = conn.createStatement()) {
+            for (String alter : alters) {
+                try { st.executeUpdate(alter); } catch (SQLException ignore) { }
+            }
+            System.out.println("[DB] Auto-migration attempted for execution_log.");
+        } catch (SQLException e) {
+            System.err.println("[DB] Auto-migration failed: " + e.getMessage());
         }
     }
 

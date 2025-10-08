@@ -1,0 +1,6 @@
+{
+  "testName": "testGetAllPosts",
+  "timestamp": "20250925_155924",
+  "request": "GET /posts",
+  "response": "[\n  {\n    \"userId\": 1,\n    \"id\": 1,\n    \"title\": \"sunt aut facere repellat provident occaecati excepturi optio reprehenderit\",\n    \"body\": \"quia et suscipit\\nsuscipit recusandae consequuntur expedita et cum\\nreprehenderit molestiae ut ut quas totam\\nnostr"
+}
