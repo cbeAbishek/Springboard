@@ -7,7 +7,7 @@ public class DatabaseUtils {
     // Fetch DB details from environment variables (fallback to defaults)
     private static final String DB_URL = System.getenv().getOrDefault("DB_URL", "jdbc:mysql://localhost:3306/automation_tests");
     private static final String DB_USER = System.getenv().getOrDefault("DB_USER", "root");
-    private static final String DB_PASS = System.getenv().getOrDefault("DB_PASS", "rooT@12345");
+    private static final String DB_PASS = System.getenv().getOrDefault("DB_PASS", "rooT@12345"); // updated
 
     // ---------- Get Connection ----------
     public static Connection getConnection() throws SQLException {
@@ -58,18 +58,19 @@ public class DatabaseUtils {
 
     // ---------- Insert Execution Log ----------
     public static void insertExecutionLog(String testType, String usId, String testCaseId,
-                                          String message, String level, String screenshotPath) {
-        String sql = "INSERT INTO execution_logs (test_type, us_id, test_case_id, message, level, screenshot_path, log_time) " +
-                "VALUES (?, ?, ?, ?, ?, ?, NOW())";
+                                          String testName, String status, String artifactPath, String screenshotPath) {
+        String sql = "INSERT INTO execution_log (test_name, status, test_type, us_id, tc_id, artifact, screenshot_path, execution_time) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, testType);
-            stmt.setString(2, usId);
-            stmt.setString(3, testCaseId);
-            stmt.setString(4, message);
-            stmt.setString(5, level);
-            stmt.setString(6, screenshotPath);
+            stmt.setString(1, testName);
+            stmt.setString(2, status);
+            stmt.setString(3, testType);
+            stmt.setString(4, usId);
+            stmt.setString(5, testCaseId);
+            stmt.setString(6, artifactPath);
+            stmt.setString(7, screenshotPath);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -78,7 +79,7 @@ public class DatabaseUtils {
 
     // ---------- Update Screenshot Path ----------
     public static void updateScreenshotPath(String testName, String screenshotPath) {
-        String sql = "UPDATE execution_logs SET screenshot_path = ? WHERE test_name = ? ORDER BY log_time DESC LIMIT 1";
+        String sql = "UPDATE execution_log SET screenshot_path = ? WHERE test_name = ? ORDER BY execution_time DESC LIMIT 1";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -97,7 +98,7 @@ public class DatabaseUtils {
 
             stmt.executeUpdate("TRUNCATE TABLE ui_tests");
             stmt.executeUpdate("TRUNCATE TABLE api_responses");
-            stmt.executeUpdate("TRUNCATE TABLE execution_logs");
+            stmt.executeUpdate("TRUNCATE TABLE execution_log");
 
             System.out.println("✅ All tables cleared successfully!");
         } catch (SQLException e) {
@@ -107,7 +108,7 @@ public class DatabaseUtils {
 
     // ---------- Check if Screenshot Exists ----------
     public static boolean screenshotExists(String usId, String testCaseId) {
-        String sql = "SELECT screenshot_path FROM execution_logs WHERE us_id = ? AND test_case_id = ? AND screenshot_path IS NOT NULL";
+        String sql = "SELECT screenshot_path FROM execution_log WHERE us_id = ? AND tc_id = ? AND screenshot_path IS NOT NULL";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 

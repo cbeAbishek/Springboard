@@ -1,113 +1,106 @@
 package org.automation.ui;
 
-import io.github.bonigarcia.wdm.WebDriverManager;
 import org.apache.commons.io.FileUtils;
+import org.automation.utils.DbMigrationUtil; // added
 import org.automation.utils.ScreenshotUtils;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.edge.EdgeDriver;
-import org.openqa.selenium.edge.EdgeOptions;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Parameters;
+import io.github.bonigarcia.wdm.WebDriverManager; // added
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 public class BaseTest {
+    private static volatile boolean DB_MIGRATED = false;
 
     @BeforeMethod(alwaysRun = true)
-    @Parameters({"browser"})
-    public void setUp(String browser) {
-        WebDriver webDriver = createDriver(browser);
-        DriverManager.setDriver(webDriver); // Save driver in ThreadLocal
-    }
-
-    /**
-     * Create WebDriver instance based on browser parameter
-     * Uses WebDriverManager to automatically download correct driver version
-     */
-    private WebDriver createDriver(String browser) {
-        WebDriver driver;
-        String browserName = browser != null ? browser.toLowerCase() : "chrome";
-        boolean headless = Boolean.parseBoolean(System.getProperty("headless", "false"));
-
-        switch (browserName) {
-            case "firefox":
-                WebDriverManager.firefoxdriver().setup();
-                FirefoxOptions firefoxOptions = new FirefoxOptions();
-                if (headless) {
-                    firefoxOptions.addArguments("--headless");
+    public void setUp() {
+        if (!DB_MIGRATED) {
+            synchronized (BaseTest.class) {
+                if (!DB_MIGRATED) {
+                    DbMigrationUtil.migrate();
+                    DB_MIGRATED = true;
                 }
-                firefoxOptions.addArguments("--start-maximized");
-                driver = new FirefoxDriver(firefoxOptions);
-                break;
-
-            case "edge":
-                WebDriverManager.edgedriver().setup();
-                EdgeOptions edgeOptions = new EdgeOptions();
-                if (headless) {
-                    edgeOptions.addArguments("--headless");
-                }
-                edgeOptions.addArguments("--start-maximized");
-                driver = new EdgeDriver(edgeOptions);
-                break;
-
-            case "chrome":
-            default:
-                // WebDriverManager automatically downloads the correct ChromeDriver version
-                WebDriverManager.chromedriver().setup();
-                ChromeOptions chromeOptions = new ChromeOptions();
-                chromeOptions.addArguments("--start-maximized");
-                chromeOptions.addArguments("--remote-allow-origins=*");
-                if (headless) {
-                    chromeOptions.addArguments("--headless=new");
-                    chromeOptions.addArguments("--disable-gpu");
-                    chromeOptions.addArguments("--no-sandbox");
-                    chromeOptions.addArguments("--disable-dev-shm-usage");
-                }
-                driver = new ChromeDriver(chromeOptions);
-                break;
+            }
+        }
+        ChromeOptions options = new ChromeOptions();
+        // Ensure we always get a matching chromedriver for the installed Chrome (v141+)
+        // WebDriverManager caches the binary, so repeated calls are cheap.
+        try {
+            WebDriverManager.chromedriver().setup();
+            System.out.println("[Driver] Using ChromeDriver version: " + WebDriverManager.chromedriver().getDownloadedDriverVersion());
+        } catch (Exception e) {
+            System.err.println("[Driver] Failed to resolve ChromeDriver via WebDriverManager: " + e.getMessage());
         }
 
-        driver.manage().window().maximize();
-        return driver;
+        String ciEnv = System.getenv("CI");
+        boolean isCI = ciEnv != null && ciEnv.equalsIgnoreCase("true");
+
+        if (isCI) {
+            System.out.println("🚀 Running in CI mode – enabling headless Chrome...");
+            // Use new headless mode if supported
+            options.addArguments("--headless=new");
+            options.addArguments("--no-sandbox", "--disable-dev-shm-usage");
+        } else {
+            System.out.println("🖥️ Running locally – launching full Chrome browser...");
+            options.addArguments("--start-maximized");
+        }
+
+        // General stability / compatibility flags
+        options.addArguments(
+                "--remote-allow-origins=*",
+                "--disable-gpu",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-client-side-phishing-detection",
+                "--disable-default-apps",
+                "--disable-extensions",
+                "--disable-sync",
+                "--metrics-recording-only",
+                "--no-first-run",
+                "--disable-features=Translate,NetworkServiceInProcess"
+        );
+
+        // Honor CHROME_BIN if provided
+        String chromeBinary = System.getenv("CHROME_BIN");
+        if (chromeBinary != null && !chromeBinary.isEmpty()) {
+            options.setBinary(chromeBinary);
+            System.out.println("[Driver] Using custom Chrome binary: " + chromeBinary);
+        }
+
+        WebDriver webDriver = new ChromeDriver(options);
+        webDriver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
+        webDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+        DriverManager.setDriver(webDriver);
     }
 
     public WebDriver getDriver() {
         return DriverManager.getDriver();
     }
 
-    /**
-     * Tear down driver and capture screenshot ONLY on failure.
-     */
     @AfterMethod(alwaysRun = true)
     public void tearDown(ITestResult result) {
         WebDriver driver = DriverManager.getDriver();
-
-        // ✅ Capture screenshot ONLY if test failed
         if (result.getStatus() == ITestResult.FAILURE && driver != null) {
             String testName = result.getMethod().getMethodName();
             ScreenshotUtils.capture(driver, testName);
         }
-
         if (driver != null) {
             driver.quit();
             DriverManager.removeDriver();
         }
     }
 
-    // (Optional) Manual screenshot helper — not needed if ScreenshotUtils is used.
     public void takeScreenshot(String name) {
         WebDriver driver = DriverManager.getDriver();
         if (driver == null) return;
-
         File srcFile = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
         File destFile = new File("target/screenshots/" + name + ".png");
         destFile.getParentFile().mkdirs();

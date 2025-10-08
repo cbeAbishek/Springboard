@@ -4,10 +4,9 @@ import java.sql.*;
 
 public class DatabaseInserter {
 
-    // Using H2 embedded database (no MySQL needed!)
-    private static final String DB_URL = "jdbc:h2:file:./data/automation_framework";
-    private static final String DB_USER = "sa";
-    private static final String DB_PASS = "";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/automation_tests?useSSL=false&serverTimezone=UTC";
+    private static final String DB_USER = "root";
+    private static final String DB_PASS = "rooT@12345"; // updated
 
     // ---------- Insert UI Test Result ----------
     public static void insertUiTestResult(String usId, String testCaseId, String name,
@@ -55,7 +54,7 @@ public class DatabaseInserter {
     public static void insertExecutionLog(String testType, String usId, String testCaseId,
                                           String message, String level, String screenshotPath,
                                           Timestamp startTime, Timestamp endTime, long duration) {
-        String sql = "INSERT INTO execution_logs " +
+        String sql = "INSERT INTO execution_log " +
                 "(test_type, us_id, test_case_id, message, level, log_time, tc_id, screenshot_path, start_time, end_time, duration) " +
                 "VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)";
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
@@ -75,31 +74,6 @@ public class DatabaseInserter {
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-    }
-
-    // ---------- Insert General Test Result (used by TestListener) ----------
-    public static void insertTestResult(String className, String testName, String status,
-                                      String timestamp, long duration, String errorMessage, String screenshotPath) {
-        String sql = "INSERT INTO test_results (class_name, test_name, status, timestamp, duration_ms, error_message, screenshot_path) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, className);
-            stmt.setString(2, testName);
-            stmt.setString(3, status);
-            stmt.setString(4, timestamp);
-            stmt.setLong(5, duration);
-            stmt.setString(6, errorMessage);
-            stmt.setString(7, screenshotPath);
-            stmt.executeUpdate();
-
-        } catch (SQLException e) {
-            // If database connection fails, log to console instead
-            System.err.println("Failed to insert test result to database: " + e.getMessage());
-            System.out.println("Test Result - Class: " + className + ", Test: " + testName +
-                             ", Status: " + status + ", Duration: " + duration + "ms");
         }
     }
 }
