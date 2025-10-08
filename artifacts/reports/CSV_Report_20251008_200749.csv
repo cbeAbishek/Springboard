@@ -1,0 +1,61 @@
+ID,TestName,Status,Type,US_ID,TC_ID,Artifact,ExecutionTime
+1,testNavigateToHomePage,PASS,UI,US109,Navigate to Home Page,"",2025-10-08 16:28:50
+2,testConfirmationPage,PASS,UI,US108,Verify Confirmation Page,"",2025-10-08 16:28:50
+3,testPurchasePageContainsForm,PASS,UI,US105,Verify Purchase Page Contains Form,"",2025-10-08 16:28:50
+4,testHomePageContainsDepartureAndDestination,PASS,UI,US102,Verify Departure and Destination fields exist on Home Page,"",2025-10-08 16:28:50
+5,testHomePageTitle,PASS,UI,US101,Verify Home Page Title,"",2025-10-08 16:28:50
+6,testFlightSelectionPage,PASS,UI,US110,Verify Flight Selection Page UI Elements,"",2025-10-08 16:28:50
+7,testSelectFirstFlight,PASS,UI,US104,Select First Flight from Flights Page,"",2025-10-08 16:28:51
+8,testFlightSearchNavigation,PASS,UI,US103,Verify Flight Search Navigation from Home Page,"",2025-10-08 16:28:51
+9,testFillPurchaseForm,PASS,UI,US106,Fill Purchase Form,"",2025-10-08 16:28:51
+10,testPurchaseFlight,PASS,UI,US107,Purchase Flight,"",2025-10-08 16:28:52
+11,testConfirmationPage,PASS,UI,US108,Verify Confirmation Page,"",2025-10-08 16:29:16
+12,testHomePageContainsDepartureAndDestination,PASS,UI,US102,Verify Departure and Destination fields exist on Home Page,"",2025-10-08 16:29:16
+13,testFlightSelectionPage,PASS,UI,US110,Verify Flight Selection Page UI Elements,"",2025-10-08 16:29:16
+14,testHomePageTitle,PASS,UI,US101,Verify Home Page Title,"",2025-10-08 16:29:16
+15,testNavigateToHomePage,PASS,UI,US109,Navigate to Home Page,"",2025-10-08 16:29:16
+16,testPurchasePageContainsForm,PASS,UI,US105,Verify Purchase Page Contains Form,"",2025-10-08 16:29:17
+17,testFlightSearchNavigation,PASS,UI,US103,Verify Flight Search Navigation from Home Page,"",2025-10-08 16:29:17
+18,testSelectFirstFlight,PASS,UI,US104,Select First Flight from Flights Page,"",2025-10-08 16:29:17
+19,testPurchaseFlight,PASS,UI,US107,Purchase Flight,"",2025-10-08 16:29:18
+20,testFillPurchaseForm,PASS,UI,US106,Fill Purchase Form,"",2025-10-08 16:29:19
+21,testConfirmationPage,PASS,API,null,null,"null",2025-10-08 20:07:46
+22,testNavigateToHomePage,PASS,API,null,null,"null",2025-10-08 20:07:46
+23,testConfirmationPage,PASS,UI,US108,Verify Confirmation Page,"",2025-10-08 20:07:46
+24,testHomePageContainsDepartureAndDestination,PASS,API,null,null,"null",2025-10-08 20:07:46
+25,testNavigateToHomePage,PASS,UI,US109,Navigate to Home Page,"",2025-10-08 20:07:46
+26,testSelectFirstFlight,PASS,API,null,null,"null",2025-10-08 20:07:46
+27,testHomePageContainsDepartureAndDestination,PASS,UI,US102,Verify Departure and Destination fields exist on Home Page,"",2025-10-08 20:07:46
+28,testSelectFirstFlight,PASS,UI,US104,Select First Flight from Flights Page,"",2025-10-08 20:07:46
+29,testFlightSelectionPage,PASS,API,null,null,"null",2025-10-08 20:07:46
+30,testFlightSelectionPage,PASS,UI,US110,Verify Flight Selection Page UI Elements,"",2025-10-08 20:07:46
+31,testHomePageTitle,PASS,API,null,null,"null",2025-10-08 20:07:46
+32,testHomePageTitle,PASS,UI,US101,Verify Home Page Title,"",2025-10-08 20:07:46
+33,testPurchasePageContainsForm,PASS,API,null,null,"null",2025-10-08 20:07:46
+34,testPurchasePageContainsForm,PASS,UI,US105,Verify Purchase Page Contains Form,"",2025-10-08 20:07:46
+35,testFlightSearchNavigation,PASS,API,null,null,"null",2025-10-08 20:07:46
+36,testFlightSearchNavigation,PASS,UI,US103,Verify Flight Search Navigation from Home Page,"",2025-10-08 20:07:46
+37,testFillPurchaseForm,FAIL,API,null,null,"null",2025-10-08 20:07:47
+38,testPurchaseFlight,PASS,API,null,null,"null",2025-10-08 20:07:47
+39,testFillPurchaseForm,FAIL,UI,US106,Fill Purchase Form,"",2025-10-08 20:07:47
+40,testPurchaseFlight,PASS,UI,US107,Purchase Flight,"",2025-10-08 20:07:47
+41,testDeletePost,PASS,API,null,null,"null",2025-10-08 20:07:49
+42,testDeletePost,PASS,API,US206,Delete a post,"artifacts/api/testDeletePost_20251008_200749.json",2025-10-08 20:07:49
+43,testGetSingleUser,PASS,API,null,null,"null",2025-10-08 20:07:49
+44,testGetAllUsers,PASS,API,null,null,"null",2025-10-08 20:07:49
+45,testCreateComment,PASS,API,null,null,"null",2025-10-08 20:07:49
+46,testPatchPost,PASS,API,null,null,"null",2025-10-08 20:07:49
+47,testGetCommentsForPost,PASS,API,null,null,"null",2025-10-08 20:07:49
+48,testGetSinglePost,PASS,API,null,null,"null",2025-10-08 20:07:49
+49,testCreatePost,PASS,API,null,null,"null",2025-10-08 20:07:49
+50,testGetAllPosts,PASS,API,null,null,"null",2025-10-08 20:07:49
+51,testGetSingleUser,PASS,API,US208,Get single user by ID,"artifacts/api/testGetSingleUser_20251008_200749.json",2025-10-08 20:07:49
+52,testCreateComment,PASS,API,US210,Create a comment,"artifacts/api/testCreateComment_20251008_200749.json",2025-10-08 20:07:49
+53,testGetAllUsers,PASS,API,US207,Get all users,"artifacts/api/testGetAllUsers_20251008_200749.json",2025-10-08 20:07:49
+54,testCreatePost,PASS,API,US203,Create a new post,"artifacts/api/testCreatePost_20251008_200749.json",2025-10-08 20:07:49
+55,testGetSinglePost,PASS,API,US202,Get single post by ID,"artifacts/api/testGetSinglePost_20251008_200749.json",2025-10-08 20:07:49
+56,testGetAllPosts,PASS,API,US201,Get all posts,"artifacts/api/testGetAllPosts_20251008_200749.json",2025-10-08 20:07:49
+57,testPatchPost,PASS,API,US205,Patch an existing post,"artifacts/api/testPatchPost_20251008_200749.json",2025-10-08 20:07:49
+58,testGetCommentsForPost,PASS,API,US209,Get comments for a post,"artifacts/api/testGetCommentsForPost_20251008_200749.json",2025-10-08 20:07:49
+59,testUpdatePost,PASS,API,null,null,"null",2025-10-08 20:07:49
+60,testUpdatePost,PASS,API,US204,Update an existing post,"artifacts/api/testUpdatePost_20251008_200749.json",2025-10-08 20:07:49

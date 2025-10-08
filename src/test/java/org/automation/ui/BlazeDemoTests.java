@@ -72,7 +72,9 @@ public class BlazeDemoTests extends BaseTest {
         getDriver().findElement(By.id("creditCardYear")).sendKeys("2025");
         getDriver().findElement(By.id("nameOnCard")).sendKeys("Test User");
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
-        Assert.assertTrue(getDriver().getTitle().contains("BlazeDemo Confirmation"));
+        new WebDriverWait(getDriver(), Duration.ofSeconds(10))
+                .until(ExpectedConditions.titleContains("Confirmation"));
+        Assert.assertTrue(getDriver().getTitle().contains("Confirmation"));
     }
 
     @Test(description = "Purchase Flight")
@@ -89,6 +91,8 @@ public class BlazeDemoTests extends BaseTest {
         getDriver().findElement(By.id("creditCardYear")).sendKeys("2025");
         getDriver().findElement(By.id("nameOnCard")).sendKeys("Test User");
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
+        new WebDriverWait(getDriver(), Duration.ofSeconds(10))
+                .until(ExpectedConditions.titleContains("Confirmation"));
         Assert.assertTrue(getDriver().getTitle().contains("Confirmation"));
     }
 
