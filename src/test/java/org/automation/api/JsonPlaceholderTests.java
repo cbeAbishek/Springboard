@@ -150,7 +150,7 @@ public class JsonPlaceholderTests extends ApiBaseTest {
     public void testCreateComment() {
         Reporter.getCurrentTestResult().setAttribute("US_ID", "US210");
 
-        String payload = "{ \"postId\":1, \"name\":\"Test\", \"email\":\"test@test.com\", \"body\":\"Test comment\" }";
+        String payload = "{ \"postId\"1, \"name\":\"Test\", \"email\":\"test@test.com\", \"body\":\"Test comment\" }";
 
         Response response = given().contentType(ContentType.JSON).body(payload)
                 .when().post("/comments")
