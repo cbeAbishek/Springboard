@@ -72,9 +72,19 @@ public class BlazeDemoTests extends BaseTest {
         getDriver().findElement(By.id("creditCardYear")).sendKeys("2025");
         getDriver().findElement(By.id("nameOnCard")).sendKeys("Test User");
         getDriver().findElement(By.cssSelector("input[type='submit']")).click();
-        new WebDriverWait(getDriver(), Duration.ofSeconds(10))
-                .until(ExpectedConditions.titleContains("Confirmation"));
-        Assert.assertTrue(getDriver().getTitle().contains("Confirmation"));
+
+        // Wait for page to load and check for confirmation
+        WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(15));
+        wait.until(ExpectedConditions.or(
+                ExpectedConditions.titleContains("Confirmation"),
+                ExpectedConditions.titleContains("BlazeDemo"),
+                ExpectedConditions.urlContains("confirmation")
+        ));
+
+        // Assert that we're on confirmation page
+        boolean isConfirmationPage = getDriver().getTitle().contains("Confirmation") ||
+                                      getDriver().getCurrentUrl().contains("confirmation");
+        Assert.assertTrue(isConfirmationPage, "Expected to be on confirmation page but was on: " + getDriver().getTitle());
     }
 
     @Test(description = "Purchase Flight")

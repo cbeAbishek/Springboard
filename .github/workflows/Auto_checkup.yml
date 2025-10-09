@@ -361,11 +361,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ui-test-reports
+          name: ui-test-reports-${{ matrix.browser }}
           path: |
-            artifacts/screenshots/
+            target/surefire-reports/testng-results.xml
+            target/surefire-reports/TEST-*.xml
+            target/surefire-reports/*.html
+            target/surefire-reports/emailable-report.html
+            test-output/testng-results.xml
             test-output/emailable-report.html
             test-output/index.html
+            artifacts/screenshots/
           retention-days: 30
 
       - name: Publish JUnit (UI)
@@ -604,13 +609,23 @@ jobs:
           FAILED=0
           SKIPPED=0
           
-          for file in $(find all-results -name "testng-results.xml" 2>/dev/null); do
+          echo "Searching for testng-results.xml files..."
+          find all-results -name "testng-results.xml" -type f 2>/dev/null || echo "No files found yet"
+          
+          # Parse testng-results.xml files
+          for file in $(find all-results -name "testng-results.xml" -type f 2>/dev/null); do
             if [ -f "$file" ]; then
+              echo "================================================"
               echo "Parsing: $file"
-              TESTS=$(grep -oP 'total="\K[0-9]+' "$file" | head -1 || echo "0")
-              PASS=$(grep -oP 'passed="\K[0-9]+' "$file" | head -1 || echo "0")
-              FAIL=$(grep -oP 'failed="\K[0-9]+' "$file" | head -1 || echo "0")
-              SKIP=$(grep -oP 'skipped="\K[0-9]+' "$file" | head -1 || echo "0")
+              cat "$file" | head -5
+              
+              # Extract test counts from testng-results.xml
+              TESTS=$(grep -oP '<testng-results[^>]*total="\K[0-9]+' "$file" | head -1 || echo "0")
+              PASS=$(grep -oP '<testng-results[^>]*passed="\K[0-9]+' "$file" | head -1 || echo "0")
+              FAIL=$(grep -oP '<testng-results[^>]*failed="\K[0-9]+' "$file" | head -1 || echo "0")
+              SKIP=$(grep -oP '<testng-results[^>]*skipped="\K[0-9]+' "$file" | head -1 || echo "0")
+              
+              echo "  Tests: $TESTS, Passed: $PASS, Failed: $FAIL, Skipped: $SKIP"
               
               TOTAL=$((TOTAL + TESTS))
               PASSED=$((PASSED + PASS))
@@ -619,10 +634,24 @@ jobs:
             fi
           done
           
+          echo "================================================"
+          echo "FINAL TOTALS:"
+          echo "  Total: $TOTAL"
+          echo "  Passed: $PASSED"
+          echo "  Failed: $FAILED"
+          echo "  Skipped: $SKIPPED"
+          
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          
+          # Calculate pass rate (avoid division by zero)
+          if [ $TOTAL -gt 0 ]; then
+            PASS_RATE=$(awk "BEGIN {printf \"%.2f\", ($PASSED/$TOTAL)*100}")
+          else
+            PASS_RATE="0.00"
+          fi
           
           # Create visual summary
           cat >> consolidated-reports/README.md << EOF
@@ -632,8 +661,17 @@ jobs:
           - **Passed:** $PASSED ✅
           - **Failed:** $FAILED ❌
           - **Skipped:** $SKIPPED ⏭️
-          - **Pass Rate:** $(awk "BEGIN {printf \"%.2f\", ($PASSED/$TOTAL)*100}")%
+          - **Pass Rate:** ${PASS_RATE}%
+          
+          ## Detailed Test Files
           EOF
+          
+          # List all test result files found
+          echo "" >> consolidated-reports/README.md
+          echo "### TestNG Result Files:" >> consolidated-reports/README.md
+          find all-results -name "testng-results.xml" -type f 2>/dev/null | while read file; do
+            echo "- \`$file\`" >> consolidated-reports/README.md
+          done
 
       - name: Upload Consolidated Reports
         uses: actions/upload-artifact@v4
