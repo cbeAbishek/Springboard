@@ -216,9 +216,11 @@ jobs:
         with:
           name: api-test-reports
           path: |
+            target/surefire-reports/testng-results.xml
+            target/surefire-reports/*.html
+            test-output/testng-results.xml
+            test-output/*.html
             artifacts/api/
-            test-output/emailable-report.html
-            test-output/index.html
           retention-days: 30
 
       - name: Publish JUnit (API)
