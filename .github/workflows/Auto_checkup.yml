@@ -223,13 +223,6 @@ jobs:
             artifacts/api/
           retention-days: 30
 
-      - name: Publish JUnit (API)
-        if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: API Tests
-          path: target/surefire-reports/TEST-*JsonPlaceholderTests.xml
-          reporter: java-junit
 
   ui-tests:
     name: 🌐 UI Tests
@@ -374,15 +367,6 @@ jobs:
             test-output/index.html
             artifacts/screenshots/
           retention-days: 30
-
-      - name: Publish JUnit (UI)
-        if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: UI Tests - ${{ matrix.browser }}
-          path: target/surefire-reports/TEST-*.xml
-          reporter: java-junit
-          fail-on-error: false
 
   specific-test:
     name: 🎯 Specific Test
