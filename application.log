@@ -1,0 +1,115 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------< org.example:testinffame >-----------------------
+[INFO] Building testinffame 1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.3.4:run (default-cli) > test-compile @ testinffame >>>
+[INFO] 
+[INFO] --- enforcer:3.4.1:enforce (enforce-java) @ testinffame ---
+[INFO] Rule 0: org.apache.maven.enforcer.rules.version.RequireJavaVersion passed
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ testinffame ---
+[INFO] Copying 3 resources from src/main/resources to target/classes
+[INFO] Copying 21 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.12.1:compile (default-compile) @ testinffame ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 54 source files with javac [debug parameters release 21] to target/classes
+[INFO] /home/abishek/IdeaProjects/Springboard/src/main/java/org/example/reporting/ReportGenerator.java: /home/abishek/IdeaProjects/Springboard/src/main/java/org/example/reporting/ReportGenerator.java uses or overrides a deprecated API.
+[INFO] /home/abishek/IdeaProjects/Springboard/src/main/java/org/example/reporting/ReportGenerator.java: Recompile with -Xlint:deprecation for details.
+[INFO] /home/abishek/IdeaProjects/Springboard/src/main/java/org/example/reporting/ReportGenerator.java: Some input files use unchecked or unsafe operations.
+[INFO] /home/abishek/IdeaProjects/Springboard/src/main/java/org/example/reporting/ReportGenerator.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ testinffame ---
+[INFO] Copying 3 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ testinffame ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 3 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] 
+[INFO] <<< spring-boot:3.3.4:run (default-cli) < test-compile @ testinffame <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.3.4:run (default-cli) @ testinffame ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.3.4)
+
+2025-09-23 23:52:24 - HV000001: Hibernate Validator 8.0.1.Final
+2025-09-23 23:52:24 - Starting Main using Java 21.0.8 with PID 30596 (/home/abishek/IdeaProjects/Springboard/target/classes started by abishek in /home/abishek/IdeaProjects/Springboard)
+2025-09-23 23:52:24 - No active profile set, falling back to 1 default profile: "default"
+2025-09-23 23:52:26 - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-23 23:52:26 - Finished Spring Data repository scanning in 100 ms. Found 4 JPA repository interfaces.
+2025-09-23 23:52:27 - Tomcat initialized with port 8080 (http)
+2025-09-23 23:52:27 - Initializing ProtocolHandler ["http-nio-8080"]
+2025-09-23 23:52:27 - Starting service [Tomcat]
+2025-09-23 23:52:27 - Starting Servlet engine: [Apache Tomcat/10.1.30]
+2025-09-23 23:52:27 - Initializing Spring embedded WebApplicationContext
+2025-09-23 23:52:27 - Root WebApplicationContext: initialization completed in 2710 ms
+2025-09-23 23:52:27 - Filter 'webMvcObservationFilter' configured for use
+2025-09-23 23:52:28 - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-23 23:52:28 - HHH000412: Hibernate ORM core version 6.5.3.Final
+2025-09-23 23:52:28 - HHH000026: Second-level cache disabled
+2025-09-23 23:52:28 - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-23 23:52:28 - HikariPool-1 - Starting...
+2025-09-23 23:52:28 - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@770cbe5d
+2025-09-23 23:52:28 - HikariPool-1 - Start completed.
+2025-09-23 23:52:28 - HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-09-23 23:52:28 - HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2025-09-23 23:52:30 - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-23 23:52:30 - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-23 23:52:31 - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-09-23 23:52:31 - Configuring Selenium logging suppression for Chrome 140 CDP compatibility
+2025-09-23 23:52:31 - Selenium CDP warning suppression configured successfully
+2025-09-23 23:52:32 - Using default implementation for ThreadExecutor
+2025-09-23 23:52:32 - Initialized Scheduler Signaller of type: class org.quartz.core.SchedulerSignalerImpl
+2025-09-23 23:52:32 - Quartz Scheduler v.2.3.2 created.
+2025-09-23 23:52:32 - RAMJobStore initialized.
+2025-09-23 23:52:32 - Scheduler meta-data: Quartz Scheduler (v2.3.2) 'SpringBootQuartzScheduler' with instanceId 'NON_CLUSTERED'
+  Scheduler class: 'org.quartz.core.QuartzScheduler' - running locally.
+  NOT STARTED.
+  Currently in standby mode.
+  Number of jobs executed: 0
+  Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.
+  Using job-store 'org.quartz.simpl.RAMJobStore' - which does not support persistence. and is not clustered.
+
+2025-09-23 23:52:32 - Quartz scheduler 'SpringBootQuartzScheduler' initialized from an externally provided properties instance.
+2025-09-23 23:52:32 - Quartz scheduler version: 2.3.2
+2025-09-23 23:52:32 - JobFactory set to: org.example.config.AutowiringSpringBeanJobFactory@12919b7b
+2025-09-23 23:52:32 - Initializing test scheduler...
+2025-09-23 23:52:32 - Successfully scheduled test:  with cron: 0 0 6 * * ?
+2025-09-23 23:52:32 - Loaded scheduled test: 
+2025-09-23 23:52:32 - Successfully scheduled test:  with cron: 0 0 2 ? * SUN
+2025-09-23 23:52:32 - Loaded scheduled test: 
+2025-09-23 23:52:32 - Test scheduler initialized with 2 active schedules
+2025-09-23 23:52:32 - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-09-23 23:52:32 - Adding welcome page: class path resource [static/index.html]
+2025-09-23 23:52:33 - 56 mappings in 'requestMappingHandlerMapping'
+2025-09-23 23:52:33 - Patterns [/webjars/**, /**] in 'resourceHandlerMapping'
+2025-09-23 23:52:33 - ControllerAdvice beans: 0 @ModelAttribute, 0 @InitBinder, 1 RequestBodyAdvice, 1 ResponseBodyAdvice
+2025-09-23 23:52:33 - ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2025-09-23 23:52:33 - File system access not preferred: using SpringTemplateLoader
+2025-09-23 23:52:33 - Exposing 3 endpoints beneath base path '/actuator'
+2025-09-23 23:52:34 - Tomcat started on port 8080 (http) with context path '/'
+2025-09-23 23:52:34 - Will start Quartz Scheduler [SpringBootQuartzScheduler] in 30 seconds
+2025-09-23 23:52:34 - Scheduler SpringBootQuartzScheduler_$_NON_CLUSTERED started.
+2025-09-23 23:52:34 - Quartz scheduler started successfully
+2025-09-23 23:52:34 - Started Main in 9.952 seconds (process running for 10.46)
+2025-09-23 23:52:34 - Found 0 schedules due for execution
+2025-09-23 23:52:34 - Mock data already exists, skipping creation.
+2025-09-23 23:52:34 - Application ready - Selenium logging suppression is active
+2025-09-23 23:52:34 - Chrome DevTools Protocol (CDP) warnings for version 140 are now suppressed
+Application started successfully.
+Access the API documentation at: http://localhost:8080/
+2025-09-23 23:53:04 - Starting Quartz Scheduler now, after delay of 30 seconds
+2025-09-23 23:53:04 - Scheduler SpringBootQuartzScheduler_$_NON_CLUSTERED started.
+2025-09-23 23:53:34 - Found 0 schedules due for execution
