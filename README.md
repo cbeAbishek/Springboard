@@ -1,69 +1,115 @@
 # Infosys Springboard Internship (Batch 1) – Automated Testing Framework
 
-> A flagship Infosys Springboard internship project delivering end-to-end quality intelligence for modern software teams.
+> **A flagship Infosys Springboard internship project delivering end-to-end quality intelligence for modern software teams.**
 
-<p align="center">
-  <img src="src/main/resources/static/images/logo.svg" alt="Springboard QA logo" width="120" />
-</p>
+<div align="center">
 
-![Demo view](src/main/resources/static/images/analytics-preview.svg)
+![Demo view](src/main/resources/static/images/demo_view.png)
 
-AutomateUI and API suites, orchestrate schedules, and surface actionable analytics from a single Spring Boot portal. Designed and implemented by Batch 1 interns as a production-ready reference implementation that blends engineering rigor with polished product experience.
+[![Java](https://img.shields.io/badge/Java-25-orange?style=flat&logo=openjdk)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-brightgreen?style=flat&logo=spring)](https://spring.io/projects/spring-boot)
+[![MySQL](https://img.shields.io/badge/MySQL-8.x-blue?style=flat&logo=mysql)](https://www.mysql.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)](LICENSE)
 
-## At a glance
+[🌐 Live Demo](https://test-automation-framework-latest.onrender.com) • [🎥 Interactive Sandbox](https://test-automation-framework-latest.onrender.com/demo/login) • [📖 Documentation](#table-of-contents)
 
-- **Primary use case:** Accelerate enterprise regression cycles by centralising test authoring, scheduling, execution, and reporting.
-- **Target users:** QA engineers, SDETs, release managers, and delivery leads who need real-time insight into test health.
-- **Live experience:**
-  - 🌐 Deployed instance: [`https://test-automation-framework-latest.onrender.com`](https://test-automation-framework-latest.onrender.com)
-  - 🎥 Interactive demo: [`https://test-automation-framework-latest.onrender.com/demo/login`](https://test-automation-framework-latest.onrender.com/demo/login)
-- **Tech stack:** Java 25, Spring Boot 3.4, Thymeleaf, Selenium WebDriver, MySQL 8.x, Quartz, Spring Async, Docker.
+</div>
 
 ---
 
-## Table of contents
+## 🎯 Overview
 
-1. [Project narrative](#project-narrative)
-2. [Product capabilities](#product-capabilities)
-3. [Architecture overview](#architecture-overview)
-4. [Experience the platform](#experience-the-platform)
-5. [Getting started for developers](#getting-started-for-developers)
-6. [Test authoring handbook](#test-authoring-handbook)
-7. [Continuous delivery automation](#continuous-delivery-automation)
-8. [Operations & deployment](#operations--deployment)
-9. [Roadmap & internship reflections](#roadmap--internship-reflections)
-10. [Contributors](#contributors)
+Automate UI and API suites, orchestrate schedules, and surface actionable analytics from a single Spring Boot portal. Designed and implemented by Batch 1 interns as a production-ready reference implementation that blends engineering rigor with polished product experience.
+
+### Key Highlights
+
+- ⚡ **Accelerate regression cycles** by centralizing test authoring, scheduling, execution, and reporting
+- 👥 **Target users:** QA engineers, SDETs, release managers, and delivery leads
+- 🛠️ **Tech stack:** Java 25, Spring Boot 3.4, Thymeleaf, Selenium WebDriver, MySQL 8.x, Quartz, Spring Async, Docker
 
 ---
 
-## Project narrative
+## 📑 Table of Contents
+
+- [Project Narrative](#-project-narrative)
+- [Product Capabilities](#-product-capabilities)
+- [Architecture Overview](#-architecture-overview)
+- [Experience the Platform](#-experience-the-platform)
+- [Getting Started for Developers](#-getting-started-for-developers)
+- [Test Authoring Handbook](#-test-authoring-handbook)
+- [Continuous Delivery Automation](#-continuous-delivery-automation)
+- [Public Endpoints & Navigation](#-public-endpoints--navigation-map)
+- [Operations & Deployment](#-operations--deployment)
+- [Roadmap & Reflections](#-roadmap--internship-reflections)
+- [Contributors](#-contributors)
+
+---
+
+## 📖 Project Narrative
 
 Infosys Springboard's inaugural internship batch was challenged to create a platform that could:
 
-- **Unify fragmented automation efforts** across API and UI suites.
-- **Offer management-level visibility** with dashboards that highlight reliability, trendline regressions, and execution SLAs.
-- **Scale with enterprise constraints**, including nightly schedules, multi-project ownership, and rigorous access control.
+- ✅ **Unify fragmented automation efforts** across API and UI suites
+- 📊 **Offer management-level visibility** with dashboards that highlight reliability, trendline regressions, and execution SLAs
+- 🚀 **Scale with enterprise constraints**, including nightly schedules, multi-project ownership, and rigorous access control
 
 The result is a modular framework that turns JSON definitions into executable suites, streams results to analytics, and closes the loop with notifications and exports.
 
-## Product capabilities
+---
 
-| Module | Highlights | Value delivered |
-| --- | --- | --- |
-| Test Authoring | JSON-based DSL, bulk import, version snapshots | Rapid test onboarding without IDE dependency |
-| Execution Engine | Parallel runners, Selenium WebDriver integration, API clients | Reduced runtime and consistent environment setup |
-| Scheduler | Cron-like planner, manual triggers, run history | Predictable daily/weekly/monthly cadences |
-| Reporting & Analytics | Trend charts, failure clustering, export to CSV/PDF | Insightful retrospectives for QA and leadership |
-| Notifications | Brevo email integration, custom webhooks | Immediate stakeholder updates on regressions |
-| Asset Management | ImageKit-backed screenshot storage, local fallback | Rich evidence for debugging UI failures |
+## 🎨 Product Capabilities
 
-### Signature functional flows
+<table>
+  <thead>
+    <tr>
+      <th>🔧 Module</th>
+      <th>✨ Highlights</th>
+      <th>💎 Value Delivered</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Test Authoring</strong></td>
+      <td>JSON-based DSL, bulk import, version snapshots</td>
+      <td>Rapid test onboarding without IDE dependency</td>
+    </tr>
+    <tr>
+      <td><strong>Execution Engine</strong></td>
+      <td>Parallel runners, Selenium WebDriver integration, API clients</td>
+      <td>Reduced runtime and consistent environment setup</td>
+    </tr>
+    <tr>
+      <td><strong>Scheduler</strong></td>
+      <td>Cron-like planner, manual triggers, run history</td>
+      <td>Predictable daily/weekly/monthly cadences</td>
+    </tr>
+    <tr>
+      <td><strong>Reporting & Analytics</strong></td>
+      <td>Trend charts, failure clustering, export to CSV/PDF</td>
+      <td>Insightful retrospectives for QA and leadership</td>
+    </tr>
+    <tr>
+      <td><strong>Notifications</strong></td>
+      <td>Brevo email integration, custom webhooks</td>
+      <td>Immediate stakeholder updates on regressions</td>
+    </tr>
+    <tr>
+      <td><strong>Asset Management</strong></td>
+      <td>ImageKit-backed screenshot storage, local fallback</td>
+      <td>Rich evidence for debugging UI failures</td>
+    </tr>
+  </tbody>
+</table>
 
-1. **Regression planning:** Upload suites → configure cadence → receive deep-dive analytics each morning.
-2. **Release readiness:** Execute gating suite on demand → instantly export annotated report for sign-off.
-3. **Incident triage:** Use dashboard filters → inspect failure artifacts → re-run impacted suites directly from UI.
+### 🔄 Signature Functional Flows
 
-## Architecture overview
+1. **Regression Planning:** Upload suites → configure cadence → receive deep-dive analytics each morning
+2. **Release Readiness:** Execute gating suite on demand → instantly export annotated report for sign-off
+3. **Incident Triage:** Use dashboard filters → inspect failure artifacts → re-run impacted suites directly from UI
+
+---
+
+## 🏗️ Architecture Overview
 
 ```text
 ┌──────────────────────┐        ┌──────────────────────┐
@@ -91,40 +137,56 @@ The result is a modular framework that turns JSON definitions into executable su
                                   └─────────────────┘
 ```
 
-- **Security:** Spring Security-driven authentication, encrypted secrets for third-party APIs.
-- **Scalability:** Quartz job store, asynchronous execution pools, Docker packaging for containerised deployments.
-- **Extensibility:** Modular service abstractions allow plugging in new notification channels or storage providers.
+### 🔐 Core Principles
 
-## Experience the platform
+- **Security:** Spring Security-driven authentication, encrypted secrets for third-party APIs
+- **Scalability:** Quartz job store, asynchronous execution pools, Docker packaging for containerized deployments
+- **Extensibility:** Modular service abstractions allow plugging in new notification channels or storage providers
 
-- **Public demo:** [`https://test-automation-framework-latest.onrender.com`](https://test-automation-framework-latest.onrender.com)
-- **Credentials for sandbox** *(read-only analytics)*: `demo@springboard.io / Demo@123`
-- **Local walkthrough:** Visit [`http://localhost:8080/demo/login`](http://localhost:8080/demo/login) after starting the application to explore the reference UI.
+---
 
-> 📌 **UI design cues:** Inspired by enterprise observability dashboards—high-contrast dark mode, strong typographic hierarchy, and call-to-action emphasis for quick navigation between operations, analytics, and scheduling.
+## 🌟 Experience the Platform
 
-## Getting started for developers
+<div align="center">
+
+### 🚀 Try It Now
+
+[![Launch Demo](https://img.shields.io/badge/🌐_Launch-Live_Demo-blue?style=for-the-badge)](https://test-automation-framework-latest.onrender.com)
+[![Interactive Sandbox](https://img.shields.io/badge/🎥_Explore-Interactive_Sandbox-green?style=for-the-badge)](https://test-automation-framework-latest.onrender.com/demo/login)
+
+</div>
+
+> 📌 **UI Design Cues:** Inspired by enterprise observability dashboards—high-contrast dark mode, strong typographic hierarchy, and call-to-action emphasis for quick navigation between operations, analytics, and scheduling.
+
+---
+
+## 🚀 Getting Started for Developers
 
 ### Prerequisites
 
-- JDK 25+
-- Maven 3.9+
-- MySQL 8.x or compatible service
-- Optional: Docker (for container build)
+- ☕ JDK 23+
+- 📦 Maven 3.9+
+- 🗄️ MySQL 8.x or compatible service
+- 🐳 Optional: Docker (for container build)
 
-### Quick start
+### Quick Start
 
 ```bash
+# 1. Copy configuration template
 cp src/main/resources/application.properties.example src/main/resources/application.properties
-# Populate database credentials, Brevo keys, and ImageKit configuration
+
+# 2. Configure your environment
+# Edit application.properties with database credentials, Brevo keys, and ImageKit configuration
+
+# 3. Run the application
 mvn spring-boot:run
 ```
 
 Visit `http://localhost:8080` and bootstrap your account. A starter project with sample suites is provisioned automatically.
 
-#### Chromium compatibility tip
+#### 💡 Chromium Compatibility Tip
 
-If Chrome/Chromium introduces a DevTools mismatch, align Selenium’s DevTools artifact:
+If Chrome/Chromium introduces a DevTools mismatch, align Selenium's DevTools artifact:
 
 ```bash
 mvn -Dselenium.devtools.artifact=selenium-devtools-v140 spring-boot:run
@@ -132,9 +194,11 @@ mvn -Dselenium.devtools.artifact=selenium-devtools-v140 spring-boot:run
 
 Replace `selenium-devtools-v140` with the artifact that matches your browser build.
 
-## Test authoring handbook
+---
 
-### API example
+## 📝 Test Authoring Handbook
+
+### API Example
 
 ```json
 {
@@ -150,7 +214,7 @@ Replace `selenium-devtools-v140` with the artifact that matches your browser bui
 }
 ```
 
-### UI example
+### UI Example
 
 ```json
 {
@@ -164,7 +228,7 @@ Replace `selenium-devtools-v140` with the artifact that matches your browser bui
 }
 ```
 
-### Bulk import format
+### Bulk Import Format
 
 ```json
 {
@@ -190,31 +254,33 @@ Replace `selenium-devtools-v140` with the artifact that matches your browser bui
 }
 ```
 
-### Download ready-made import bundles
+### 📥 Download Ready-Made Import Bundles
 
 <table>
   <thead>
     <tr>
-      <th>Suite</th>
-      <th>Description</th>
-      <th>Download</th>
+      <th>📦 Suite</th>
+      <th>📋 Description</th>
+      <th>⬇️ Download</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>UI Sample Pack</td>
+      <td><strong>UI Sample Pack</strong></td>
       <td>Complete end-to-end BlazeDemo booking scenarios showcasing waits, assertions, and form fills.</td>
-      <td><a href="https://raw.githubusercontent.com/cbeAbishek/Springboard/Abi/UI_test_case.json" download>⬇️ Download UI JSON</a></td>
+      <td><a href="https://raw.githubusercontent.com/cbeAbishek/Springboard/Abi/UI_test_case.json" download><img src="https://img.shields.io/badge/Download-UI_JSON-blue?style=flat" alt="Download UI JSON"></a></td>
     </tr>
     <tr>
-      <td>API Sample Pack</td>
+      <td><strong>API Sample Pack</strong></td>
       <td>HTTPBin-powered CRUD collection covering auth headers, redirects, and status assertions.</td>
-      <td><a href="https://raw.githubusercontent.com/cbeAbishek/Springboard/Abi/API_test_case.json" download>⬇️ Download API JSON</a></td>
+      <td><a href="https://raw.githubusercontent.com/cbeAbishek/Springboard/Abi/API_test_case.json" download><img src="https://img.shields.io/badge/Download-API_JSON-green?style=flat" alt="Download API JSON"></a></td>
     </tr>
   </tbody>
 </table>
 
-## Continuous delivery automation
+---
+
+## 🔄 Continuous Delivery Automation
 
 `.github/workflows/ci-tests.yml` keeps the project healthy by running on every push, daily at 06:00 UTC, and on manual dispatch:
 
@@ -251,28 +317,35 @@ jobs:
 
 Every run publishes the README into the workflow summary, giving stakeholders instant access to the latest documentation alongside build results.
 
-## Public endpoints & navigation map
+---
 
-| Route | Method(s) | Description |
+## 🗺️ Public Endpoints & Navigation Map
+
+| 🔗 Route | 📡 Method(s) | 📄 Description |
 | --- | --- | --- |
 | `/` | GET | Landing page with single-click access to sign in or explore the product narrative. |
 | `/demo/login` | GET | Lightweight sandbox UI demonstrating the built-in test selectors. |
-| `/dashboard` | GET | Authenticated workspace summarising active projects and quality trends. |
+| `/dashboard` | GET | Authenticated workspace summarizing active projects and quality trends. |
 | `/test-management` | GET/POST | Manage, import, and execute JSON-defined suites. |
 | `/scheduler` | GET/POST | Configure cron-like jobs and trigger runs on demand. |
-| `/reports` | GET/POST | Analyse regression history, export filtered datasets. |
+| `/reports` | GET/POST | Analyze regression history, export filtered datasets. |
 | `/api/run/project/{projectId}` | POST | Fire-and-forget endpoint for CI/CD tools to trigger full project executions (expects optional `X-AUTOMATION-TOKEN` header). |
 
-## Operations & deployment
+---
 
-### Docker workflow
+## 🐳 Operations & Deployment
+
+### Docker Workflow
 
 ```bash
+# Build the Docker image
 docker build -t automation-platform .
+
+# Run the container
 docker run -p 8080:8080 automation-platform
 ```
 
-### Testing locally
+### Testing Locally
 
 ```bash
 mvn -B test
@@ -280,23 +353,40 @@ mvn -B test
 
 Unit tests currently cover the reporting and export services. Expanding coverage to the scheduling engine and notification adapters is planned.
 
-## Roadmap & internship reflections
+---
 
-- **Near-term enhancements:**
-  - OAuth2 SSO for enterprise rollout.
-  - Advanced analytics (flaky test detection, failure clustering).
-  - Jira/ServiceNow connectors for automated defect logging.
-- **Lessons from Batch 1:**
-  - Early alignment on data contracts simplified UI/Backend collaboration.
-  - Scheduled load tests were key to sizing thread pools and database connections.
-  - Automating documentation (README summaries in CI) keeps stakeholders informed without manual effort.
+## 🗓️ Roadmap & Internship Reflections
 
-## Contributors
+### Near-Term Enhancements
 
-| Role | Name |
-| --- | --- |
-| Product Mentor | Infosys Springboard Faculty Lead |
-| Tech Lead | Abishek (Batch 1) |
-| Engineering | Springboard Internship Cohort |
+- 🔐 **OAuth2 SSO** for enterprise rollout
+- 📊 **Advanced analytics** (flaky test detection, failure clustering)
+- 🔗 **Jira/ServiceNow connectors** for automated defect logging
 
-> 💡 Interested in extending the framework? Submit a pull request or open a discussion—Batch 1 will happily guide the next wave of interns!
+### Lessons from Batch 1
+
+- ✅ Early alignment on data contracts simplified UI/Backend collaboration
+- ⚡ Scheduled load tests were key to sizing thread pools and database connections
+- 📚 Automating documentation (README summaries in CI) keeps stakeholders informed without manual effort
+
+> 💡 **Interested in extending the framework?** Submit a pull request or open a discussion—Batch 1 will happily guide the next wave of interns!
+
+---
+
+## 👥 Contributors
+
+<div align="center">
+
+Made with ❤️ by **Infosys Springboard Batch 1 Interns**
+
+[⭐ Star this repo](https://github.com/cbeAbishek/Springboard) • [🐛 Report Issues](https://github.com/cbeAbishek/Springboard/issues) • [🤝 Contribute](https://github.com/cbeAbishek/Springboard/pulls)
+
+</div>
+
+---
+
+<div align="center">
+
+**© 2024 Infosys Springboard | Built with passion and precision**
+
+</div>
