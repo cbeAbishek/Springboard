@@ -8,7 +8,7 @@
 
 ![Demo view](src/main/resources/static/images/analytics-preview.svg)
 
-Automate UI and API suites, orchestrate schedules, and surface actionable analytics from a single Spring Boot portal. Designed and implemented by Batch 1 interns as a production-ready reference implementation that blends engineering rigor with polished product experience.
+AutomateUI and API suites, orchestrate schedules, and surface actionable analytics from a single Spring Boot portal. Designed and implemented by Batch 1 interns as a production-ready reference implementation that blends engineering rigor with polished product experience.
 
 ## At a glance
 
