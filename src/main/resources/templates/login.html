@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting to Sign In...</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+</head>
+<body>
+<div class="container" style="display:flex;justify-content:center;align-items:center;min-height:100vh;text-align:center;">
+    <div class="card" style="max-width: 500px; padding: 3rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🔄</div>
+        <h2 style="margin: 0 0 1rem 0;">Redirecting to Sign In</h2>
+        <p style="color: #94a3b8; margin-bottom: 2rem;">Taking you to our secure Clerk authentication page...</p>
+        <div style="margin: 2rem 0;">
+            <div style="width: 40px; height: 40px; border: 3px solid rgba(56, 189, 248, 0.3); border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        </div>
+        <p style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(148, 163, 184, 0.2);">
+            <a href="/signin" class="button-link" style="display: inline-flex; padding: 0.75rem 1.5rem;">Go to Sign In Page</a>
+        </p>
+    </div>
+</div>
+<style>
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+<script>
+    // Redirect to new dedicated Clerk sign-in page
+    setTimeout(function() {
+        window.location.href = '/signin';
+    }, 1500);
+</script>
+</body>
+</html>

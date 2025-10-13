@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Scheduler - Automation Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+</head>
+<body>
+<header th:replace="~{fragments/nav :: app-nav}"></header>
+<main class="container grid">
+    <section class="card">
+        <h2>Create scheduler job</h2>
+        <form th:action="@{/scheduler/job}" method="post" class="grid">
+            <div>
+                <label>Project</label>
+                <select name="projectId">
+                    <option th:each="project : ${projects}" th:value="${project.id}" th:text="${project.name}"></option>
+                </select>
+            </div>
+            <div>
+                <label>Name</label>
+                <input type="text" name="name" required>
+            </div>
+            <div>
+                <label>Frequency</label>
+                <select name="frequency">
+                    <option th:each="frequency : ${frequencies}" th:value="${frequency}" th:text="${frequency}"></option>
+                </select>
+            </div>
+            <div>
+                <label>Cron expression (optional)</label>
+                <input type="text" name="cronExpression" placeholder="0 0 * * *">
+            </div>
+            <div>
+                <button type="submit">Create job</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Scheduled jobs</h2>
+        <table th:if="${jobs != null}">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Frequency</th>
+                <th>Next run</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="job : ${jobs}">
+                <td th:text="${job.name}">Regression suite</td>
+                <td th:text="${job.frequency}">DAILY</td>
+                <td th:text="${#temporals.format(job.nextRunAt, 'yyyy-MM-dd HH:mm')}">Next run</td>
+                <td>
+                    <form th:action="@{'/scheduler/job/' + ${job.id} + '/run'}" method="post">
+                        <button type="submit">Run now</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>

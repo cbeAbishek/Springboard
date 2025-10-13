@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile - Automation Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+</head>
+<body th:with="publishableKey=${@clerkProperties.publishableKey}">
+<header th:replace="~{fragments/nav :: app-nav}"></header>
+<main class="container grid grid-2">
+    <section class="card">
+        <div class="card-header">
+            <h2>Account overview</h2>
+            <p>Manage your personal details and metadata synced from Clerk.</p>
+        </div>
+        <div class="profile-summary">
+            <img th:if="${user.avatarUrl != null}" th:src="${user.avatarUrl}" alt="Avatar" class="profile-avatar"/>
+            <div>
+                <h3 th:text="${user.fullName}">User Name</h3>
+                <p th:text="${user.email}">user@example.com</p>
+                <p th:if="${user.jobTitle != null}" class="helper-text">Job title: <span th:text="${user.jobTitle}"></span></p>
+                <p th:if="${user.organization != null}" class="helper-text">Organization: <span th:text="${user.organization}"></span></p>
+            </div>
+        </div>
+        <div id="clerk-user-button" class="clerk-user-button" th:if="${publishableKey != null && !publishableKey.isBlank()}"></div>
+    </section>
+
+    <section class="card">
+        <h2>Edit profile</h2>
+        <form th:action="@{/profile}" th:object="${profileForm}" method="post" class="grid">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <div>
+                <label for="fullName">Full name</label>
+                <input id="fullName" type="text" th:field="*{fullName}" required>
+            </div>
+            <div>
+                <label for="organization">Organization</label>
+                <input id="organization" type="text" th:field="*{organization}">
+            </div>
+            <div>
+                <label for="jobTitle">Job title</label>
+                <input id="jobTitle" type="text" th:field="*{jobTitle}">
+            </div>
+            <div>
+                <label for="avatarUrl">Avatar URL</label>
+                <input id="avatarUrl" type="url" th:field="*{avatarUrl}">
+                <p class="helper-text">Provide a direct image link if you want to override the Clerk picture.</p>
+            </div>
+            <div>
+                <button type="submit">Update profile</button>
+            </div>
+        </form>
+        <div class="alert success" th:if="${message != null}" th:text="${message}"></div>
+        <div class="alert error" th:if="${error != null}" th:text="${error}"></div>
+    </section>
+
+    <section class="card" style="grid-column: span 2;">
+        <h2>Clerk authentication providers</h2>
+        <p>Sign in from your preferred provider; the platform keeps the local account in sync.</p>
+        <ul>
+            <li>Email + password (Clerk hosted UI)</li>
+            <li>Google OAuth</li>
+            <li>GitHub OAuth</li>
+            <li>GitLab OAuth</li>
+        </ul>
+    </section>
+</main>
+
+<script th:if="${publishableKey != null && !publishableKey.isBlank()}"
+        async
+        crossorigin="anonymous"
+        th:attr="data-clerk-publishable-key=${publishableKey}"
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+<script th:if="${publishableKey != null && !publishableKey.isBlank()}" th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', async () => {
+        if (!window.Clerk) {
+            return;
+        }
+        await window.Clerk.load();
+        const container = document.getElementById('clerk-user-button');
+        if (container) {
+            window.Clerk.mountUserButton(container, { afterSignOutUrl: '/' });
+        }
+    });
+</script>
+</body>
+</html>

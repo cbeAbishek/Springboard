@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automation Platform - Continuous Quality Intelligence</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Enterprise-grade test automation platform with CI/CD integration, real-time analytics, and intelligent regression monitoring. Automate UI and API testing with confidence.">
+    <meta name="keywords" content="test automation, continuous testing, CI/CD, regression testing, QA automation, API testing, UI testing, test management">
+    <meta name="author" content="Automation Platform">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Automation Platform">
+    <meta property="og:title" content="Automation Platform - Continuous Quality Intelligence">
+    <meta property="og:description" content="Run every regression with confidence. Automate UI and API suites, schedule them from the cloud, and keep stakeholders informed with real-time dashboards.">
+    <meta property="og:image" content="/images/logo.svg">
+    <meta property="og:url" content="https://automation.example.com">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Automation Platform - Continuous Quality Intelligence">
+    <meta name="twitter:description" content="Enterprise test automation with CI/CD integration, real-time analytics, and intelligent monitoring.">
+    <meta name="twitter:image" content="/images/logo.svg">
+    
+    <!-- Theme and Mobile Optimization -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Animation Keyframes */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        /* Smooth scroll behavior */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Animation classes */
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+        
+        .animate-slide-left {
+            animation: slideInLeft 0.8s ease-out forwards;
+        }
+        
+        .animate-slide-right {
+            animation: slideInRight 0.8s ease-out forwards;
+        }
+        
+        .animate-scale-in {
+            animation: scaleIn 0.6s ease-out forwards;
+        }
+        
+        .animate-delay-1 {
+            animation-delay: 0.1s;
+            opacity: 0;
+        }
+        
+        .animate-delay-2 {
+            animation-delay: 0.2s;
+            opacity: 0;
+        }
+        
+        .animate-delay-3 {
+            animation-delay: 0.3s;
+            opacity: 0;
+        }
+        
+        .animate-delay-4 {
+            animation-delay: 0.4s;
+            opacity: 0;
+        }
+        
+        .animate-delay-5 {
+            animation-delay: 0.5s;
+            opacity: 0;
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Enhanced landing styles */
+        .landing-stat {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .landing-stat__number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .landing-stat__label {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+            filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.3));
+        }
+        
+        .testimonial-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .testimonial-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .testimonial-quote {
+            font-style: italic;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        
+        .testimonial-author {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        .feature-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .cta-banner {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.15));
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cta-banner::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+        
+        .cta-banner > * {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body th:with="publishableKey=${@clerkProperties.publishableKey}">
+<main class="container landing landing-no-nav">
+    <!-- Hero Section -->
+    <section class="landing-hero card animate-fade-in">
+        <div class="landing-hero__copy animate-slide-left">
+            <span class="chip">✨ Continuous quality intelligence</span>
+            <h1>Run every regression with confidence.</h1>
+            <p>Automate UI and API suites, schedule them from the cloud, and keep stakeholders informed with real-time dashboards and exports. Built for teams who ship fast without breaking things.</p>
+            <div class="landing-hero__actions">
+                <a class="button-link" href="/signin">Sign in</a>
+                <a class="btn-glass" style="display: inline-flex; padding: 0.85rem 1.3rem; border-radius: 12px; align-items: center; justify-content: center;" href="/register">Create account</a>
+            </div>
+        </div>
+        <div class="landing-hero__preview animate-slide-right animate-float">
+            <img src="/images/logo.svg" alt="Automation Platform" style="width: 100%; max-width: 400px; margin: 0 auto; display: block;">
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="grid grid-3 animate-fade-in-up animate-delay-2" style="margin-top: 3rem;">
+        <div class="card landing-stat">
+            <span class="landing-stat__number">99.9%</span>
+            <span class="landing-stat__label">Uptime reliability</span>
+        </div>
+        <div class="card landing-stat">
+            <span class="landing-stat__number">10,000+</span>
+            <span class="landing-stat__label">Tests executed daily</span>
+        </div>
+        <div class="card landing-stat">
+            <span class="landing-stat__number">50%</span>
+            <span class="landing-stat__label">Faster bug detection</span>
+        </div>
+    </section>
+
+    <!-- Feature Highlights -->
+    <section class="grid grid-3 landing-highlights animate-fade-in-up animate-delay-3">
+        <div class="card animate-scale-in animate-delay-3">
+            <span class="feature-icon">🚀</span>
+            <h3>Dynamic CI/CD integration</h3>
+            <p>Generate project-aware GitHub Action workflows with the correct endpoints, tokens, and branch filters baked in. Zero configuration, instant automation.</p>
+        </div>
+        <div class="card animate-scale-in animate-delay-4">
+            <span class="feature-icon">📊</span>
+            <h3>Insightful analytics</h3>
+            <p>Understand pass rates, failure clusters, and duration trends from the reports dashboard. Make data-driven decisions about quality.</p>
+        </div>
+        <div class="card animate-scale-in animate-delay-5">
+            <span class="feature-icon">🔐</span>
+            <h3>Enterprise-ready auth</h3>
+            <p>Clerk powers email/password, Google, GitHub, and GitLab logins with JWT-backed sessions. Secure by default.</p>
+        </div>
+    </section>
+
+    <!-- Additional Features Grid -->
+    <section class="card animate-fade-in-up animate-delay-4" style="margin-top: 3rem; padding: 2.5rem;">
+        <h2 style="text-align: center; margin-top: 0; margin-bottom: 2.5rem;">Everything you need to ship with confidence</h2>
+        <div class="feature-grid-4">
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">⚡ Lightning-fast execution</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Parallel test execution across multiple environments with intelligent load balancing.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">🔄 Smart retry logic</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Automatically retry flaky tests with configurable thresholds and exponential backoff.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">📧 Instant notifications</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Get real-time alerts via email, Slack, or webhooks when tests fail or pass.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">🎯 Visual regression</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Catch UI bugs before users do with pixel-perfect screenshot comparison.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">📅 Flexible scheduling</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Run tests on cron schedules, manual triggers, or after deployments.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">🌍 Multi-environment</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Test against dev, staging, and production with environment-specific configs.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">📈 Trend analysis</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Identify patterns in test failures and performance over time.</p>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; margin-bottom: 0.5rem;">🛡️ Security first</h4>
+                <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.5;">Encrypted credentials, role-based access control, and audit logging.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="animate-fade-in-up animate-delay-5" style="margin-top: 3rem;">
+        <h2 style="text-align: center; margin-bottom: 2rem;">Trusted by engineering teams</h2>
+        <div class="grid grid-3">
+            <div class="testimonial-card">
+                <p class="testimonial-quote">"Cut our regression testing time from 6 hours to 45 minutes. The CI/CD integration was seamless."</p>
+                <p class="testimonial-author">— Sarah Chen, QA Lead</p>
+            </div>
+            <div class="testimonial-card">
+                <p class="testimonial-quote">"Finally, a test platform that doesn't require a PhD to configure. Our junior devs were productive on day one."</p>
+                <p class="testimonial-author">— Marcus Rodriguez, Engineering Manager</p>
+            </div>
+            <div class="testimonial-card">
+                <p class="testimonial-quote">"The analytics dashboard gave us insights we never had before. We caught a critical bug in staging that would've hit production."</p>
+                <p class="testimonial-author">— Priya Patel, DevOps Engineer</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Banner -->
+    <section class="cta-banner animate-scale-in animate-delay-5" style="margin-top: 3rem;">
+        <h2 style="margin-top:0; font-size: 2rem;">Ready to level up your testing strategy?</h2>
+        <p th:if="${publishableKey != null && !publishableKey.isBlank()}"
+           style="color:#cbd5e1; max-width:640px; margin:0 auto 1.5rem; font-size: 1.1rem;">
+            Secure authentication, rich dashboards, and automated QA workflows are a click away.
+        </p>
+        <p th:if="${publishableKey == null || publishableKey.isBlank()}"
+           style="color:#cbd5e1; max-width:640px; margin:0 auto 1.5rem; font-size: 1.1rem;">
+            Add your Clerk keys in <code>application.properties</code> to enable authentication before inviting your team.
+        </p>
+        <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin-top: 2rem;">
+            <a class="button-link" href="/signin" style="font-size: 1.05rem; padding: 1rem 2rem;">Access your workspace</a>
+            <a class="btn-glass" style="display:inline-flex; padding:1rem 2rem; border-radius:12px; align-items:center; justify-content:center; font-size: 1.05rem;" href="/docs">Explore documentation</a>
+        </div>
+    </section>
+    
+    <section class="landing-footer-cta animate-fade-in" th:if="${publishableKey != null && !publishableKey.isBlank()}" style="margin-top: 2rem; text-align: center;">
+        <p style="color: #94a3b8;">Already have an account? <a href="/signin" class="auth-link">Sign in</a> or <a href="/register" class="auth-link">Create one</a>.</p>
+    </section>
+</main>
+<footer class="container landing-footer">
+    <small>&copy; <span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2025</span> Automation Platform. All rights reserved.</small>
+</footer>
+
+</body>
+</html>

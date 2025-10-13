@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Management - Automation Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/app.js" defer></script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <style>
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-link {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 3px solid transparent;
+            color: #94a3b8;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-link:hover {
+            color: #e2e8f0;
+        }
+
+        .tab-link.active {
+            color: #7dd3fc;
+            border-bottom-color: #38bdf8;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            background: #1e293b;
+            margin: 10% auto;
+            padding: 2rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            width: 90%;
+            max-width: 640px;
+            border-radius: 16px;
+            animation: scaleIn 0.4s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close-btn {
+            color: #94a3b8;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .test-icon {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+<header th:replace="~{fragments/nav :: app-nav}"></header>
+<div class="container">
+    <div class="alert success" th:if="${message}" th:text="${message}"></div>
+    <div class="alert error" th:if="${error}" th:text="${error}"></div>
+</div>
+<main class="container">
+    <section class="card page-header" th:if="${project != null}">
+        <div class="card-header">
+            <h1 th:text="${project.name}">Project</h1>
+            <p th:text="${project.description != null ? project.description : 'Manage UI and API cases, imports, and orchestration in one place.'}">
+                Project description placeholder.
+            </p>
+        </div>
+        <div class="page-header__meta">
+            <span class="chip">
+                <strong th:text="${tests != null ? tests.size() : 0}">0</strong>
+                Tests
+            </span>
+            <span class="chip">
+                <strong th:text="${tests != null ? tests.?[type == T(com.example.automatedtestingframework.model.TestCaseType).UI].size() : 0}">0</strong>
+                UI
+            </span>
+            <span class="chip">
+                <strong th:text="${tests != null ? tests.?[type == T(com.example.automatedtestingframework.model.TestCaseType).API].size() : 0}">0</strong>
+                API
+            </span>
+        </div>
+    </section>
+
+    <div class="tabs">
+        <span class="tab-link active" data-tab="tests">Test Cases</span>
+        <span class="tab-link" data-tab="bulk">Bulk Operations</span>
+        <span class="tab-link" data-tab="actions">Action Files</span>
+    </div>
+
+    <!-- Test Cases Tab -->
+    <div id="tests" class="tab-content active">
+        <section class="card">
+            <div class="section-toolbar">
+                <h2>Existing Tests</h2>
+                <div class="actions" th:if="${project != null}">
+                    <button type="button" class="button-link" id="create-test-btn">Create Test</button>
+                    <form th:action="@{'/test-management/project/' + ${project.id} + '/run-suite'}" method="post" style="display: inline;">
+                        <input type="hidden" name="threadCount" value="4">
+                        <button type="submit" class="btn-secondary">Run All</button>
+                    </form>
+                </div>
+            </div>
+            <table th:if="${tests != null}">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Last Status</th>
+                    <th>Last Run</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(tests)}" class="table-empty">
+                    <td colspan="5">No tests yet. Create one or use the Bulk Operations tab to import.</td>
+                </tr>
+                <tr th:each="test : ${tests}">
+                    <td th:text="${test.name}">Checkout</td>
+                    <td>
+                        <span th:if="${test.type.name() == 'UI'}" class="test-icon">🖥️</span>
+                        <span th:if="${test.type.name() == 'API'}" class="test-icon">🔗</span>
+                        <span th:text="${test.type}">UI</span>
+                    </td>
+                    <td>
+                        <span class="badge" th:attr="data-status=${test.lastRunStatus}" th:text="${test.lastRunStatus != null ? test.lastRunStatus : 'Never'}"></span>
+                    </td>
+                    <td th:text="${test.lastRunAt != null ? #temporals.format(test.lastRunAt, 'yyyy-MM-dd HH:mm') : '—'}"></td>
+                    <td>
+                        <form th:action="@{'/test-management/test/' + ${test.id} + '/run'}" method="post">
+                            <button type="submit" class="btn-tertiary">Run Now</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <!-- Bulk Operations Tab -->
+    <div id="bulk" class="tab-content">
+        <div class="grid grid-2">
+            <section class="card">
+                <h2>Bulk Import Tests</h2>
+                <p>Upload a JSON file or paste a payload to add or update multiple cases.</p>
+                <form th:action="@{/test-management/tests/import}" method="post" enctype="multipart/form-data" class="grid" data-validate="bulk-import" novalidate>
+                    <input type="hidden" name="projectId" th:value="${project.id}">
+                    <div>
+                        <label for="bulk-file">JSON file</label>
+                        <input id="bulk-file" type="file" name="file" accept="application/json">
+                    </div>
+                    <div>
+                        <label for="bulk-payload">Or paste JSON payload</label>
+                        <textarea id="bulk-payload" name="payload" rows="8" placeholder='{"tests": [{"name": "Checkout", "type": "UI", "definition": {...}}]}'></textarea>
+                    </div>
+                    <div class="form-error" data-error-for="bulk-import"></div>
+                    <div>
+                        <button type="submit">Import Tests</button>
+                    </div>
+                </form>
+            </section>
+            <section class="card">
+                <h2>Run Full Project Suite</h2>
+                <p>Execute all UI and API cases together. Choose the number of parallel workers to balance speed and resource usage.</p>
+                <form th:action="@{'/test-management/project/' + ${project.id} + '/run-suite'}" method="post" class="grid">
+                    <div>
+                        <label for="threadCount">Parallel Workers</label>
+                        <input id="threadCount" name="threadCount" type="number" min="1" max="64" value="4">
+                    </div>
+                    <div>
+                        <button type="submit">Run Full Suite</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+    </div>
+
+    <!-- Action Files Tab -->
+    <div id="actions" class="tab-content">
+        <section class="card">
+            <h2>Generated Action Files</h2>
+            <p>Manage reusable action files for advanced testing scenarios.</p>
+            <form th:action="@{/test-management/action}" method="post" class="grid">
+                <input type="hidden" name="projectId" th:value="${project != null}? ${project.id} : ''">
+                <div>
+                    <label>Name</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div>
+                    <label>Content</label>
+                    <textarea name="content" rows="6"></textarea>
+                </div>
+                <div>
+                    <button type="submit">Save Action File</button>
+                </div>
+            </form>
+            <ul th:if="${actions != null and !actions.isEmpty()}" style="margin-top: 1.5rem;">
+                <li th:each="action : ${actions}" th:text="${action.name}"></li>
+            </ul>
+            <p th:if="${actions == null or actions.isEmpty()}" class="helper-text">No action files created yet.</p>
+        </section>
+    </div>
+</main>
+
+<!-- Create Test Modal -->
+<div id="create-test-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create or Update Test</h2>
+            <span class="close-btn">&times;</span>
+        </div>
+        <form th:action="@{/test-management/test}" method="post" class="grid" data-validate="single-test" novalidate>
+            <input type="hidden" name="projectId" th:value="${project != null}? ${project.id} : ''">
+            <div>
+                <label>Test Name</label>
+                <input type="text" name="name" required>
+            </div>
+            <div>
+                <label>Type</label>
+                <select name="type">
+                    <option th:each="type : ${types}" th:value="${type}" th:text="${type}"></option>
+                </select>
+            </div>
+            <div>
+                <label for="definitionJson">Definition (JSON)</label>
+                <textarea id="definitionJson" name="definitionJson" rows="8" placeholder='{ "steps": [] }'></textarea>
+                <div class="form-error" data-error-for="single-test"></div>
+                <p class="helper-text">UI tests expect a <code>steps</code> array, API tests a <code>requests</code> array.</p>
+            </div>
+            <div>
+                <button type="submit">Save Test</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tabs = document.querySelectorAll('.tab-link');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        const modal = document.getElementById('create-test-modal');
+        const createBtn = document.getElementById('create-test-btn');
+        const closeBtn = document.querySelector('.close-btn');
+
+        if (createBtn) {
+            createBtn.onclick = () => modal.style.display = 'block';
+        }
+        if (closeBtn) {
+            closeBtn.onclick = () => modal.style.display = 'none';
+        }
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+    });
+</script>
+</body>
+</html>
