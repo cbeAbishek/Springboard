@@ -1,0 +1,22 @@
+{
+  "api": {
+    "requests": [
+      {
+        "name": "Sample API",
+        "method": "GET",
+        "url": "https://httpbin.org/get",
+        "expectedStatus": 200,
+        "expectContains": ["url"]
+      }
+    ]
+  },
+  "ui": {
+    "steps": [
+      { "action": "navigate", "url": "http://localhost:8080/demo/login" },
+      { "action": "type", "by": "css", "selector": "#email", "text": "qa.engineer@company.com" },
+      { "action": "type", "by": "css", "selector": "#password", "text": "SuperSecret123" },
+      { "action": "click", "by": "css", "selector": "button[type=submit]" },
+      { "action": "assertTitle", "value": "Automation Demo Login" }
+    ]
+  }
+}

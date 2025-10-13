@@ -1,6 +1,0 @@
-{
-  "testName": "testGetCommentsForPost",
-  "timestamp": "20250925_155924",
-  "request": "GET /posts/1/comments",
-  "response": "[\n  {\n    \"postId\": 1,\n    \"id\": 1,\n    \"name\": \"id labore ex et quam laborum\",\n    \"email\": \"Eliseo@gardner.biz\",\n    \"body\": \"laudantium enim quasi est quidem magnam voluptate ipsam eos\\ntempora quo necessitatibus\\ndolor quam autem quasi\\nreiciendis et "
-}

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Automation Platform</title>
+    <link rel="icon" type="image/x-icon" href="/images/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="/js/app.js" defer></script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+</head>
+<body>
+<header th:replace="~{fragments/nav :: app-nav}"></header>
+<div class="container">
+    <div class="alert success" th:if="${message != null}" th:text="${message}"></div>
+    <div class="alert error" th:if="${error != null}" th:text="${error}"></div>
+</div>
+<main class="container">
+    <section class="card">
+        <div class="section-toolbar">
+            <h2>Your projects</h2>
+            <button type="button" class="btn-secondary" data-toggle="#new-project-form">New project</button>
+        </div>
+        <form id="new-project-form" class="grid project-form hidden" th:action="@{/dashboard/project}" method="post" novalidate>
+            <div>
+                <label for="project-name">Project name</label>
+                <input id="project-name" name="name" type="text" placeholder="Regression suite" required>
+            </div>
+            <div>
+                <label for="project-description">Description</label>
+                <textarea id="project-description" name="description" rows="3" placeholder="Optional summary to help your team."></textarea>
+            </div>
+            <div class="project-form__actions">
+                <button type="submit">Create project</button>
+            </div>
+        </form>
+        <p class="helper-text" th:if="${projects != null && #lists.isEmpty(projects)}">Create your first project to start organizing tests and reports.</p>
+        <div class="project-grid" th:if="${projects != null && !#lists.isEmpty(projects)}">
+            <a th:each="project : ${projects}"
+               th:href="@{'/dashboard?projectId=' + ${project.id}}"
+               th:class="${selectedProject != null && selectedProject.id == project.id} ? 'project-card project-card--active' : 'project-card'">
+                <div class="project-card__title">
+                    <h3 th:text="${project.name}">Project name</h3>
+                    <span class="badge" th:text="${#temporals.format(project.createdAt, 'yyyy-MM-dd')}">2024-01-01</span>
+                </div>
+                <p th:text="${project.description != null ? project.description : 'No description yet.'}">Short summary</p>
+            </a>
+        </div>
+    </section>
+
+    <div th:if="${selectedProject != null}" id="project-details-tabs">
+        <div class="tabs">
+            <span class="tab-link active" data-tab="overview">Overview</span>
+            <span class="tab-link" data-tab="scheduler">Scheduler</span>
+            <span class="tab-link" data-tab="regression">Regression</span>
+            <span class="tab-link" data-tab="ci-cd">CI/CD</span>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <section class="card" th:if="${summary != null}">
+                <h2 th:text="${'Quality summary · ' + selectedProject.name}">Quality summary</h2>
+                <p class="helper-text">Weekly snapshot for the selected project.</p>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <span class="label">Total runs</span>
+                        <strong th:text="${summary.total}">0</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Passed (week)</span>
+                        <strong th:text="${summary.passedWeek}">0</strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Failed (week)</span>
+                        <strong th:text="${summary.failedWeek}">0</strong>
+                    </div>
+                </div>
+                <div data-trend th:attr="data-trend=${@jsonParserUtil.toJson(summary.trend)}">
+                    <canvas id="trend-chart" height="140"></canvas>
+                </div>
+            </section>
+        </div>
+
+        <!-- Scheduler Tab -->
+        <div id="scheduler" class="tab-content">
+            <div class="grid grid-2">
+                <section class="card">
+                    <h2>Create scheduler job</h2>
+                    <form th:action="@{/scheduler/job}" method="post" class="grid">
+                        <input type="hidden" name="projectId" th:value="${selectedProject.id}" />
+                        <div>
+                            <label>Name</label>
+                            <input type="text" name="name" required>
+                        </div>
+                        <div>
+                            <label>Frequency</label>
+                            <select name="frequency">
+                                <option th:each="frequency : ${frequencies}" th:value="${frequency}" th:text="${frequency}"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Cron expression (optional)</label>
+                            <input type="text" name="cronExpression" placeholder="0 0 * * *">
+                        </div>
+                        <div>
+                            <button type="submit">Create job</button>
+                        </div>
+                    </form>
+                </section>
+                <section class="card">
+                    <h2>Scheduled jobs</h2>
+                    <table th:if="${jobs != null}">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Frequency</th>
+                            <th>Next run</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(jobs)}"><td colspan="4" class="table-empty">No jobs scheduled for this project.</td></tr>
+                        <tr th:each="job : ${jobs}">
+                            <td th:text="${job.name}">Regression suite</td>
+                            <td th:text="${job.frequency}">DAILY</td>
+                            <td th:text="${#temporals.format(job.nextRunAt, 'yyyy-MM-dd HH:mm')}">Next run</td>
+                            <td>
+                                <form th:action="@{'/scheduler/job/' + ${job.id} + '/run'}" method="post">
+                                    <button type="submit">Run now</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </div>
+
+        <!-- Regression Tab -->
+        <div id="regression" class="tab-content">
+            <section class="card">
+                <h2>Recent failures</h2>
+                <table th:if="${recentFailures != null}">
+                    <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Status</th>
+                        <th>Ended</th>
+                        <th>Error</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(recentFailures)}"><td colspan="4" class="table-empty">No recent failures. Great job!</td></tr>
+                    <tr th:each="report : ${recentFailures}">
+                        <td th:text="${report.testCase != null ? report.testCase.name : 'Ad-hoc'}"></td>
+                        <td><span class="badge" th:text="${report.status}"></span></td>
+                        <td th:text="${#temporals.format(report.completedAt, 'yyyy-MM-dd HH:mm')}"></td>
+                        <td th:text="${report.errorMessage}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- CI/CD Tab -->
+        <div id="ci-cd" class="tab-content">
+            <section class="card">
+                <h2>GitHub Actions automation</h2>
+                <p>
+                    Each project automatically receives a bespoke workflow that embeds its unique identifier and the
+                    trigger endpoint you configured when linking the repository. Every push to your watched branches will
+                    dispatch a secure request back to this platform, kicking off the end-to-end test execution flow without
+                    any further setup.
+                </p>
+                <ol>
+                    <li>
+                        Download the ready-made workflow below. The YAML is compiled on the fly using the latest project
+                        metadata and secret token stored for this automation.
+                    </li>
+                    <li>
+                        Commit the file into your repository under <code>.github/workflows/</code>; GitHub Actions will pick
+                        it up immediately.
+                    </li>
+                    <li>
+                        Push changes as usual. GitHub Actions posts a signed payload to your automation endpoint and the
+                        framework orchestrates the run, status reporting, and analytics.
+                    </li>
+                </ol>
+                <div class="grid grid-2" style="margin-top: 1.5rem;">
+                    <div>
+                        <p class="helper-text helper-text--label">Project identifier</p>
+                        <p>
+                            <strong th:text="${selectedProject.automationTargetProjectId != null ? selectedProject.automationTargetProjectId : selectedProject.id}">0</strong>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="helper-text helper-text--label">Trigger endpoint</p>
+                        <p>
+                            <strong th:text="${selectedProject.automationEndpoint != null ? selectedProject.automationEndpoint : 'No endpoint configured yet'}">https://automation.example.com</strong>
+                        </p>
+                    </div>
+                    <div>
+                        <p class="helper-text helper-text--label">Project created</p>
+                        <p>
+                            <strong th:text="${#temporals.format(selectedProject.createdAt, 'yyyy-MM-dd')}">2024-01-01</strong>
+                        </p>
+                    </div>
+                </div>
+                <a class="button-link" th:href="@{'/dashboard/project/' + ${selectedProject.id} + '/github-action'}" style="margin: 2rem;">Download workflow file</a>
+                <br>
+                <p class="helper-text">Drop the downloaded file into <code>.github/workflows/</code> to activate automated regression runs for this project.</p>
+            </section>
+        </div>
+    </div>
+</main>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const projectTabsContainer = document.querySelector('#project-details-tabs');
+        if (projectTabsContainer) {
+            const tabs = projectTabsContainer.querySelectorAll('.tab-link');
+            const tabContents = projectTabsContainer.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    const target = projectTabsContainer.querySelector(`#${tab.dataset.tab}`);
+                    if (target) target.classList.add('active');
+                });
+            });
+        }
+    });
+</script>
+</body>
+</html>

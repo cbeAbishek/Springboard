@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Reports - Automation Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="/js/app.js" defer></script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <style>
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-link {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 3px solid transparent;
+            color: #94a3b8;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-link:hover {
+            color: #e2e8f0;
+        }
+
+        .tab-link.active {
+            color: #7dd3fc;
+            border-bottom-color: #38bdf8;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .filter-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-tag {
+            background: rgba(148, 163, 184, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .filter-tag .tag-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #94a3b8;
+        }
+
+        .filter-tag .tag-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .filter-tag .range-value {
+            display: flex;
+            gap: 0.35rem;
+            align-items: center;
+        }
+
+        .filter-toggle {
+            margin-bottom: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #7dd3fc;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-toggle:hover {
+            color: #38bdf8;
+        }
+
+        /* Report Details */
+        .report-details-row {
+            display: none;
+            background: rgba(15, 23, 42, 0.3);
+        }
+
+        .report-details-row.visible {
+            display: table-row;
+        }
+
+        .report-details-content {
+            background: #0f172a;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+        
+        .report-details-content h4 {
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .report-details-content pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* Screenshot Modal */
+        .screenshot-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .screenshot-modal.visible {
+            display: flex;
+        }
+
+        .screenshot-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            color: #fff;
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .close-modal-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Analytics Dashboard Enhancements */
+        .insights {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.1) 0%, rgba(79, 70, 229, 0.05) 100%);
+        }
+
+        .insights h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #e0e7ff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .insights__summary .stat-card {
+            background: rgba(30, 58, 138, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .insights__summary .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .insights__summary .stat-card strong {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #60a5fa 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .insights__charts canvas,
+        .insights__details canvas {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 14px;
+            padding: 1rem;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .insights__charts > div,
+        .insights__details > div {
+            background: rgba(30, 58, 138, 0.1);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        /* Top Failures Styling */
+        .top-failures {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .top-failure {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-left: 4px solid #ef4444;
+            padding: 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .top-failure:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
+            transform: translateX(4px);
+        }
+
+        .top-failure__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 600;
+            color: #fecaca;
+            margin-bottom: 0.5rem;
+        }
+
+        .top-failure__header span:first-child {
+            font-size: 1.05rem;
+        }
+
+        .top-failure__header .badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            font-size: 0.85rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .top-failure .helper-text {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .top-failure__error {
+            margin-top: 0.5rem;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            color: #fca5a5;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            font-family: 'Courier New', monospace;
+        }
+
+        .top-failure__empty {
+            color: #22c55e;
+            font-weight: 600;
+            text-align: center;
+            padding: 2rem;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+        }
+
+        /* Screenshot Thumbnail */
+        .screenshot-thumb img {
+            max-width: 200px;
+            border-radius: 8px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .screenshot-thumb img:hover {
+            border-color: rgba(99, 102, 241, 0.6);
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        }
+    </style>
+</head>
+<body>
+<header th:replace="~{fragments/nav :: app-nav}"></header>
+<main class="container">
+    <div class="tabs">
+        <span class="tab-link active" data-tab="dashboard">Dashboard</span>
+        <span class="tab-link" data-tab="reports">Reports</span>
+        <span class="tab-link" data-tab="exports">Exports</span>
+    </div>
+
+    <!-- Dashboard/Insights Tab -->
+    <div id="dashboard" class="tab-content active">
+        <section class="card insights" th:if="${analytics != null and analytics.totalRuns > 0}" th:attr="data-analytics=${analyticsJson}">
+            <div class="section-toolbar">
+                <h2>Insights Dashboard</h2>
+                <span class="helper-text">Based on the current filters</span>
+            </div>
+            <div class="stat-grid insights__summary">
+                <div class="stat-card">
+                    <span class="label">Total runs</span>
+                    <strong th:text="${analytics.totalRuns}">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="label">Pass rate</span>
+                    <strong th:text="${#strings.concat(#numbers.formatDecimal(analytics.passRate, 1, 1), '%')}">0%</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="label">Avg duration</span>
+                    <strong th:text="${analytics.averageDurationSeconds > 0 ? #strings.concat(#numbers.formatDecimal(analytics.averageDurationSeconds, 1, 1), 's') : '—'}">—</strong>
+                </div>
+                <div class="stat-card">
+                    <span class="label">P95 duration</span>
+                    <strong th:text="${analytics.percentile95DurationSeconds > 0 ? #strings.concat(#numbers.formatDecimal(analytics.percentile95DurationSeconds, 1, 1), 's') : '—'}">—</strong>
+                </div>
+            </div>
+            <div class="grid grid-2 insights__charts">
+                <div>
+                    <h3>Status distribution</h3>
+                    <canvas id="status-breakdown" height="220"></canvas>
+                </div>
+                <div>
+                    <h3>Daily pass vs fail</h3>
+                    <canvas id="daily-breakdown" height="220"></canvas>
+                </div>
+            </div>
+            <div class="grid grid-2 insights__details">
+                <div>
+                    <h3>Test type coverage</h3>
+                    <canvas id="type-breakdown" height="220"></canvas>
+                </div>
+                <div>
+                    <h3>Top failing tests</h3>
+                    <ul class="top-failures">
+                        <li th:if="${#lists.isEmpty(analytics.topFailures)}" class="top-failure__empty">All green! No failures for the selected range.</li>
+                        <li th:each="failure : ${analytics.topFailures}" class="top-failure">
+                            <div class="top-failure__header">
+                                <span th:text="${failure.testName}">Test name</span>
+                                <span class="badge" th:text="${failure.failures + ' fail' + (failure.failures > 1 ? 's' : '')}">0 fails</span>
+                            </div>
+                            <div class="helper-text" th:if="${failure.lastFailureAt != null}">
+                                Last failure:
+                                <span th:text="${#temporals.format(failure.lastFailureAt, 'yyyy-MM-dd HH:mm')}">2024-01-01 10:00</span>
+                            </div>
+                            <div class="top-failure__error" th:if="${failure.lastError != null}" th:text="${failure.lastError}"></div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        <div class="card" th:if="${analytics == null or analytics.totalRuns == 0}">
+            <h2>No data available</h2>
+            <p>There is not enough report data to generate insights. Please run some tests and check back later.</p>
+        </div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div id="reports" class="tab-content">
+        <section class="card">
+            <div class="alert success" th:if="${message != null}" th:text="${message}"></div>
+            <div class="alert error" th:if="${error != null}" th:text="${error}"></div>
+            
+            <div class="filter-summary">
+                <div class="filter-tag">
+                    <span class="tag-label">Project</span>
+                    <span class="tag-value" th:if="${selectedProjectId == null || projects == null}">All projects</span>
+                    <span class="tag-value" th:each="proj : ${projects}" th:if="${selectedProjectId != null and selectedProjectId.equals(proj.id)}" th:text="${proj.name}">Selected project</span>
+                </div>
+                <div class="filter-tag">
+                    <span class="tag-label">Type</span>
+                    <span class="tag-value" th:text="${filterType != null ? filterType : 'All types'}">All types</span>
+                </div>
+                <div class="filter-tag">
+                    <span class="tag-label">Status</span>
+                    <span class="tag-value" th:text="${filterStatus != null ? filterStatus : 'Any status'}">Any status</span>
+                </div>
+                <div class="filter-tag">
+                    <span class="tag-label">Date range</span>
+                    <span class="tag-value" th:if="${filterFrom == null and filterTo == null}">Any time</span>
+                    <div class="tag-value range-value" th:if="${filterFrom != null or filterTo != null}">
+                        <span th:text="${filterFrom != null ? filterFrom : 'Start'}">Start</span>
+                        <span>→</span>
+                        <span th:text="${filterTo != null ? filterTo : 'Now'}">Now</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-toggle" onclick="document.getElementById('filter-panel').classList.toggle('hidden')">
+                <span>Filters 🔽</span>
+            </div>
+            <div id="filter-panel" class="filter-panel hidden">
+                <form method="get" class="grid grid-4">
+                    <div th:if="${projects != null && !#lists.isEmpty(projects)}">
+                        <label>Project</label>
+                        <select name="projectId">
+                            <option th:each="proj : ${projects}" th:value="${proj.id}"
+                                    th:text="${proj.name}"
+                                    th:selected="${selectedProjectId != null and selectedProjectId.equals(proj.id)}"></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Type</label>
+                        <select name="type">
+                            <option value="" th:selected="${filterType == null}">All</option>
+                            <option value="UI" th:selected="${filterType == T(com.example.automatedtestingframework.model.TestCaseType).UI}">UI</option>
+                            <option value="API" th:selected="${filterType == T(com.example.automatedtestingframework.model.TestCaseType).API}">API</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Status</label>
+                        <select name="status">
+                            <option value="" th:selected="${filterStatus == null}">All</option>
+                            <option th:each="s : ${statusOptions}" th:value="${s}" th:text="${s}" th:selected="${filterStatus != null && filterStatus.equalsIgnoreCase(s)}"></option>
+                        </select>
+                    </div>
+                    <div class="date-range">
+                        <label>Date range</label>
+                        <div class="date-range__inputs">
+                            <input type="date" name="from" th:value="${filterFrom}">
+                            <span>to</span>
+                            <input type="date" name="to" th:value="${filterTo}">
+                        </div>
+                    </div>
+                    <div style="align-self:end;">
+                        <button type="submit">Apply filters</button>
+                    </div>
+                </form>
+            </div>
+
+            <table th:if="${reports != null}">
+                <thead>
+                <tr>
+                    <th>Test Case</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>Completed</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(reports)}">
+                    <td colspan="5" class="table-empty">No reports match the selected filters.</td>
+                </tr>
+                <th:block th:each="report, iter : ${reports}">
+                    <tr class="report-row" th:attr="data-report-id=${report.id}" style="cursor: pointer;">
+                        <td th:text="${report.testCase != null ? report.testCase.name : 'Ad-hoc'}"></td>
+                        <td><span class="badge" th:attr="data-status=${report.status}" th:text="${report.status}"></span></td>
+                        <td th:text="${report.durationSeconds != null ? report.durationSeconds + 's' : '—'}"></td>
+                        <td th:text="${report.completedAt != null ? #temporals.format(report.completedAt, 'yyyy-MM-dd HH:mm') : '—'}"></td>
+                        <td>
+                            <button type="button" class="btn-tertiary" aria-expanded="false">Details</button>
+                        </td>
+                    </tr>
+                    <tr class="report-details-row" th:id="'details-' + ${report.id}">
+                        <td colspan="5">
+                            <div class="report-details-content grid grid-2">
+                                <div>
+                                    <h4>Summary</h4>
+                                    <p th:text="${report.summary}"></p>
+                                    <h4>Logs</h4>
+                                    <pre th:text="${!#strings.isEmpty(report.details) ? report.details : (!#strings.isEmpty(report.errorMessage) ? report.errorMessage : 'No logs available.')}"></pre>
+                                </div>
+                                <div>
+                                    <h4>Screenshot</h4>
+                                    <div th:if="${!#strings.isEmpty(report.screenshotUrl)}" class="screenshot-thumb">
+                                        <img th:src="${report.screenshotUrl}"
+                                             alt="Screenshot"
+                                             loading="lazy"
+                                             th:attr="data-full-src=${report.screenshotUrl}"
+                                             class="screenshot-img"
+                                             style="cursor: pointer;" />
+                                    </div>
+                                    <p th:if="${#strings.isEmpty(report.screenshotUrl)}">No screenshot captured.</p>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </th:block>
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <!-- Exports Tab -->
+    <div id="exports" class="tab-content">
+        <section class="card">
+            <h2>Generated Report Exports</h2>
+            <p>Export a filtered view of reports to CSV for external analysis or sharing. The generated file will be emailed to you.</p>
+            <form th:action="@{/reports/export}" method="post" class="inline-form">
+                <input type="hidden" name="projectId" th:value="${project != null ? project.id : ''}">
+                <input type="hidden" name="type" th:value="${filterType}">
+                <input type="hidden" name="status" th:value="${filterStatus}">
+                <input type="hidden" name="from" th:value="${filterFrom}">
+                <input type="hidden" name="to" th:value="${filterTo}">
+                <button type="submit" class="button-link">Generate & Email Report</button>
+            </form>
+            
+            <h3 style="margin-top: 2rem;">Recent Exports</h3>
+            <table th:if="${generatedReports != null}">
+                <thead>
+                <tr>
+                    <th>Created</th>
+                    <th>Filters</th>
+                    <th>Records</th>
+                    <th>Download</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(generatedReports)}">
+                    <td colspan="4" class="table-empty">No generated reports yet.</td>
+                </tr>
+                <tr th:each="generated : ${generatedReports}">
+                    <td th:text="${#temporals.format(generated.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                    <td>
+                        <div>Type: <span th:text="${generated.filterType != null ? generated.filterType : 'Any'}"></span></div>
+                        <div>Status: <span th:text="${generated.filterStatus != null ? generated.filterStatus : 'Any'}"></span></div>
+                        <div>Range:
+                            <span th:text="${generated.filterFrom != null ? #temporals.format(generated.filterFrom, 'yyyy-MM-dd') : '—'}"></span>
+                            –
+                            <span th:text="${generated.filterTo != null ? #temporals.format(generated.filterTo, 'yyyy-MM-dd') : '—'}"></span>
+                        </div>
+                    </td>
+                    <td th:text="${generated.totalRecords}"></td>
+                    <td><a th:href="${generated.fileUrl}" target="_blank" rel="noopener" th:text="${generated.fileName}"></a></td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+</main>
+
+<!-- Screenshot Modal -->
+<div id="screenshot-modal" class="screenshot-modal">
+    <span class="close-modal-btn">&times;</span>
+    <img id="full-screenshot-img" src="">
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tab functionality
+        const tabs = document.querySelectorAll('.tab-link');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                tabContents.forEach(c => c.classList.remove('active'));
+                const targetTab = document.getElementById(tab.dataset.tab);
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                }
+            });
+        });
+
+        // Report row expansion
+        const toggleReportDetails = (row) => {
+            if (!row) {
+                return;
+            }
+            const reportId = row.dataset.reportId;
+            if (!reportId) {
+                return;
+            }
+            const detailsRow = document.getElementById('details-' + reportId);
+            if (detailsRow) {
+                detailsRow.classList.toggle('visible');
+                const isVisible = detailsRow.classList.contains('visible');
+                const detailsButton = row.querySelector('.btn-tertiary');
+                if (detailsButton) {
+                    detailsButton.textContent = isVisible ? 'Hide details' : 'Details';
+                    detailsButton.setAttribute('aria-expanded', isVisible.toString());
+                }
+            }
+        };
+
+        const reportRows = document.querySelectorAll('.report-row');
+        reportRows.forEach(row => {
+            row.addEventListener('click', (e) => {
+                // Don't expand if clicking on the button
+                if (e.target.tagName === 'BUTTON') return;
+                toggleReportDetails(row);
+            });
+
+            const detailsButton = row.querySelector('.btn-tertiary');
+            if (detailsButton) {
+                detailsButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleReportDetails(row);
+                });
+            }
+        });
+
+        // Screenshot modal
+        const modal = document.getElementById('screenshot-modal');
+        const modalImg = document.getElementById('full-screenshot-img');
+        const closeBtn = document.querySelector('.close-modal-btn');
+        
+        if (modal && modalImg) {
+            // Screenshot click handlers
+            const screenshotImages = document.querySelectorAll('.screenshot-img');
+            screenshotImages.forEach(img => {
+                img.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent row click event
+                    modal.classList.add('visible');
+                    modalImg.src = img.dataset.fullSrc || img.src;
+                });
+            });
+            
+            // Close button handler
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    modal.classList.remove('visible');
+                    modalImg.src = ''; // Clear image source
+                });
+            }
+            
+            // Click outside to close
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('visible');
+                    modalImg.src = ''; // Clear image source
+                }
+            });
+            
+            // ESC key to close
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.classList.contains('visible')) {
+                    modal.classList.remove('visible');
+                    modalImg.src = ''; // Clear image source
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>

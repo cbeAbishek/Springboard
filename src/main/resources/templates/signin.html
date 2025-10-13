@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Automation Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+</head>
+<body th:with="publishableKey=${@clerkProperties.publishableKey}">
+<header th:replace="~{fragments/nav :: app-nav}"></header>
+
+<main class="container auth-layout">
+    <section class="auth-card glass-panel">
+        <div class="auth-card__header">
+            <span class="chip">🔐 Secure Access</span>
+            <h1>Welcome back</h1>
+            <p class="helper-text">Sign in with Clerk to get to your automation workspace.</p>
+        </div>
+
+        <div th:if="${publishableKey != null && !publishableKey.isBlank()}"
+             id="clerk-sign-in"
+             class="clerk-auth-container"></div>
+
+        <div th:if="${publishableKey == null || publishableKey.isBlank()}"
+             class="auth-missing-config">
+            <h2>Clerk configuration missing</h2>
+            <p>Add your Clerk credentials in <code>application.properties</code> to enable authentication.</p>
+            <a href="/docs" class="button-link">Read the setup guide</a>
+        </div>
+
+        <footer class="auth-card__footer" th:if="${publishableKey != null && !publishableKey.isBlank()}">
+            <p class="helper-text">
+                Need an account?
+                <a href="/register" class="auth-link">Create one now</a>
+            </p>
+        </footer>
+    </section>
+
+    <aside class="auth-preview">
+        <div class="auth-preview__content">
+            <h2>Why teams choose Automation Platform</h2>
+            <ul>
+                <li>📈 Real-time analytics for every regression run</li>
+                <li>🧪 Unified UI, API, and mobile automation coverage</li>
+                <li>🤖 AI-assisted triage to spot flaky tests faster</li>
+                <li>🔁 Seamless CI/CD hooks with minimal setup</li>
+            </ul>
+            <div class="auth-preview__cta">
+                <a href="/docs" class="btn-glass">Discover features</a>
+                <a href="/" class="text-link">Back to home</a>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<footer class="container landing-footer">
+    <small>&copy; <span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2025</span> Automation Platform. Auth powered by Clerk.</small>
+</footer>
+
+<script th:if="${publishableKey != null && !publishableKey.isBlank()}"
+        th:inline="javascript">
+    /*<![CDATA[*/
+    (function() {
+        const publishableKey = /*[[${publishableKey}]]*/ '';
+        if (!publishableKey) return;
+
+        const container = document.getElementById('clerk-sign-in');
+        const showError = (message) => {
+            if (container) {
+                container.innerHTML = `<div class="auth-error">${message}</div>`;
+            }
+        };
+
+        const loadClerk = (onReady) => {
+            const callIfReady = async () => {
+                if (!window.Clerk) return;
+                try {
+                    await window.Clerk.load();
+                    onReady(window.Clerk);
+                } catch (err) {
+                    console.error('Clerk load error:', err);
+                    showError('Authentication service unavailable. Please refresh.');
+                }
+            };
+
+            if (window.Clerk) {
+                callIfReady();
+                return;
+            }
+
+            const existingScript = document.querySelector('script[data-clerk-publishable-key]');
+            if (existingScript) {
+                existingScript.addEventListener('load', callIfReady, { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.async = true;
+            script.crossOrigin = 'anonymous';
+            script.setAttribute('data-clerk-publishable-key', publishableKey);
+            script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+            script.addEventListener('load', callIfReady, { once: true });
+            script.addEventListener('error', () => showError('Failed to load authentication widget.'));
+            document.head.appendChild(script);
+        };
+
+        loadClerk((clerk) => {
+            if (!container) {
+                return;
+            }
+
+            if (clerk.user) {
+                window.location.href = '/dashboard';
+                return;
+            }
+
+            clerk.mountSignIn(container, {
+                signUpUrl: '/register',
+                afterSignInUrl: '/dashboard',
+                appearance: {
+                    elements: {
+                        rootBox: 'clerk-root-box',
+                        card: 'clerk-card-glass',
+                        formButtonPrimary: 'clerk-btn-primary',
+                        formFieldInput: 'clerk-input-dark',
+                        headerSubtitle: 'clerk-text-secondary',
+                        footer: 'clerk-text-secondary',
+                        socialButtonsBlockButtonText: 'clerk-text-primary'
+                    },
+                    variables: {
+                        colorPrimary: '#38bdf8',
+                        colorText: '#e2e8f0',
+                        colorInputText: '#e2e8f0',
+                        colorTextSecondary: '#94a3b8',
+                        colorBackground: 'rgba(15, 23, 42, 0.85)'
+                    }
+                }
+            });
+        });
+    })();
+    /*]]>*/
+</script>
+
+<style th:if="${publishableKey != null && !publishableKey.isBlank()}">
+    .clerk-card-glass {
+        background: rgba(15, 23, 42, 0.85) !important;
+        backdrop-filter: blur(24px);
+        border-radius: 18px !important;
+        border: 1px solid rgba(148, 163, 184, 0.25) !important;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.4) !important;
+    }
+</style>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<div th:fragment="app-nav" th:with="publishableKey=${@clerkProperties.publishableKey}">
+    <div class="nav-wrapper">
+        <nav class="container nav-bar glass-nav">
+            <div class="nav-brand">
+                <a href="/" class="nav-brand__link">
+                    <img src="/images/logo.png" alt="Automation Platform" class="brand-logo" loading="lazy">
+                    <span>Automation Platform</span>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="/dashboard" class="nav-link">
+                    Dashboard
+                </a>
+                <a href="/test-management" class="nav-link">
+                    Tests
+                </a>
+                <a href="/scheduler" class="nav-link">
+                    Scheduler
+                </a>
+                <a href="/regression-monitoring" class="nav-link">
+                    Regression
+                </a>
+                <a href="/reports" class="nav-link">
+                    Reports
+                </a>
+                <a href="/docs" class="nav-link">
+                    Docs
+                </a>
+                
+                
+                <!-- Clerk User Button (shows when Clerk is configured and user is authenticated) -->
+                <div th:if="${publishableKey != null && !publishableKey.isBlank()}" 
+                     id="clerk-user-button-nav" 
+                     class="clerk-nav-button"></div>
+                
+                <!-- Sign in CTA when user not authenticated -->
+                <a th:if="${publishableKey != null && !publishableKey.isBlank()}"
+                   id="clerk-nav-signin"
+                   class="btn-glass nav-auth"
+                   href="/signin">
+                    Sign in
+                </a>
+                
+                <!-- Fallback logout for non-Clerk users -->
+                <form th:if="${(publishableKey == null || publishableKey.isBlank()) && #httpServletRequest?.remoteUser != null}" 
+                      th:action="@{/logout}" 
+                      method="post"
+                      class="nav-logout-form">
+                    <input type="hidden" th:name="${_csrf?.parameterName}" th:value="${_csrf?.token}" />
+                    <button type="submit" class="btn-glass nav-logout">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </nav>
+    </div>
+    
+    <!-- Clerk integration script -->
+    <script th:if="${publishableKey != null && !publishableKey.isBlank()}"
+            th:inline="javascript">
+        /*<![CDATA[*/
+        (function() {
+            const publishableKey = /*[[${publishableKey}]]*/ '';
+            if (!publishableKey) return;
+            
+            // Load Clerk script if not already loaded
+            if (!document.querySelector('script[data-clerk-publishable-key]')) {
+                const script = document.createElement('script');
+                script.async = true;
+                script.crossOrigin = 'anonymous';
+                script.setAttribute('data-clerk-publishable-key', publishableKey);
+                script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+                document.head.appendChild(script);
+                
+                script.onload = function() {
+                    initClerkNav();
+                };
+            } else {
+                // Script already loaded, initialize immediately
+                initClerkNav();
+            }
+            
+            async function initClerkNav() {
+                if (!window.Clerk) return;
+                
+                try {
+                    await window.Clerk.load();
+                    const userButton = document.getElementById('clerk-user-button-nav');
+                    const signInLink = document.getElementById('clerk-nav-signin');
+                    if (userButton && window.Clerk.user) {
+                        if (signInLink) {
+                            signInLink.style.display = 'none';
+                        }
+                        window.Clerk.mountUserButton(userButton, {
+                            afterSignOutUrl: '/',
+                            appearance: {
+                                elements: {
+                                    userButtonBox: 'clerk-user-box',
+                                    userButtonTrigger: 'clerk-user-trigger'
+                                }
+                            }
+                        });
+                    } else if (signInLink) {
+                        signInLink.style.display = 'inline-flex';
+                    }
+                } catch (error) {
+                    console.error('Clerk initialization error:', error);
+                }
+            }
+        })();
+        /*]]>*/
+    </script>
+</div>

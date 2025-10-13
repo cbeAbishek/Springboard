@@ -1,0 +1,26 @@
+name: Trigger Automation Platform Suite
+
+on:
+  push:
+    branches:
+      - main
+      - release
+  workflow_dispatch:
+
+jobs:
+  trigger-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Automation Platform
+        env:
+          AUTOMATION_ENDPOINT: "https://automation.example.com"
+          AUTOMATION_PROJECT_ID: "12345"
+          AUTOMATION_TOKEN: "replace-me"
+        run: |
+          if [ -z "$AUTOMATION_ENDPOINT" ] || [ -z "$AUTOMATION_PROJECT_ID" ]; then
+            echo "Automation endpoint or project id is missing." >&2
+            exit 1
+          fi
+          curl -f -X POST "${AUTOMATION_ENDPOINT}/api/run/project/${AUTOMATION_PROJECT_ID}" \
+            -H "X-AUTOMATION-TOKEN: ${AUTOMATION_TOKEN}" \
+            -H "Content-Type: application/json"

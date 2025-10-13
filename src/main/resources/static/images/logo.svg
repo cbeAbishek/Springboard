@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+    <title id="title">Automation Platform logo</title>
+    <desc id="desc">Stylised blue geometric ribbon forming an upward arch</desc>
+    <defs>
+        <linearGradient id="gradient-a" x1="24" y1="22" x2="136" y2="98" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#76E4FF"/>
+            <stop offset="1" stop-color="#1A46FF"/>
+        </linearGradient>
+        <linearGradient id="gradient-b" x1="18" y1="90" x2="80" y2="30" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#1B80FF"/>
+            <stop offset="1" stop-color="#49D7FF"/>
+        </linearGradient>
+        <linearGradient id="gradient-c" x1="88" y1="28" x2="140" y2="84" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#4CD3FF"/>
+            <stop offset="1" stop-color="#043CFF"/>
+        </linearGradient>
+    </defs>
+    <path d="M12 84L78 28L12 10V84Z" fill="url(#gradient-b)"/>
+    <path d="M78 28L148 10V84L78 28Z" fill="url(#gradient-c)"/>
+    <path d="M12 84L78 28L148 84" fill="url(#gradient-a)"/>
+</svg>
