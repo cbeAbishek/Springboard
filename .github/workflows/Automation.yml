@@ -27,6 +27,7 @@ jobs:
       - name: Run unit tests
         run: |
           set -o pipefail
+          mkdir -p target
           mvn -B test | tee target/mvn-test.log
 
       - name: Publish run README
