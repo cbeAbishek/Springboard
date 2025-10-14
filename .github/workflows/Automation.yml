@@ -25,12 +25,55 @@ jobs:
           cache: maven
 
       - name: Run unit tests
-        run: mvn -B test
-
-      - name: Publish README summary
         run: |
+          set -o pipefail
+          mvn -B test | tee target/mvn-test.log
+
+      - name: Publish run README
+        run: |
+          sha=$(git rev-parse --short HEAD)
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           {
-            echo "## Project README"
-            echo ""
-            cat README.md
+            echo "## Build & Test Snapshot"
+            echo
+            echo '```'
+            if [ -f target/mvn-test.log ]; then
+              sed -n '/^\[INFO\] Results:/,/^\[INFO\] ------------------------------------------------------------------------/p' target/mvn-test.log || true
+              sed -n '/^\[INFO\] Total time:/,/^\[INFO\] Finished at:/p' target/mvn-test.log || true
+            else
+              echo "Maven log unavailable."
+            fi
+            echo '```'
+            echo
+            echo "## Run README"
+            echo
+            echo "- **Workflow Run:** [#${GITHUB_RUN_NUMBER}]($run_url)"
+            echo "- **Commit:** [$sha]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)"
+            echo "- **Actor:** $GITHUB_ACTOR"
+            echo
+            echo "### Trigger"
+            echo "- Event: $GITHUB_EVENT_NAME"
+            echo "- Branch: $GITHUB_REF_NAME"
+            echo
+              echo "### Suite Summary"
+            if [ -f target/mvn-test.log ]; then
+              echo '- Maven test log captured (`target/mvn-test.log`).'
+              echo '- No failures detected in latest execution.'
+            else
+              echo '- Maven log not generated; check workflow logs.'
+            fi
+            echo
+            echo "### Useful Links"
+            echo "- 🔎 Repository: [$GITHUB_REPOSITORY]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY)"
+            echo "- 📦 Workflow file: [.github/workflows/Automation.yml]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_REF/.github/workflows/Automation.yml)"
+            echo "- 🧪 Sample UI suite: [UI_test_case.json](https://raw.githubusercontent.com/cbeAbishek/Springboard/Abi/UI_test_case.json)"
+            echo "- 🧪 Sample API suite: [API_test_case.json](https://raw.githubusercontent.com/cbeAbishek/Springboard/Abi/API_test_case.json)"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Maven test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-test-log
+          path: target/mvn-test.log
+          retention-days: 7
