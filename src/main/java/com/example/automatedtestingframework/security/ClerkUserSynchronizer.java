@@ -1,9 +1,7 @@
 package com.example.automatedtestingframework.security;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.example.automatedtestingframework.model.Project;
 import com.example.automatedtestingframework.model.User;
-import com.example.automatedtestingframework.repository.ProjectRepository;
 import com.example.automatedtestingframework.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,14 +21,11 @@ public class ClerkUserSynchronizer {
     private static final Logger log = LoggerFactory.getLogger(ClerkUserSynchronizer.class);
 
     private final UserRepository userRepository;
-    private final ProjectRepository projectRepository;
     private final PasswordEncoder passwordEncoder;
 
     public ClerkUserSynchronizer(UserRepository userRepository,
-                                 ProjectRepository projectRepository,
                                  PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.projectRepository = projectRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -66,7 +61,7 @@ public class ClerkUserSynchronizer {
         User user = existing.map(stored -> updateUser(stored, clerkUserId, email, fullName, avatarUrl, organization, jobTitle))
             .orElseGet(() -> createUser(clerkUserId, email, fullName, avatarUrl, organization, jobTitle));
 
-        ensureDefaultProject(user);
+        // No longer automatically creating a default project - users will be redirected to project setup
         return user;
     }
 
@@ -119,16 +114,6 @@ public class ClerkUserSynchronizer {
         User saved = userRepository.save(user);
         log.info("Provisioned new user from Clerk identity: {}", saved.getEmail());
         return saved;
-    }
-
-    private void ensureDefaultProject(User user) {
-        if (user.getProjects() != null && !user.getProjects().isEmpty()) {
-            return;
-        }
-        Project project = new Project();
-        project.setOwner(user);
-        project.setName(user.getFullName() + " Automation");
-        projectRepository.save(project);
     }
 
     private String buildFullName(String firstName, String lastName, String email) {

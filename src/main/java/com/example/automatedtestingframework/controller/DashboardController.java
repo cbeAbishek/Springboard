@@ -53,6 +53,12 @@ public class DashboardController {
                             Model model) {
         User user = userRepository.findByEmail(principal.getUsername()).orElseThrow();
         List<Project> projects = projectRepository.findByOwner(user);
+        
+        // Redirect new users without projects to the setup page
+        if (projects.isEmpty()) {
+            return "redirect:/project-setup";
+        }
+        
         model.addAttribute("projects", projects);
         Project selected = resolveSelectedProject(projects, projectId);
         if (selected != null) {
@@ -66,6 +72,9 @@ public class DashboardController {
     public String createProject(@AuthenticationPrincipal UserDetails principal,
                                 @RequestParam("name") String name,
                                 @RequestParam(value = "description", required = false) String description,
+                                @RequestParam(value = "githubLink", required = false) String githubLink,
+                                @RequestParam(value = "websiteLink", required = false) String websiteLink,
+                                @RequestParam(value = "appDomain", required = false) String appDomain,
                                 RedirectAttributes redirectAttributes) {
         User user = userRepository.findByEmail(principal.getUsername()).orElseThrow();
         String trimmedName = name != null ? name.trim() : "";
@@ -85,6 +94,15 @@ public class DashboardController {
         project.setName(trimmedName);
         if (description != null && !description.isBlank()) {
             project.setDescription(description.trim());
+        }
+        if (githubLink != null && !githubLink.isBlank()) {
+            project.setGithubLink(githubLink.trim());
+        }
+        if (websiteLink != null && !websiteLink.isBlank()) {
+            project.setWebsiteLink(websiteLink.trim());
+        }
+        if (appDomain != null && !appDomain.isBlank()) {
+            project.setAppDomain(appDomain.trim());
         }
         Project saved = projectRepository.save(project);
         redirectAttributes.addFlashAttribute("message", "Project '" + trimmedName + "' created");
