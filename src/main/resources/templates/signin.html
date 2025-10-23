@@ -6,60 +6,176 @@
     <title>Sign In - Automation Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/css/style.css">
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6',
+                        accent: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+    </style>
 </head>
-<body th:with="publishableKey=${@clerkProperties.publishableKey}">
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen" th:with="publishableKey=${@clerkProperties.publishableKey}">
 <header th:replace="~{fragments/nav :: app-nav}"></header>
 
-<main class="container auth-layout">
-    <section class="auth-card glass-panel">
-        <div class="auth-card__header">
-            <span class="chip">🔐 Secure Access</span>
-            <h1>Welcome back</h1>
-            <p class="helper-text">Sign in with Clerk to get to your automation workspace.</p>
-        </div>
+<main class="container mx-auto px-6 py-12">
+    <div class="grid lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto">
+        
+        <!-- Left Side - Sign In Form -->
+        <section class="order-2 lg:order-1">
+            <div class="backdrop-blur-xl bg-slate-900/60 border border-slate-700/50 rounded-3xl p-8 lg:p-10 shadow-2xl shadow-blue-500/10">
+                
+                <!-- Header -->
+                <div class="mb-8">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500/10 to-violet-500/10 border border-blue-500/30 rounded-full text-sm font-semibold text-blue-400 mb-6">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        <span>Secure Access</span>
+                    </div>
+                    <h1 class="text-4xl lg:text-5xl font-bold text-white mb-3">Welcome back</h1>
+                    <p class="text-slate-400 text-lg">Sign in to access your automation workspace and continue building quality software.</p>
+                </div>
 
-        <div th:if="${publishableKey != null && !publishableKey.isBlank()}"
-             id="clerk-sign-in"
-             class="clerk-auth-container"></div>
+                <!-- Clerk Sign In Widget -->
+                <div th:if="${publishableKey != null && !publishableKey.isBlank()}"
+                     id="clerk-sign-in"
+                     class="mb-6"></div>
 
-        <div th:if="${publishableKey == null || publishableKey.isBlank()}"
-             class="auth-missing-config">
-            <h2>Clerk configuration missing</h2>
-            <p>Add your Clerk credentials in <code>application.properties</code> to enable authentication.</p>
-            <a href="/docs" class="button-link">Read the setup guide</a>
-        </div>
+                <!-- Missing Config Message -->
+                <div th:if="${publishableKey == null || publishableKey.isBlank()}"
+                     class="p-6 bg-red-500/10 border border-red-500/30 rounded-2xl">
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="alert-triangle" class="w-6 h-6 text-red-400"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-red-400 mb-2">Clerk Configuration Missing</h2>
+                            <p class="text-red-300/80 mb-4">Add your Clerk credentials in <code class="px-2 py-1 bg-slate-800 rounded text-sm">application.properties</code> to enable authentication.</p>
+                            <a href="/docs" class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-200 transform hover:scale-105">
+                                <i data-lucide="book-open" class="w-5 h-5"></i>
+                                <span>Read Setup Guide</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
-        <footer class="auth-card__footer" th:if="${publishableKey != null && !publishableKey.isBlank()}">
-            <p class="helper-text">
-                Need an account?
-                <a href="/register" class="auth-link">Create one now</a>
-            </p>
-        </footer>
-    </section>
-
-    <aside class="auth-preview">
-        <div class="auth-preview__content">
-            <h2>Why teams choose Automation Platform</h2>
-            <ul>
-                <li>📈 Real-time analytics for every regression run</li>
-                <li>🧪 Unified UI, API, and mobile automation coverage</li>
-                <li>🤖 AI-assisted triage to spot flaky tests faster</li>
-                <li>🔁 Seamless CI/CD hooks with minimal setup</li>
-            </ul>
-            <div class="auth-preview__cta">
-                <a href="/docs" class="btn-glass">Discover features</a>
-                <a href="/" class="text-link">Back to home</a>
+                <!-- Footer Links -->
+                <div th:if="${publishableKey != null && !publishableKey.isBlank()}" class="mt-8 pt-6 border-t border-slate-700/50">
+                    <p class="text-center text-slate-400">
+                        Don't have an account? 
+                        <a href="/register" class="text-blue-400 hover:text-blue-300 font-semibold transition-colors">Create one now</a>
+                    </p>
+                </div>
             </div>
-        </div>
-    </aside>
+        </section>
+
+        <!-- Right Side - Features Showcase -->
+        <aside class="order-1 lg:order-2">
+            <div class="relative">
+                <!-- Animated background glow -->
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-violet-500/20 blur-3xl rounded-full animate-pulse-glow"></div>
+                
+                <div class="relative backdrop-blur-xl bg-slate-900/40 border border-slate-700/50 rounded-3xl p-8 lg:p-10 shadow-2xl">
+                    <!-- Icon -->
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-violet-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/50 animate-float">
+                        <i data-lucide="rocket" class="w-10 h-10 text-white"></i>
+                    </div>
+                    
+                    <h2 class="text-3xl font-bold text-white mb-4">Why Teams Choose Us</h2>
+                    <p class="text-slate-300 mb-8 text-lg leading-relaxed">Power your quality assurance with enterprise-grade automation tools designed for modern development teams.</p>
+                    
+                    <!-- Features List -->
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/30 rounded-xl hover:border-blue-500/30 transition-all duration-200">
+                            <div class="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-green-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">Real-time Analytics</h3>
+                                <p class="text-slate-400 text-sm">Track every regression run with live dashboards and insights</p>
+                            </div>
+                        </li>
+                        
+                        <li class="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/30 rounded-xl hover:border-violet-500/30 transition-all duration-200">
+                            <div class="w-10 h-10 bg-violet-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="layers" class="w-5 h-5 text-violet-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">Unified Coverage</h3>
+                                <p class="text-slate-400 text-sm">Test UI, API, and mobile apps from a single platform</p>
+                            </div>
+                        </li>
+                        
+                        <li class="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/30 rounded-xl hover:border-amber-500/30 transition-all duration-200">
+                            <div class="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="sparkles" class="w-5 h-5 text-amber-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">AI-Powered Triage</h3>
+                                <p class="text-slate-400 text-sm">Identify flaky tests faster with intelligent analysis</p>
+                            </div>
+                        </li>
+                        
+                        <li class="flex items-start gap-4 p-4 bg-slate-800/30 border border-slate-700/30 rounded-xl hover:border-blue-500/30 transition-all duration-200">
+                            <div class="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="git-branch" class="w-5 h-5 text-blue-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">Seamless CI/CD</h3>
+                                <p class="text-slate-400 text-sm">Integrate with GitHub Actions, Jenkins, and more</p>
+                            </div>
+                        </li>
+                    </ul>
+                    
+                    <!-- CTA Buttons -->
+                    <div class="flex flex-wrap gap-4">
+                        <a href="/docs" class="inline-flex items-center gap-2 px-6 py-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105">
+                            <i data-lucide="book-open" class="w-5 h-5"></i>
+                            <span>Explore Features</span>
+                        </a>
+                        <a href="/" class="inline-flex items-center gap-2 px-6 py-3 text-slate-400 hover:text-white font-semibold transition-colors">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                            <span>Back to Home</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
 </main>
 
-<footer class="container landing-footer">
-    <small>&copy; <span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2025</span> Automation Platform. Auth powered by Clerk.</small>
+<footer class="container mx-auto px-6 py-8 text-center">
+    <p class="text-slate-400">
+        &copy; <span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2025</span> Automation Platform. 
+        <span class="text-slate-500">•</span> 
+        Auth powered by <a href="https://clerk.com" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors">Clerk</a>
+    </p>
 </footer>
 
 <script th:if="${publishableKey != null && !publishableKey.isBlank()}"
@@ -72,7 +188,15 @@
         const container = document.getElementById('clerk-sign-in');
         const showError = (message) => {
             if (container) {
-                container.innerHTML = `<div class="auth-error">${message}</div>`;
+                container.innerHTML = `
+                    <div class="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400">
+                        <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+                        <span>${message}</span>
+                    </div>
+                `;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
             }
         };
 
@@ -84,7 +208,7 @@
                     onReady(window.Clerk);
                 } catch (err) {
                     console.error('Clerk load error:', err);
-                    showError('Authentication service unavailable. Please refresh.');
+                    showError('Authentication service unavailable. Please refresh the page.');
                 }
             };
 
@@ -105,7 +229,7 @@
             script.setAttribute('data-clerk-publishable-key', publishableKey);
             script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
             script.addEventListener('load', callIfReady, { once: true });
-            script.addEventListener('error', () => showError('Failed to load authentication widget.'));
+            script.addEventListener('error', () => showError('Failed to load authentication widget. Please check your connection.'));
             document.head.appendChild(script);
         };
 
@@ -124,20 +248,33 @@
                 afterSignInUrl: '/dashboard',
                 appearance: {
                     elements: {
-                        rootBox: 'clerk-root-box',
-                        card: 'clerk-card-glass',
-                        formButtonPrimary: 'clerk-btn-primary',
-                        formFieldInput: 'clerk-input-dark',
-                        headerSubtitle: 'clerk-text-secondary',
-                        footer: 'clerk-text-secondary',
-                        socialButtonsBlockButtonText: 'clerk-text-primary'
+                        rootBox: 'w-full',
+                        card: 'bg-slate-800/50 border-slate-700/50 shadow-none',
+                        formButtonPrimary: 'bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all',
+                        formFieldInput: 'bg-slate-900/50 border-slate-700 text-white rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
+                        headerTitle: 'text-white',
+                        headerSubtitle: 'text-slate-400',
+                        socialButtonsBlockButton: 'bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-white rounded-xl',
+                        socialButtonsBlockButtonText: 'text-white font-medium',
+                        dividerLine: 'bg-slate-700',
+                        dividerText: 'text-slate-500',
+                        footerActionLink: 'text-blue-400 hover:text-blue-300',
+                        identityPreviewText: 'text-white',
+                        identityPreviewEditButton: 'text-blue-400 hover:text-blue-300',
+                        formFieldLabel: 'text-slate-300',
+                        formFieldInputShowPasswordButton: 'text-slate-400 hover:text-slate-300',
+                        footer: 'text-slate-400',
+                        otpCodeFieldInput: 'bg-slate-900/50 border-slate-700 text-white rounded-xl'
                     },
                     variables: {
-                        colorPrimary: '#38bdf8',
+                        colorPrimary: '#3b82f6',
                         colorText: '#e2e8f0',
-                        colorInputText: '#e2e8f0',
+                        colorInputText: '#ffffff',
                         colorTextSecondary: '#94a3b8',
-                        colorBackground: 'rgba(15, 23, 42, 0.85)'
+                        colorBackground: '#1e293b',
+                        colorInputBackground: 'rgba(15, 23, 42, 0.5)',
+                        borderRadius: '0.75rem',
+                        fontFamily: 'Inter, sans-serif'
                     }
                 }
             });
@@ -146,13 +283,52 @@
     /*]]>*/
 </script>
 
+<script>
+    // Initialize Lucide icons
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
+
 <style th:if="${publishableKey != null && !publishableKey.isBlank()}">
-    .clerk-card-glass {
-        background: rgba(15, 23, 42, 0.85) !important;
-        backdrop-filter: blur(24px);
-        border-radius: 18px !important;
-        border: 1px solid rgba(148, 163, 184, 0.25) !important;
-        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.4) !important;
+    /* Custom Clerk styling for dark theme */
+    .cl-rootBox {
+        width: 100%;
+    }
+    
+    .cl-card {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    
+    .cl-formButtonPrimary {
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .cl-formButtonPrimary:hover {
+        background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    .cl-socialButtonsBlockButton {
+        transition: all 0.2s ease !important;
+    }
+    
+    .cl-socialButtonsBlockButton:hover {
+        transform: translateY(-1px);
+    }
+    
+    .cl-formFieldInput:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    .cl-internal-b3fm6y {
+        color: #e2e8f0 !important;
     }
 </style>
 </body>

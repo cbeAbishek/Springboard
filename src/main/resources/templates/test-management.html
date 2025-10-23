@@ -3,10 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <title>Test Management - Automation Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/css/style.css" />
     <script src="/js/app.js" defer></script>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6',
+                        accent: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
       .tabs {
         display: flex;
@@ -179,11 +194,18 @@
       }
     </style>
   </head>
-  <body>
+  <body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
     <header th:replace="~{fragments/nav :: app-nav}"></header>
-    <div class="container">
-      <div class="alert success" th:if="${message}" th:text="${message}"></div>
-      <div class="alert error" th:if="${error}" th:text="${error}"></div>
+    
+    <div class="container mx-auto px-6">
+      <div th:if="${message}" class="mb-6 p-4 bg-green-500/10 border border-green-500/30 text-green-400 rounded-2xl backdrop-blur-xl flex items-center gap-3">
+        <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+        <span th:text="${message}"></span>
+      </div>
+      <div th:if="${error}" class="mb-6 p-4 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl backdrop-blur-xl flex items-center gap-3">
+        <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+        <span th:text="${error}"></span>
+      </div>
     </div>
     <main class="container">
       <section class="card page-header" th:if="${project != null}">
@@ -202,14 +224,14 @@
           </span>
           <span class="chip">
             <strong
-              th:text="${tests != null ? tests.?[type == T(com.example.automatedtestingframework.model.TestCaseType).UI].size() : 0}"
+              th:text="${tests != null ? tests.?[type != null and type == T(com.example.automatedtestingframework.model.TestCaseType).UI].size() : 0}"
               >0</strong
             >
             UI
           </span>
           <span class="chip">
             <strong
-              th:text="${tests != null ? tests.?[type == T(com.example.automatedtestingframework.model.TestCaseType).API].size() : 0}"
+              th:text="${tests != null ? tests.?[type != null and type == T(com.example.automatedtestingframework.model.TestCaseType).API].size() : 0}"
               >0</strong
             >
             API
@@ -263,10 +285,14 @@
               <tr th:each="test : ${tests}">
                 <td th:text="${test.name}">Checkout</td>
                 <td>
-                  <span th:if="${test.type.name() == 'UI'}" class="test-icon"
+                  <span
+                    th:if="${test.type != null and test.type.name() == 'UI'}"
+                    class="test-icon"
                     >🖥️</span
                   >
-                  <span th:if="${test.type.name() == 'API'}" class="test-icon"
+                  <span
+                    th:if="${test.type != null and test.type.name() == 'API'}"
+                    class="test-icon"
                     >🔗</span
                   >
                   <span th:text="${test.type}">UI</span>
@@ -464,7 +490,7 @@
                     <td>
                       <span
                         class="analysis-status-badge"
-                        th:classappend="${analysis.entity.status.name() == 'SUCCESS'} ? ' analysis-status-success' : (${analysis.entity.status.name() == 'PARTIAL'} ? ' analysis-status-partial' : ' analysis-status-failed')"
+                        th:classappend="${analysis.entity.status?.name() == 'SUCCESS'} ? ' analysis-status-success' : (${analysis.entity.status?.name() == 'PARTIAL'} ? ' analysis-status-partial' : ' analysis-status-failed')"
                         th:text="${analysis.entity.status}"
                         >SUCCESS</span
                       >
@@ -486,10 +512,7 @@
                                   >/sitemap.xml</strong
                                 >
 
-                                <span
-                                  th:text="${' - status ' + resource.statusCode}"
-                                  >200</span
-                                >
+                                <span th:text="${' - status ' + resource.statusCode}">200</span>
 
                                 <span
                                   th:if="${resource.contentType() != null && !resource.contentType().isBlank()}"
@@ -733,6 +756,11 @@
             modal.style.display = "none";
           }
         };
+        
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
       });
     </script>
   </body>

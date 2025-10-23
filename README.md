@@ -31,6 +31,7 @@ Automate UI and API suites, orchestrate schedules, and surface actionable analyt
 
 ## 📑 Table of Contents
 
+- [Project Structure](#-project-structure)
 - [Project Narrative](#-project-narrative)
 - [Product Capabilities](#-product-capabilities)
 - [Architecture Overview](#-architecture-overview)
@@ -42,6 +43,216 @@ Automate UI and API suites, orchestrate schedules, and surface actionable analyt
 - [Operations & Deployment](#-operations--deployment)
 - [Roadmap & Reflections](#-roadmap--internship-reflections)
 - [Contributors](#-contributors)
+
+---
+
+## 📁 Project Structure
+
+```
+Springboard/
+│
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/example/automatedtestingframework/
+│   │   │       ├── AutomatedTestingFrameworkApplication.java  # Spring Boot main class
+│   │   │       │
+│   │   │       ├── controller/                    # REST & MVC Controllers
+│   │   │       │   ├── DashboardController.java   # Dashboard analytics & metrics
+│   │   │       │   ├── DemoController.java        # Interactive sandbox endpoints
+│   │   │       │   ├── ProfileController.java     # User profile management
+│   │   │       │   ├── ProjectSetupController.java # Project configuration
+│   │   │       │   ├── ReportController.java      # Test reports & exports
+│   │   │       │   ├── SchedulerController.java   # Test scheduling & triggers
+│   │   │       │   ├── TestManagementController.java # Test case CRUD operations
+│   │   │       │   └── UserController.java        # User authentication & management
+│   │   │       │
+│   │   │       ├── service/                       # Business Logic Layer
+│   │   │       │   ├── ActionTemplateService.java # Test action templates
+│   │   │       │   ├── ApiTestExecutor.java       # REST API test execution engine
+│   │   │       │   ├── UiTestExecutor.java        # Selenium WebDriver executor
+│   │   │       │   ├── EndpointAnalysisService.java # API endpoint discovery
+│   │   │       │   ├── MailService.java           # Brevo email integration
+│   │   │       │   ├── NotificationService.java   # Multi-channel notifications
+│   │   │       │   ├── ReportingService.java      # Test result aggregation
+│   │   │       │   ├── ReportExportService.java   # CSV/Excel/PDF exports
+│   │   │       │   ├── ReportStorageService.java  # Report persistence
+│   │   │       │   ├── SchedulingService.java     # Quartz job orchestration
+│   │   │       │   ├── ScreenshotService.java     # ImageKit screenshot storage
+│   │   │       │   └── dto/                       # Service DTOs
+│   │   │       │       └── ReportAnalytics.java   # Analytics data model
+│   │   │       │
+│   │   │       ├── model/                         # Domain Entities (JPA)
+│   │   │       │   ├── EndpointAnalysisResult.java # API analysis results
+│   │   │       │   ├── EndpointAnalysisStatus.java # Analysis status enum
+│   │   │       │   ├── GeneratedActionFile.java   # Auto-generated test files
+│   │   │       │   ├── GeneratedReport.java       # Report metadata
+│   │   │       │   ├── Project.java               # Test project entity
+│   │   │       │   ├── Report.java                # Test execution report
+│   │   │       │   ├── SchedulerFrequency.java    # Cron frequency enum
+│   │   │       │   ├── SchedulerJob.java          # Scheduled job entity
+│   │   │       │   ├── TestCase.java              # Test case definition
+│   │   │       │   ├── TestCaseType.java          # API/UI type enum
+│   │   │       │   └── User.java                  # User account entity
+│   │   │       │
+│   │   │       ├── repository/                    # Data Access Layer (Spring Data JPA)
+│   │   │       │   ├── EndpointAnalysisResultRepository.java
+│   │   │       │   ├── GeneratedActionFileRepository.java
+│   │   │       │   ├── GeneratedReportRepository.java
+│   │   │       │   ├── ProjectRepository.java
+│   │   │       │   ├── ReportRepository.java
+│   │   │       │   ├── SchedulerJobRepository.java
+│   │   │       │   ├── TestCaseRepository.java
+│   │   │       │   └── UserRepository.java
+│   │   │       │
+│   │   │       ├── security/                      # Authentication & Authorization
+│   │   │       │   ├── AuthenticatedUser.java     # Security context user
+│   │   │       │   ├── ClerkAuthenticationFilter.java # Clerk.dev JWT filter
+│   │   │       │   ├── ClerkTokenVerifier.java    # Token validation
+│   │   │       │   └── ClerkUserSynchronizer.java # User sync with Clerk
+│   │   │       │
+│   │   │       ├── config/                        # Spring Configuration
+│   │   │       │   ├── AsyncConfig.java           # Async thread pool setup
+│   │   │       │   ├── ClerkProperties.java       # Clerk configuration properties
+│   │   │       │   ├── DevToolsConfig.java        # Selenium DevTools config
+│   │   │       │   ├── ImageKitConfig.java        # ImageKit CDN properties
+│   │   │       │   ├── ImageKitConfiguration.java # ImageKit bean setup
+│   │   │       │   ├── SecurityConfig.java        # Spring Security configuration
+│   │   │       │   └── WebConfig.java             # MVC & CORS configuration
+│   │   │       │
+│   │   │       ├── analysis/                      # Endpoint Analysis Module
+│   │   │       │   └── EndpointAnalysisPayload.java # Analysis request payload
+│   │   │       │
+│   │   │       └── util/                          # Utilities
+│   │   │           └── JsonParserUtil.java        # JSON parsing helpers
+│   │   │
+│   │   └── resources/
+│   │       ├── application.properties             # Main configuration file
+│   │       ├── config.properties                  # Additional config
+│   │       ├── schema.sql                         # Database schema DDL
+│   │       │
+│   │       ├── static/                            # Static Web Assets
+│   │       │   ├── css/                           # Stylesheets
+│   │       │   ├── js/                            # JavaScript files
+│   │       │   └── images/                        # Images & icons
+│   │       │
+│   │       ├── templates/                         # Thymeleaf HTML Templates
+│   │       │   ├── dashboard.html                 # Main dashboard view
+│   │       │   ├── demo/                          # Demo sandbox pages
+│   │       │   ├── documentation.html             # API documentation
+│   │       │   ├── fragments/                     # Reusable UI fragments
+│   │       │   ├── landing.html                   # Landing page
+│   │       │   ├── login.html                     # Login page
+│   │       │   ├── profile.html                   # User profile
+│   │       │   ├── project-setup.html             # Project setup wizard
+│   │       │   ├── register.html                  # Registration page
+│   │       │   ├── regression-monitoring.html     # Regression trends
+│   │       │   ├── reports.html                   # Test reports viewer
+│   │       │   ├── scheduler.html                 # Test scheduler UI
+│   │       │   ├── signin.html                    # Sign-in page
+│   │       │   └── test-management.html           # Test case management
+│   │       │
+│   │       ├── github-actions/                    # CI/CD workflows stored as resources
+│   │       └── META-INF/                          # Maven metadata
+│   │
+│   └── test/
+│       ├── java/
+│       │   └── com/example/automatedtestingframework/
+│       │       └── service/                       # Service Layer Tests
+│       │           ├── ReportingServiceTest.java  # Reporting service unit tests
+│       │           └── ReportExportServiceTest.java # Export service unit tests
+│       │
+│       └── resources/                             # Test resources & fixtures
+│
+├── artifacts/                                     # Test Execution Artifacts (Generated)
+│   ├── api/                                       # API test results (JSON)
+│   │   ├── testCreateComment_*.json               # Comment creation results
+│   │   ├── testCreatePost_*.json                  # Post creation results
+│   │   ├── testDeletePost_*.json                  # Delete operation results
+│   │   ├── testGetAllPosts_*.json                 # GET all posts results
+│   │   ├── testGetAllUsers_*.json                 # GET all users results
+│   │   ├── testGetCommentsForPost_*.json          # Comment retrieval results
+│   │   ├── testGetSinglePost_*.json               # Single post results
+│   │   ├── testGetSingleUser_*.json               # Single user results
+│   │   ├── testPatchPost_*.json                   # PATCH operation results
+│   │   └── testUpdatePost_*.json                  # PUT operation results
+│   │
+│   ├── reports/                                   # Generated Test Reports
+│   │   ├── CSV_Report_*.csv                       # CSV format reports
+│   │   ├── Excel_Report_*.xlsx                    # Excel format reports
+│   │   └── TestReport_*.html                      # HTML format reports
+│   │
+│   └── screenshots/                               # UI Test Screenshots
+│       └── test*_FAILED_*.png                     # Failure evidence screenshots
+│
+├── database/                                      # Database Scripts (Currently empty)
+│
+├── integration/
+│   └── github-actions/                            # GitHub Actions CI/CD
+│       ├── README.md                              # CI/CD documentation
+│       └── automation-trigger.yml                 # Workflow definition
+│
+├── target/                                        # Maven Build Output (Generated)
+│   ├── automated-testing-framework-1.0.0.jar      # Executable JAR
+│   ├── classes/                                   # Compiled main classes
+│   ├── test-classes/                              # Compiled test classes
+│   ├── generated-sources/                         # Auto-generated sources
+│   ├── generated-test-sources/                    # Auto-generated test sources
+│   ├── maven-archiver/                            # Maven packaging metadata
+│   └── maven-status/                              # Maven build status
+│
+├── pom.xml                                        # Maven project configuration
+├── Dockerfile                                     # Docker container definition
+├── README.md                                      # Project documentation (this file)
+├── LICENSE                                        # MIT License
+└── app.log                                        # Application runtime logs
+```
+
+### 📂 Directory Breakdown
+
+#### **Core Application (`src/main/java`)**
+- **`controller/`**: MVC controllers handling HTTP requests, serving Thymeleaf templates, and exposing REST APIs
+- **`service/`**: Business logic including test execution engines (API/UI), scheduling, reporting, and notifications
+- **`model/`**: JPA entities representing database tables (projects, test cases, reports, users, scheduler jobs)
+- **`repository/`**: Spring Data JPA repositories for database operations
+- **`security/`**: Clerk.dev authentication integration with JWT token verification
+- **`config/`**: Spring Boot configuration classes for async execution, security, WebDriver, and third-party integrations
+- **`analysis/`**: API endpoint analysis and auto-generation modules
+- **`util/`**: Helper utilities for JSON parsing and common operations
+
+#### **Frontend (`src/main/resources`)**
+- **`templates/`**: Thymeleaf HTML templates with server-side rendering
+- **`static/`**: CSS, JavaScript, and image assets for the web UI
+- **`application.properties`**: Database connections, API keys, and runtime configuration
+
+#### **Test Suite (`src/test/java`)**
+- Unit tests for service layer components
+- Integration tests for end-to-end workflows
+- Test fixtures and mock data
+
+#### **Generated Artifacts (`artifacts/`)**
+- **`api/`**: JSON payloads from API test executions (timestamped)
+- **`reports/`**: Multi-format test reports (CSV, Excel, HTML)
+- **`screenshots/`**: Captured screenshots from failed UI tests for debugging
+
+#### **CI/CD (`integration/github-actions`)**
+- GitHub Actions workflow for automated testing and deployment
+- Trigger configurations for scheduled and event-based executions
+
+### 🏗️ Technology Stack by Layer
+
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | Thymeleaf, HTML5, CSS3, JavaScript, Bootstrap |
+| **Backend** | Spring Boot 3.4, Spring MVC, Spring Security, Spring Data JPA |
+| **Testing** | Selenium WebDriver 4.25, REST Assured, JUnit 5 |
+| **Scheduling** | Quartz Scheduler, Spring Async |
+| **Database** | MySQL 8.x, HikariCP connection pool |
+| **Authentication** | Clerk.dev (JWT-based) |
+| **Storage** | ImageKit CDN (screenshots), Local filesystem fallback |
+| **Notifications** | Brevo (formerly Sendinblue) email API |
+| **Build** | Maven 3.9+, Java 23 |
+| **Deployment** | Docker, Render.com (live demo) |
 
 ---
 
