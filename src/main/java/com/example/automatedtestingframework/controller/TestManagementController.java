@@ -1,14 +1,18 @@
 package com.example.automatedtestingframework.controller;
 
+import com.example.automatedtestingframework.analysis.EndpointAnalysisPayload;
+import com.example.automatedtestingframework.model.EndpointAnalysisResult;
 import com.example.automatedtestingframework.model.GeneratedActionFile;
 import com.example.automatedtestingframework.model.Project;
 import com.example.automatedtestingframework.model.TestCase;
 import com.example.automatedtestingframework.model.TestCaseType;
 import com.example.automatedtestingframework.model.User;
 import com.example.automatedtestingframework.repository.GeneratedActionFileRepository;
+import com.example.automatedtestingframework.repository.EndpointAnalysisResultRepository;
 import com.example.automatedtestingframework.repository.ProjectRepository;
 import com.example.automatedtestingframework.repository.TestCaseRepository;
 import com.example.automatedtestingframework.repository.UserRepository;
+import com.example.automatedtestingframework.service.EndpointAnalysisService;
 import com.example.automatedtestingframework.service.SchedulingService;
 import com.example.automatedtestingframework.util.JsonParserUtil;
 import org.slf4j.Logger;
@@ -36,24 +40,30 @@ public class TestManagementController {
     private final TestCaseRepository testCaseRepository;
     private final ProjectRepository projectRepository;
     private final GeneratedActionFileRepository generatedActionFileRepository;
+    private final EndpointAnalysisResultRepository endpointAnalysisResultRepository;
     private final UserRepository userRepository;
     private final JsonParserUtil jsonParserUtil;
     private final SchedulingService schedulingService;
+    private final EndpointAnalysisService endpointAnalysisService;
 
     private static final Logger logger = LoggerFactory.getLogger(TestManagementController.class);
 
     public TestManagementController(TestCaseRepository testCaseRepository,
                                     ProjectRepository projectRepository,
                                     GeneratedActionFileRepository generatedActionFileRepository,
+                                    EndpointAnalysisResultRepository endpointAnalysisResultRepository,
                                     UserRepository userRepository,
                                     JsonParserUtil jsonParserUtil,
-                                    SchedulingService schedulingService) {
+                                    SchedulingService schedulingService,
+                                    EndpointAnalysisService endpointAnalysisService) {
         this.testCaseRepository = testCaseRepository;
         this.projectRepository = projectRepository;
         this.generatedActionFileRepository = generatedActionFileRepository;
+        this.endpointAnalysisResultRepository = endpointAnalysisResultRepository;
         this.userRepository = userRepository;
         this.jsonParserUtil = jsonParserUtil;
         this.schedulingService = schedulingService;
+        this.endpointAnalysisService = endpointAnalysisService;
     }
 
     @GetMapping("/test-management")
@@ -75,6 +85,11 @@ public class TestManagementController {
             model.addAttribute("recentStatus", lastRun.map(TestCase::getLastRunStatus).orElse(null));
             model.addAttribute("actions", generatedActionFileRepository.findByProject(project));
             model.addAttribute("project", project);
+
+            List<EndpointAnalysisResult> analyses = endpointAnalysisResultRepository.findTop10ByProjectOrderByExecutedAtDesc(project);
+            model.addAttribute("analysisResults", analyses.stream()
+                .map(this::toView)
+                .toList());
         }
         model.addAttribute("projects", projects);
         model.addAttribute("types", TestCaseType.values());
@@ -109,6 +124,28 @@ public class TestManagementController {
         return projectId != null
             ? "redirect:/test-management?projectId=" + projectId
             : "redirect:/test-management";
+    }
+
+    @PostMapping("/test-management/project/{projectId}/endpoint-analysis")
+    public String triggerEndpointAnalysis(@AuthenticationPrincipal UserDetails principal,
+                                          @PathVariable Long projectId,
+                                          @RequestParam("domainUrl") String domainUrl,
+                                          RedirectAttributes redirectAttributes) {
+        try {
+            User user = userRepository.findByEmail(principal.getUsername()).orElseThrow();
+            Project project = projectRepository.findById(projectId).orElseThrow();
+            validateProjectOwnership(user, project);
+
+            EndpointAnalysisResult result = endpointAnalysisService.performAnalysis(project, domainUrl);
+            redirectAttributes.addFlashAttribute("message",
+                "Endpoint analysis completed with status %s".formatted(result.getStatus()));
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        } catch (Exception ex) {
+            logger.error("Endpoint analysis failed for project {}", projectId, ex);
+            redirectAttributes.addFlashAttribute("error", "Endpoint analysis failed: " + ex.getMessage());
+        }
+        return "redirect:/test-management?projectId=" + projectId + "#analysis";
     }
 
     @PostMapping("/test-management/test/{id}/run")
@@ -260,5 +297,37 @@ public class TestManagementController {
             return raw.trim();
         }
         return jsonParserUtil.toJson(definitionNode);
+    }
+
+    private EndpointAnalysisView toView(EndpointAnalysisResult result) {
+        EndpointAnalysisPayload payload;
+        try {
+            payload = Optional.ofNullable(result.getPayloadJson())
+                .filter(json -> !json.isBlank())
+                .map(json -> jsonParserUtil.parse(json, EndpointAnalysisPayload.class))
+                .orElseGet(() -> new EndpointAnalysisPayload(null, null, null, null));
+        } catch (IllegalArgumentException ex) {
+            logger.warn("Failed to parse endpoint analysis payload for result {}", result.getId(), ex);
+            payload = new EndpointAnalysisPayload(null, null, null, List.of("Payload parsing error"));
+        }
+        return new EndpointAnalysisView(result, payload);
+    }
+
+    private static class EndpointAnalysisView {
+        private final EndpointAnalysisResult entity;
+        private final EndpointAnalysisPayload payload;
+
+        private EndpointAnalysisView(EndpointAnalysisResult entity, EndpointAnalysisPayload payload) {
+            this.entity = entity;
+            this.payload = payload;
+        }
+
+        public EndpointAnalysisResult getEntity() {
+            return entity;
+        }
+
+        public EndpointAnalysisPayload getPayload() {
+            return payload;
+        }
     }
 }

@@ -52,6 +52,15 @@ public class Project {
     @Column(length = 120)
     private String automationBranches;
 
+    @Column(length = 512)
+    private String githubLink;
+
+    @Column(length = 512)
+    private String websiteLink;
+
+    @Column(length = 512)
+    private String appDomain;
+
     public Long getId() {
         return id;
     }
@@ -162,5 +171,29 @@ public class Project {
 
     public void setAutomationBranches(String automationBranches) {
         this.automationBranches = automationBranches;
+    }
+
+    public String getGithubLink() {
+        return githubLink;
+    }
+
+    public void setGithubLink(String githubLink) {
+        this.githubLink = githubLink;
+    }
+
+    public String getWebsiteLink() {
+        return websiteLink;
+    }
+
+    public void setWebsiteLink(String websiteLink) {
+        this.websiteLink = websiteLink;
+    }
+
+    public String getAppDomain() {
+        return appDomain;
+    }
+
+    public void setAppDomain(String appDomain) {
+        this.appDomain = appDomain;
     }
 }

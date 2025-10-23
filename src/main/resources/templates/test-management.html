@@ -1,309 +1,767 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Test Management - Automation Platform</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/style.css" />
     <script src="/js/app.js" defer></script>
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6',
+                        accent: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .tabs {
-            display: flex;
-            gap: 0.5rem;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-            margin-bottom: 1.5rem;
-        }
+      .tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        margin-bottom: 1.5rem;
+      }
 
-        .tab-link {
-            padding: 0.75rem 1.5rem;
-            border-bottom: 3px solid transparent;
-            color: #94a3b8;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+      .tab-link {
+        padding: 0.75rem 1.5rem;
+        border-bottom: 3px solid transparent;
+        color: #94a3b8;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
 
-        .tab-link:hover {
-            color: #e2e8f0;
-        }
+      .tab-link:hover {
+        color: #e2e8f0;
+      }
 
-        .tab-link.active {
-            color: #7dd3fc;
-            border-bottom-color: #38bdf8;
-        }
+      .tab-link.active {
+        color: #7dd3fc;
+        border-bottom-color: #38bdf8;
+      }
 
-        .tab-content {
-            display: none;
-        }
+      .tab-content {
+        display: none;
+      }
 
-        .tab-content.active {
-            display: block;
-            animation: fadeInUp 0.5s ease;
-        }
+      .tab-content.active {
+        display: block;
+        animation: fadeInUp 0.5s ease;
+      }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(8px);
-        }
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(8px);
+      }
 
-        .modal-content {
-            background: #1e293b;
-            margin: 10% auto;
-            padding: 2rem;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            width: 90%;
-            max-width: 640px;
-            border-radius: 16px;
-            animation: scaleIn 0.4s ease;
-        }
+      .modal-content {
+        background: #1e293b;
+        margin: 10% auto;
+        padding: 2rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        width: 90%;
+        max-width: 640px;
+        border-radius: 16px;
+        animation: scaleIn 0.4s ease;
+      }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+      }
 
-        .modal-header h2 {
-            margin: 0;
-        }
+      .modal-header h2 {
+        margin: 0;
+      }
 
-        .close-btn {
-            color: #94a3b8;
-            font-size: 2rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .test-icon {
-            margin-right: 0.5rem;
-        }
+      .close-btn {
+        color: #94a3b8;
+        font-size: 2rem;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .test-icon {
+        margin-right: 0.5rem;
+      }
+
+      .analysis-grid {
+        display: grid;
+        gap: 1.5rem;
+      }
+
+      .analysis-form {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        align-items: end;
+      }
+
+      .analysis-form input {
+        width: 100%;
+      }
+
+      .analysis-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .analysis-status-success {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+      }
+
+      .analysis-status-partial {
+        background: rgba(250, 204, 21, 0.18);
+        color: #fde68a;
+      }
+
+      .analysis-status-failed {
+        background: rgba(248, 113, 113, 0.18);
+        color: #fda4af;
+      }
+
+      .analysis-details details {
+        margin-top: 1rem;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+      }
+
+      .analysis-details summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: #93c5fd;
+        outline: none;
+      }
+
+      .analysis-detail-section {
+        margin-top: 1.25rem;
+      }
+
+      .analysis-detail-section h4 {
+        margin-bottom: 0.5rem;
+        color: #e2e8f0;
+      }
+
+      .analysis-detail-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .analysis-detail-list li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        font-size: 0.9rem;
+      }
+
+      .analysis-detail-list li:last-child {
+        border-bottom: none;
+      }
+
+      .analysis-metrics {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+      }
     </style>
-</head>
-<body>
-<header th:replace="~{fragments/nav :: app-nav}"></header>
-<div class="container">
-    <div class="alert success" th:if="${message}" th:text="${message}"></div>
-    <div class="alert error" th:if="${error}" th:text="${error}"></div>
-</div>
-<main class="container">
-    <section class="card page-header" th:if="${project != null}">
+  </head>
+  <body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
+    <header th:replace="~{fragments/nav :: app-nav}"></header>
+    
+    <div class="container mx-auto px-6">
+      <div th:if="${message}" class="mb-6 p-4 bg-green-500/10 border border-green-500/30 text-green-400 rounded-2xl backdrop-blur-xl flex items-center gap-3">
+        <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+        <span th:text="${message}"></span>
+      </div>
+      <div th:if="${error}" class="mb-6 p-4 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl backdrop-blur-xl flex items-center gap-3">
+        <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+        <span th:text="${error}"></span>
+      </div>
+    </div>
+    <main class="container">
+      <section class="card page-header" th:if="${project != null}">
         <div class="card-header">
-            <h1 th:text="${project.name}">Project</h1>
-            <p th:text="${project.description != null ? project.description : 'Manage UI and API cases, imports, and orchestration in one place.'}">
-                Project description placeholder.
-            </p>
+          <h1 th:text="${project.name}">Project</h1>
+          <p
+            th:text="${project.description != null ? project.description : 'Manage UI and API cases, imports, and orchestration in one place.'}"
+          >
+            Project description placeholder.
+          </p>
         </div>
         <div class="page-header__meta">
-            <span class="chip">
-                <strong th:text="${tests != null ? tests.size() : 0}">0</strong>
-                Tests
-            </span>
-            <span class="chip">
-                <strong th:text="${tests != null ? tests.?[type == T(com.example.automatedtestingframework.model.TestCaseType).UI].size() : 0}">0</strong>
-                UI
-            </span>
-            <span class="chip">
-                <strong th:text="${tests != null ? tests.?[type == T(com.example.automatedtestingframework.model.TestCaseType).API].size() : 0}">0</strong>
-                API
-            </span>
+          <span class="chip">
+            <strong th:text="${tests != null ? tests.size() : 0}">0</strong>
+            Tests
+          </span>
+          <span class="chip">
+            <strong
+              th:text="${tests != null ? tests.?[type != null and type == T(com.example.automatedtestingframework.model.TestCaseType).UI].size() : 0}"
+              >0</strong
+            >
+            UI
+          </span>
+          <span class="chip">
+            <strong
+              th:text="${tests != null ? tests.?[type != null and type == T(com.example.automatedtestingframework.model.TestCaseType).API].size() : 0}"
+              >0</strong
+            >
+            API
+          </span>
         </div>
-    </section>
+      </section>
 
-    <div class="tabs">
+      <div class="tabs">
         <span class="tab-link active" data-tab="tests">Test Cases</span>
         <span class="tab-link" data-tab="bulk">Bulk Operations</span>
+        <span class="tab-link" data-tab="analysis">Auto Analysis</span>
         <span class="tab-link" data-tab="actions">Action Files</span>
-    </div>
+      </div>
 
-    <!-- Test Cases Tab -->
-    <div id="tests" class="tab-content active">
+      <!-- Test Cases Tab -->
+      <div id="tests" class="tab-content active">
         <section class="card">
-            <div class="section-toolbar">
-                <h2>Existing Tests</h2>
-                <div class="actions" th:if="${project != null}">
-                    <button type="button" class="button-link" id="create-test-btn">Create Test</button>
-                    <form th:action="@{'/test-management/project/' + ${project.id} + '/run-suite'}" method="post" style="display: inline;">
-                        <input type="hidden" name="threadCount" value="4">
-                        <button type="submit" class="btn-secondary">Run All</button>
-                    </form>
-                </div>
+          <div class="section-toolbar">
+            <h2>Existing Tests</h2>
+            <div class="actions" th:if="${project != null}">
+              <button type="button" class="button-link" id="create-test-btn">
+                Create Test
+              </button>
+              <form
+                th:action="@{'/test-management/project/' + ${project.id} + '/run-suite'}"
+                method="post"
+                style="display: inline"
+              >
+                <input type="hidden" name="threadCount" value="4" />
+                <button type="submit" class="btn-secondary">Run All</button>
+              </form>
             </div>
-            <table th:if="${tests != null}">
+          </div>
+          <table th:if="${tests != null}">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Last Status</th>
+                <th>Last Run</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:if="${#lists.isEmpty(tests)}" class="table-empty">
+                <td colspan="5">
+                  No tests yet. Create one or use the Bulk Operations tab to
+                  import.
+                </td>
+              </tr>
+              <tr th:each="test : ${tests}">
+                <td th:text="${test.name}">Checkout</td>
+                <td>
+                  <span
+                    th:if="${test.type != null and test.type.name() == 'UI'}"
+                    class="test-icon"
+                    >🖥️</span
+                  >
+                  <span
+                    th:if="${test.type != null and test.type.name() == 'API'}"
+                    class="test-icon"
+                    >🔗</span
+                  >
+                  <span th:text="${test.type}">UI</span>
+                </td>
+                <td>
+                  <span
+                    class="badge"
+                    th:attr="data-status=${test.lastRunStatus}"
+                    th:text="${test.lastRunStatus != null ? test.lastRunStatus : 'Never'}"
+                  ></span>
+                </td>
+                <td
+                  th:text="${test.lastRunAt != null ? #temporals.format(test.lastRunAt, 'yyyy-MM-dd HH:mm') : '—'}"
+                ></td>
+                <td>
+                  <form
+                    th:action="@{'/test-management/test/' + ${test.id} + '/run'}"
+                    method="post"
+                  >
+                    <button type="submit" class="btn-tertiary">Run Now</button>
+                  </form>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- Bulk Operations Tab -->
+      <div id="bulk" class="tab-content">
+        <div class="grid grid-2">
+          <section class="card">
+            <h2>Bulk Import Tests</h2>
+            <p>
+              Upload a JSON file or paste a payload to add or update multiple
+              cases.
+            </p>
+            <form
+              th:action="@{/test-management/tests/import}"
+              method="post"
+              enctype="multipart/form-data"
+              class="grid"
+              data-validate="bulk-import"
+              novalidate
+            >
+              <input type="hidden" name="projectId" th:value="${project.id}" />
+              <div>
+                <label for="bulk-file">JSON file</label>
+                <input
+                  id="bulk-file"
+                  type="file"
+                  name="file"
+                  accept="application/json"
+                />
+              </div>
+              <div>
+                <label for="bulk-payload">Or paste JSON payload</label>
+                <textarea
+                  id="bulk-payload"
+                  name="payload"
+                  rows="8"
+                  placeholder='{"tests": [{"name": "Checkout", "type": "UI", "definition": {...}}]}'
+                ></textarea>
+              </div>
+              <div class="form-error" data-error-for="bulk-import"></div>
+              <div>
+                <button type="submit">Import Tests</button>
+              </div>
+            </form>
+          </section>
+          <section class="card">
+            <h2>Run Full Project Suite</h2>
+            <p>
+              Execute all UI and API cases together. Choose the number of
+              parallel workers to balance speed and resource usage.
+            </p>
+            <form
+              th:action="@{'/test-management/project/' + ${project.id} + '/run-suite'}"
+              method="post"
+              class="grid"
+            >
+              <div>
+                <label for="threadCount">Parallel Workers</label>
+                <input
+                  id="threadCount"
+                  name="threadCount"
+                  type="number"
+                  min="1"
+                  max="64"
+                  value="4"
+                />
+              </div>
+              <div>
+                <button type="submit">Run Full Suite</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+
+      <!-- Automatic Analysis Tab -->
+      <div id="analysis" class="tab-content">
+        <div class="analysis-grid">
+          <section class="card">
+            <h2>Automatic Endpoint Discovery</h2>
+            <p>
+              Launch a two-pass analysis that inspects well-known files and
+              captures live network traffic via a headless browser.
+            </p>
+            <form
+              th:if="${project != null}"
+              th:action="@{'/test-management/project/' + ${project.id} + '/endpoint-analysis'}"
+              method="post"
+              class="analysis-form"
+            >
+              <div>
+                <label for="analysis-domain">Domain URL</label>
+                <input
+                  id="analysis-domain"
+                  name="domainUrl"
+                  type="url"
+                  placeholder="https://yourapp.com"
+                  required
+                />
+                <p class="helper-text">
+                  We'll probe sitemap, robots, swagger, and open API files,
+                  parse HTML via Jsoup, then analyse network requests with a
+                  headless browser.
+                </p>
+              </div>
+              <div>
+                <button type="submit">Run Analysis</button>
+              </div>
+            </form>
+            <p class="helper-text" th:if="${project == null}">
+              Select a project to enable automatic analysis.
+            </p>
+          </section>
+
+          <section class="card analysis-details">
+            <h2>Recent Analysis Results</h2>
+            <p
+              class="helper-text"
+              th:if="${analysisResults == null || #lists.isEmpty(analysisResults)}"
+            >
+              No analysis runs yet. Submit a domain above to generate insights.
+            </p>
+            <div
+              th:if="${analysisResults != null && !#lists.isEmpty(analysisResults)}"
+            >
+              <table>
                 <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Last Status</th>
-                    <th>Last Run</th>
-                    <th></th>
-                </tr>
+                  <tr>
+                    <th>Domain</th>
+                    <th>Run At</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                  </tr>
                 </thead>
                 <tbody>
-                <tr th:if="${#lists.isEmpty(tests)}" class="table-empty">
-                    <td colspan="5">No tests yet. Create one or use the Bulk Operations tab to import.</td>
-                </tr>
-                <tr th:each="test : ${tests}">
-                    <td th:text="${test.name}">Checkout</td>
+                  <tr th:each="analysis : ${analysisResults}">
                     <td>
-                        <span th:if="${test.type.name() == 'UI'}" class="test-icon">🖥️</span>
-                        <span th:if="${test.type.name() == 'API'}" class="test-icon">🔗</span>
-                        <span th:text="${test.type}">UI</span>
+                      <strong th:text="${analysis.entity.domain}"
+                        >https://yourapp.com</strong
+                      >
+                      <div class="analysis-metrics">
+                        <span
+                          >Files:
+                          <strong
+                            th:text="${analysis.entity.fileDiscoveryCount}"
+                            >0</strong
+                          ></span
+                        >
+                        <span
+                          >HTML endpoints:
+                          <strong
+                            th:text="${analysis.entity.htmlDiscoveryCount}"
+                            >0</strong
+                          ></span
+                        >
+                        <span
+                          >Network calls:
+                          <strong
+                            th:text="${analysis.entity.networkDiscoveryCount}"
+                            >0</strong
+                          ></span
+                        >
+                      </div>
+                    </td>
+                    <td
+                      th:text="${analysis.entity.executedAt != null ? #temporals.format(analysis.entity.executedAt, 'yyyy-MM-dd HH:mm') : '—'}"
+                    >
+                      2025-01-01 12:00
                     </td>
                     <td>
-                        <span class="badge" th:attr="data-status=${test.lastRunStatus}" th:text="${test.lastRunStatus != null ? test.lastRunStatus : 'Never'}"></span>
+                      <span
+                        class="analysis-status-badge"
+                        th:classappend="${analysis.entity.status?.name() == 'SUCCESS'} ? ' analysis-status-success' : (${analysis.entity.status?.name() == 'PARTIAL'} ? ' analysis-status-partial' : ' analysis-status-failed')"
+                        th:text="${analysis.entity.status}"
+                        >SUCCESS</span
+                      >
                     </td>
-                    <td th:text="${test.lastRunAt != null ? #temporals.format(test.lastRunAt, 'yyyy-MM-dd HH:mm') : '—'}"></td>
                     <td>
-                        <form th:action="@{'/test-management/test/' + ${test.id} + '/run'}" method="post">
-                            <button type="submit" class="btn-tertiary">Run Now</button>
-                        </form>
+                      <details>
+                        <summary>View details</summary>
+                        <div
+                          class="analysis-detail-section"
+                          th:if="${analysis.payload != null && analysis.payload.fileResources() != null && !analysis.payload.fileResources().isEmpty()}"
+                        >
+                          <h4>File-based resources</h4>
+                          <ul class="analysis-detail-list">
+                            <li
+                              th:each="resource : ${analysis.payload.fileResources()}"
+                            >
+                              <div>
+                                <strong th:text="${resource.path()}"
+                                  >/sitemap.xml</strong
+                                >
+
+                                <span th:text="${' - status ' + resource.statusCode}">200</span>
+
+                                <span
+                                  th:if="${resource.contentType() != null && !resource.contentType().isBlank()}"
+                                  th:text="${' (' + resource.contentType + ')'}"
+                                  >(application/xml)</span
+                                >
+                              </div>
+                              <div
+                                class="helper-text"
+                                th:text="${resource.preview}"
+                              ></div>
+                            </li>
+                          </ul>
+                        </div>
+                        <div
+                          class="analysis-detail-section"
+                          th:if="${analysis.payload != null && analysis.payload.htmlEndpoints() != null && !analysis.payload.htmlEndpoints().isEmpty()}"
+                        >
+                          <h4>HTML endpoints</h4>
+                          <ul class="analysis-detail-list">
+                            <li
+                              th:each="endpoint : ${analysis.payload.htmlEndpoints()}"
+                            >
+                              <strong
+                                th:text="${endpoint.tag() != null ? endpoint.tag().toUpperCase() : ''}"
+                                >LINK</strong
+                              >
+                              <div>
+                                <a
+                                  th:href="${endpoint.url()}"
+                                  th:text="${endpoint.url()}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  >https://example.com</a
+                                >
+                              </div>
+                              <div
+                                class="helper-text"
+                                th:if="${endpoint.text() != null && !endpoint.text().isBlank()}"
+                                th:text="${endpoint.text()}"
+                              ></div>
+                            </li>
+                          </ul>
+                        </div>
+                        <div
+                          class="analysis-detail-section"
+                          th:if="${analysis.payload != null && analysis.payload.networkRequests() != null && !analysis.payload.networkRequests().isEmpty()}"
+                        >
+                          <h4>Captured network requests</h4>
+                          <ul class="analysis-detail-list">
+                            <li
+                              th:each="request : ${analysis.payload.networkRequests()}"
+                            >
+                              <strong th:text="${request.method()}">GET</strong>
+                              <span th:text="${request.statusCode()}">200</span>
+                              <div>
+                                <a
+                                  th:href="${request.url()}"
+                                  th:text="${request.url()}"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  >https://example.com/api</a
+                                >
+                              </div>
+                              <div
+                                class="helper-text"
+                                th:if="${request.contentType() != null && !request.contentType().isBlank()}"
+                                th:text="${request.contentType()}"
+                              ></div>
+                            </li>
+                          </ul>
+                        </div>
+                        <div
+                          class="analysis-detail-section"
+                          th:if="${analysis.payload != null && analysis.payload.issues() != null && !analysis.payload.issues().isEmpty()}"
+                        >
+                          <h4>Notes</h4>
+                          <ul class="analysis-detail-list">
+                            <li
+                              th:each="issue : ${analysis.payload.issues()}"
+                              th:text="${issue}"
+                            ></li>
+                          </ul>
+                        </div>
+                      </details>
                     </td>
-                </tr>
+                  </tr>
                 </tbody>
-            </table>
-        </section>
-    </div>
-
-    <!-- Bulk Operations Tab -->
-    <div id="bulk" class="tab-content">
-        <div class="grid grid-2">
-            <section class="card">
-                <h2>Bulk Import Tests</h2>
-                <p>Upload a JSON file or paste a payload to add or update multiple cases.</p>
-                <form th:action="@{/test-management/tests/import}" method="post" enctype="multipart/form-data" class="grid" data-validate="bulk-import" novalidate>
-                    <input type="hidden" name="projectId" th:value="${project.id}">
-                    <div>
-                        <label for="bulk-file">JSON file</label>
-                        <input id="bulk-file" type="file" name="file" accept="application/json">
-                    </div>
-                    <div>
-                        <label for="bulk-payload">Or paste JSON payload</label>
-                        <textarea id="bulk-payload" name="payload" rows="8" placeholder='{"tests": [{"name": "Checkout", "type": "UI", "definition": {...}}]}'></textarea>
-                    </div>
-                    <div class="form-error" data-error-for="bulk-import"></div>
-                    <div>
-                        <button type="submit">Import Tests</button>
-                    </div>
-                </form>
-            </section>
-            <section class="card">
-                <h2>Run Full Project Suite</h2>
-                <p>Execute all UI and API cases together. Choose the number of parallel workers to balance speed and resource usage.</p>
-                <form th:action="@{'/test-management/project/' + ${project.id} + '/run-suite'}" method="post" class="grid">
-                    <div>
-                        <label for="threadCount">Parallel Workers</label>
-                        <input id="threadCount" name="threadCount" type="number" min="1" max="64" value="4">
-                    </div>
-                    <div>
-                        <button type="submit">Run Full Suite</button>
-                    </div>
-                </form>
-            </section>
+              </table>
+            </div>
+          </section>
         </div>
-    </div>
+      </div>
 
-    <!-- Action Files Tab -->
-    <div id="actions" class="tab-content">
+      <!-- Action Files Tab -->
+      <div id="actions" class="tab-content">
         <section class="card">
-            <h2>Generated Action Files</h2>
-            <p>Manage reusable action files for advanced testing scenarios.</p>
-            <form th:action="@{/test-management/action}" method="post" class="grid">
-                <input type="hidden" name="projectId" th:value="${project != null}? ${project.id} : ''">
-                <div>
-                    <label>Name</label>
-                    <input type="text" name="name" required>
-                </div>
-                <div>
-                    <label>Content</label>
-                    <textarea name="content" rows="6"></textarea>
-                </div>
-                <div>
-                    <button type="submit">Save Action File</button>
-                </div>
-            </form>
-            <ul th:if="${actions != null and !actions.isEmpty()}" style="margin-top: 1.5rem;">
-                <li th:each="action : ${actions}" th:text="${action.name}"></li>
-            </ul>
-            <p th:if="${actions == null or actions.isEmpty()}" class="helper-text">No action files created yet.</p>
+          <h2>Generated Action Files</h2>
+          <p>Manage reusable action files for advanced testing scenarios.</p>
+          <form
+            th:action="@{/test-management/action}"
+            method="post"
+            class="grid"
+          >
+            <input
+              type="hidden"
+              name="projectId"
+              th:value="${project != null}? ${project.id} : ''"
+            />
+            <div>
+              <label>Name</label>
+              <input type="text" name="name" required />
+            </div>
+            <div>
+              <label>Content</label>
+              <textarea name="content" rows="6"></textarea>
+            </div>
+            <div>
+              <button type="submit">Save Action File</button>
+            </div>
+          </form>
+          <ul
+            th:if="${actions != null and !actions.isEmpty()}"
+            style="margin-top: 1.5rem"
+          >
+            <li th:each="action : ${actions}" th:text="${action.name}"></li>
+          </ul>
+          <p
+            th:if="${actions == null or actions.isEmpty()}"
+            class="helper-text"
+          >
+            No action files created yet.
+          </p>
         </section>
-    </div>
-</main>
+      </div>
+    </main>
 
-<!-- Create Test Modal -->
-<div id="create-test-modal" class="modal">
-    <div class="modal-content">
+    <!-- Create Test Modal -->
+    <div id="create-test-modal" class="modal">
+      <div class="modal-content">
         <div class="modal-header">
-            <h2>Create or Update Test</h2>
-            <span class="close-btn">&times;</span>
+          <h2>Create or Update Test</h2>
+          <span class="close-btn">&times;</span>
         </div>
-        <form th:action="@{/test-management/test}" method="post" class="grid" data-validate="single-test" novalidate>
-            <input type="hidden" name="projectId" th:value="${project != null}? ${project.id} : ''">
-            <div>
-                <label>Test Name</label>
-                <input type="text" name="name" required>
-            </div>
-            <div>
-                <label>Type</label>
-                <select name="type">
-                    <option th:each="type : ${types}" th:value="${type}" th:text="${type}"></option>
-                </select>
-            </div>
-            <div>
-                <label for="definitionJson">Definition (JSON)</label>
-                <textarea id="definitionJson" name="definitionJson" rows="8" placeholder='{ "steps": [] }'></textarea>
-                <div class="form-error" data-error-for="single-test"></div>
-                <p class="helper-text">UI tests expect a <code>steps</code> array, API tests a <code>requests</code> array.</p>
-            </div>
-            <div>
-                <button type="submit">Save Test</button>
-            </div>
+        <form
+          th:action="@{/test-management/test}"
+          method="post"
+          class="grid"
+          data-validate="single-test"
+          novalidate
+        >
+          <input
+            type="hidden"
+            name="projectId"
+            th:value="${project != null}? ${project.id} : ''"
+          />
+          <div>
+            <label>Test Name</label>
+            <input type="text" name="name" required />
+          </div>
+          <div>
+            <label>Type</label>
+            <select name="type">
+              <option
+                th:each="type : ${types}"
+                th:value="${type}"
+                th:text="${type}"
+              ></option>
+            </select>
+          </div>
+          <div>
+            <label for="definitionJson">Definition (JSON)</label>
+            <textarea
+              id="definitionJson"
+              name="definitionJson"
+              rows="8"
+              placeholder='{ "steps": [] }'
+            ></textarea>
+            <div class="form-error" data-error-for="single-test"></div>
+            <p class="helper-text">
+              UI tests expect a <code>steps</code> array, API tests a
+              <code>requests</code> array.
+            </p>
+          </div>
+          <div>
+            <button type="submit">Save Test</button>
+          </div>
         </form>
+      </div>
     </div>
-</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const tabs = document.querySelectorAll('.tab-link');
-        const tabContents = document.querySelectorAll('.tab-content');
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const tabs = document.querySelectorAll(".tab-link");
+        const tabContents = document.querySelectorAll(".tab-content");
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
+        const activateTab = (targetId) => {
+          tabs.forEach((t) => t.classList.remove("active"));
+          tabContents.forEach((content) => content.classList.remove("active"));
 
-                tabContents.forEach(content => {
-                    content.classList.remove('active');
-                });
-                document.getElementById(tab.dataset.tab).classList.add('active');
-            });
+          const targetTab = document.querySelector(
+            `.tab-link[data-tab="${targetId}"]`
+          );
+          const targetPanel = document.getElementById(targetId);
+          if (targetTab) {
+            targetTab.classList.add("active");
+          }
+          if (targetPanel) {
+            targetPanel.classList.add("active");
+          }
+        };
+
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            activateTab(tab.dataset.tab);
+            history.replaceState(null, "", `#${tab.dataset.tab}`);
+          });
         });
 
-        const modal = document.getElementById('create-test-modal');
-        const createBtn = document.getElementById('create-test-btn');
-        const closeBtn = document.querySelector('.close-btn');
+        const initialHash = window.location.hash
+          ? window.location.hash.substring(1)
+          : null;
+        if (initialHash && document.getElementById(initialHash)) {
+          activateTab(initialHash);
+        } else {
+          activateTab("tests");
+        }
+
+        const modal = document.getElementById("create-test-modal");
+        const createBtn = document.getElementById("create-test-btn");
+        const closeBtn = document.querySelector(".close-btn");
 
         if (createBtn) {
-            createBtn.onclick = () => modal.style.display = 'block';
+          createBtn.onclick = () => (modal.style.display = "block");
         }
         if (closeBtn) {
-            closeBtn.onclick = () => modal.style.display = 'none';
+          closeBtn.onclick = () => (modal.style.display = "none");
         }
         window.onclick = (event) => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
+          if (event.target === modal) {
+            modal.style.display = "none";
+          }
         };
-    });
-</script>
-</body>
+        
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+      });
+    </script>
+  </body>
 </html>
